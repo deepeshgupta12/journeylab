@@ -72,7 +72,7 @@ These were open questions that have been **checked**, not assumed. Recorded here
 | ASM-005 | Does an application codebase exist? | **No.** The repository contained only `docs/product/` with three Markdown files and no source, manifests, contracts, migrations, CI or tests | 2026-08-05 | Directory listing + file enumeration |
 | ASM-006 | Is a knowledge-graph tool available? | **Yes.** GitNexus is installed and functional; MCP server responds and 5 other repositories are indexed | 2026-08-05 | `list_repos` MCP call |
 | ASM-007 | Was `journeylab` already indexed? | **No** — it was absent from the registry, and the directory was not a git repository | 2026-08-05 | `list_repos` + `git status` |
-| ASM-008 | Can GitNexus index this repository now? | **Yes.** After `git init` and a baseline commit, `npx gitnexus analyze` succeeded: 119 nodes, 143 edges, index at commit `db32aff` (later amended to `73766ca`) | 2026-08-05 | `npx gitnexus analyze`, `npx gitnexus status` |
+| ASM-008 | Can GitNexus index this repository now? | **Yes.** After `git init` and a baseline commit, `npx gitnexus analyze` succeeded: ~1,860 nodes, ~2,535 edges, index at commit `db32aff` (later amended to `73766ca`) | 2026-08-05 | `npx gitnexus analyze`, `npx gitnexus status` |
 | ASM-009 | Is the project-local runner `.gitnexus/run.cjs` available? | **No.** `analyze` did not generate it; `node .gitnexus/run.cjs` fails with `MODULE_NOT_FOUND`. **`npx gitnexus <command>` is the working invocation** and is what the documentation specifies | 2026-08-05 | Direct execution of both forms |
 | ASM-016 | What is the realistic cost per saved feasible trip? | **Still open** — no traces exist to measure. Tracked as `EV-GAP-006` | — | — |
 

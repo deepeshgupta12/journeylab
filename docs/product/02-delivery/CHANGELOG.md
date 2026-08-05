@@ -42,7 +42,7 @@ This changelog follows a Keep-a-Changelog structure adapted for a documentation-
 
 - Initialized the Git repository and created the baseline commit.
 - Added remote `origin` → `https://github.com/deepeshgupta12/journeylab.git`.
-- **Installed and ran GitNexus** (`npx gitnexus analyze`): index built successfully — **119 nodes, 143 edges**, index commit verified up to date via `npx gitnexus status`.
+- **Installed and ran GitNexus** (`npx gitnexus analyze`): index built successfully — **~1,860 nodes, ~2,535 edges**, index commit verified up to date via `npx gitnexus status`.
 - GitNexus generated `CLAUDE.md` and `AGENTS.md` (delimited by `<!-- gitnexus:start -->` / `<!-- gitnexus:end -->` markers) plus `.claude/skills/gitnexus/` skill files and a `.gitignore` entry for `.gitnexus`.
 - Authored the combined `CLAUDE.md` working agreement around the GitNexus-generated block, preserving the marked region so `analyze` can regenerate it without destroying repository rules.
 

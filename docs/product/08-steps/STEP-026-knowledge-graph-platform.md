@@ -95,7 +95,7 @@ All `PROPOSED` except the verified GitNexus artifacts: `.gitnexus/`, `CLAUDE.md`
 ## 19. Knowledge-graph pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | **AVAILABLE, documentation-only** — 119 nodes, 143 edges (verified 2026-08-05) |
+| Graph status | **AVAILABLE, documentation-only** — ~1,860 nodes, ~2,535 edges (verified 2026-08-05) |
 | Queries to run | KG-Q-015 before commits; full gate evaluation after the first code merge |
 | Expected impact | **An extractor change alters every downstream answer** — highest-leverage change class in the repository |
 

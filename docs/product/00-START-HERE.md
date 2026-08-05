@@ -87,7 +87,7 @@ graph TD
 
 **Reading the diagram.** Two gates bracket every piece of work. The pre-change gate stops you building on a wrong model of the system; the regression gate (R1–R7) stops your work from breaking what already exists. The loop closes with a re-index, so the next sub-step starts from an accurate graph.
 
-**Current capability — stated honestly:** GitNexus is installed and indexing this repository (**119 nodes, 143 edges**, verified 2026-08-05), but the index covers **Markdown documentation only** because no application source exists. Impact analysis on application symbols is therefore `BLOCKED`; the [static fallback](05-knowledge-graph/CHANGE_IMPACT_PROTOCOL.md#6-static-fallback--when-the-graph-cannot-answer) applies and **does not satisfy the release gate** (`RISK-014`).
+**Current capability — stated honestly:** GitNexus is installed and indexing this repository (**~1,860 nodes, ~2,535 edges**, verified 2026-08-05), but the index covers **Markdown documentation only** because no application source exists. Impact analysis on application symbols is therefore `BLOCKED`; the [static fallback](05-knowledge-graph/CHANGE_IMPACT_PROTOCOL.md#6-static-fallback--when-the-graph-cannot-answer) applies and **does not satisfy the release gate** (`RISK-014`).
 
 **Commands:** `npx gitnexus analyze` · `npx gitnexus status` · `npx gitnexus list` · `npx gitnexus clean`
 The project-local `.gitnexus/run.cjs` runner was **not** generated — use `npx gitnexus` (`ASM-009`).
@@ -199,7 +199,7 @@ The project-local `.gitnexus/run.cjs` runner was **not** generated — use `npx 
 | Application source files | **0** | directory enumeration |
 | Contracts, migrations, CI, IaC on disk | **None** | directory enumeration |
 | GitNexus installed | **Yes** | `npx gitnexus analyze` succeeded |
-| Index size | **119 nodes, 143 edges** | analyzer output |
+| Index size | **~1,860 nodes, ~2,535 edges** | analyzer output |
 | Index freshness | Up to date at the indexed commit | `npx gitnexus status` |
 | Index coverage | **Markdown documentation only** | no source exists to index |
 | Local Node version | v25.9.0 — **application runtime must still be pinned to Node 24 LTS** | `node -v` via runner |

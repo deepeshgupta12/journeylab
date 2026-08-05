@@ -5,7 +5,7 @@
 | Owner | Platform (unassigned — `BLK-001`) |
 | Status | `READY` — pipeline defined; **code-graph coverage blocked until source exists** |
 | Tool | GitNexus (`ADR-005`) |
-| Verified state | Indexed 2026-08-05 · **119 nodes, 143 edges** · documentation only |
+| Verified state | Indexed 2026-08-05 · **~1,860 nodes, ~2,535 edges** · documentation only |
 | Last reviewed | 2026-08-05 |
 
 Navigation: [Change impact protocol](CHANGE_IMPACT_PROTOCOL.md) · [Schema](KNOWLEDGE_GRAPH_SCHEMA.md) · [Quality & governance](GRAPH_QUALITY_AND_GOVERNANCE.md) · [Query playbook](GRAPH_QUERY_PLAYBOOK.md) · [00-START-HERE](../00-START-HERE.md)
@@ -21,7 +21,7 @@ Recorded from direct execution, not assumed:
 | Installation | `npx gitnexus analyze` executed successfully in this repository |
 | Repository | `/Users/deepeshgupta/Projects/journeylab`, registered as `journeylab` |
 | Remote | `https://github.com/deepeshgupta12/journeylab.git` |
-| Index result | **119 nodes, 143 edges**, 0 clusters, 0 execution flows |
+| Index result | **~1,860 nodes, ~2,535 edges**, 0 clusters, 0 execution flows |
 | Status | `npx gitnexus status` → up to date at the indexed commit |
 | Artifacts created | `.gitnexus/` (index), `CLAUDE.md` + `AGENTS.md` (context, marker-delimited), `.claude/skills/gitnexus/` (6 skill files), `.gitignore` entry for `.gitnexus` |
 | **Runner caveat** | `.gitnexus/run.cjs` was **not** generated; `node .gitnexus/run.cjs` fails with `MODULE_NOT_FOUND`. **Use `npx gitnexus <command>`** (`ASM-009`) |

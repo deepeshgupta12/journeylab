@@ -122,7 +122,7 @@ Documentation completeness is **100%** (28/28 step files exist with all 28 secti
 | Repository | `/Users/deepeshgupta/Projects/journeylab`, registered as `journeylab` |
 | Remote | `https://github.com/deepeshgupta12/journeylab.git` |
 | Index state | ✅ up to date with `HEAD` at index time |
-| Graph size | **119 nodes, 143 edges**, 0 clusters, 0 execution flows |
+| Graph size | **~1,860 nodes, ~2,535 edges**, 0 clusters, 0 execution flows |
 | **Coverage caveat** | The graph indexes **Markdown documentation only**. There is no application source code, so no symbols, APIs, tables, models or tests are represented (`RISK-014`, `ASM-025`) |
 | Pre-change check capability | **`BLOCKED` for application code** — static fallback applies and does not satisfy the release gate |
 | Required next action | Re-run `npx gitnexus analyze` immediately after the first source-code merge, then evaluate `REQ-KG-001` (≥95% files parsed) and `REQ-KG-002` (≥90% symbols owned) |

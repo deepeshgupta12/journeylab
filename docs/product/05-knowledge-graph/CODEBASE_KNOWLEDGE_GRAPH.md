@@ -30,12 +30,12 @@ The code graph answers questions that source search cannot:
 | Fact | Value |
 | --- | --- |
 | Indexed | 2026-08-05 |
-| Size | **119 nodes, 143 edges**, 0 clusters, 0 execution flows |
+| Size | **~1,860 nodes, ~2,535 edges**, 0 clusters, 0 execution flows |
 | Content | Markdown documentation files and their relationships |
 | Application symbols | **Zero** — no source code exists |
 | Freshness | `npx gitnexus status` → up to date |
 
-**Honest assessment:** at 119 nodes covering documentation, this graph currently proves the *pipeline works*. It cannot yet answer a single impact question about application behavior, because there is no application. Impact analysis is `BLOCKED` and the static fallback applies (`RISK-014`, `ASM-025`).
+**Honest assessment:** at ~1,860 nodes covering documentation, this graph currently proves the *pipeline works*. It cannot yet answer a single impact question about application behavior, because there is no application. Impact analysis is `BLOCKED` and the static fallback applies (`RISK-014`, `ASM-025`).
 
 The value of indexing now rather than later: the first source commit gets a working, already-configured graph and a pre-change discipline that is habitual rather than retrofitted.
 

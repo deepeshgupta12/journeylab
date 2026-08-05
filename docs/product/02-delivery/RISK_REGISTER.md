@@ -149,7 +149,7 @@ Scores below are **initial estimates by the documentation author**, not owner-ac
 | Field | Value |
 | --- | --- |
 | L × I | 4 × 3 = **12** |
-| Description | GitNexus currently indexes **documentation only** (119 nodes, verified 2026-08-05). Impact analysis on application symbols is impossible until code exists, so the first code changes risk merging without a meaningful pre-change check |
+| Description | GitNexus currently indexes **documentation only** (~1,860 nodes, verified 2026-08-05). Impact analysis on application symbols is impossible until code exists, so the first code changes risk merging without a meaningful pre-change check |
 | Mitigation | Static fallback procedure ([CHANGE_IMPACT_PROTOCOL](../05-knowledge-graph/CHANGE_IMPACT_PROTOCOL.md) §7); re-index immediately after the first code merge; `REQ-KG-001` coverage gate enforced from the first source file |
 | Stop condition | None — but pre-change checks stay `BLOCKED` (fallback only) until code is indexed, and the fallback explicitly does not satisfy the release gate |
 | Related | `ASM-025` |

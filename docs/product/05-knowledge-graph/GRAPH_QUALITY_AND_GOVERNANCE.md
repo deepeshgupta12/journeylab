@@ -102,7 +102,7 @@ A file that fails to parse is never counted as excluded.
 | Question | Answer |
 | --- | --- |
 | Is the graph installed and working? | **Yes** — verified 2026-08-05 |
-| Does it index this repository? | **Yes** — 119 nodes, 143 edges |
+| Does it index this repository? | **Yes** — ~1,860 nodes, ~2,535 edges |
 | Does it cover application code? | **No — none exists** |
 | Can it answer impact questions about product behavior? | **No** |
 | Do the quality gates pass? | **Not evaluable** — they have no subject |

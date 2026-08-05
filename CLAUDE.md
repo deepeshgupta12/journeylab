@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (119 symbols, 143 relationships, 0 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (1859 symbols, 2535 relationships, 0 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -141,7 +141,7 @@ A failure means the sub-step is not done. Fix forward or revert; never proceed r
 
 | Fact | Value |
 | --- | --- |
-| Indexed | **119 nodes, 143 edges**, 0 clusters, 0 execution flows |
+| Indexed | **~1,860 nodes, ~2,535 edges**, 0 clusters, 0 execution flows |
 | Freshness | `status` reports up to date at the indexed commit |
 | **Coverage** | **Markdown documentation only — no application source exists** |
 | Impact analysis on app code | **`BLOCKED`** — static fallback applies (`RISK-014`) |

@@ -31,7 +31,7 @@ GitNexus indexes this repository, the working agreement in `CLAUDE.md` documents
 | Field | Value |
 | --- | --- |
 | Graph status | **AVAILABLE — documentation only** |
-| Indexed | 2026-08-05 · **119 nodes, 143 edges**, 0 clusters, 0 flows |
+| Indexed | 2026-08-05 · **~1,860 nodes, ~2,535 edges**, 0 clusters, 0 flows |
 | Freshness | `npx gitnexus status` → up to date at the indexed commit |
 | Invocation | **`npx gitnexus <command>`** — the project-local `.gitnexus/run.cjs` runner was **not** generated (`ASM-009`) |
 | Unknown / low-confidence areas | **Coverage gates are not evaluable** — no application source exists (`RISK-014`) |

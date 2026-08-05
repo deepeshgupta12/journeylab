@@ -53,7 +53,7 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 - **Date:** 2026-08-05 · **Owner:** Platform · **Status:** Accepted
 - **Context:** `KNOWLEDGE_GRAPH_TOOL` was `AUTO_DISCOVER`. GitNexus was verified present and functional, with an MCP server and CLI.
 - **Decision:** GitNexus provides the codebase knowledge graph, pre-change impact analysis and change detection. The **product domain graph is a separate concern** and is not served by GitNexus; it is specified in [DOMAIN_KNOWLEDGE_GRAPH](../05-knowledge-graph/DOMAIN_KNOWLEDGE_GRAPH.md) as a Neo4j/PostgreSQL design to be built in `STEP-026`.
-- **Verified evidence:** `npx gitnexus analyze` succeeded on 2026-08-05 — 119 nodes, 143 edges; `npx gitnexus status` reports the index up to date. **The index currently covers Markdown documentation only, because no source code exists.**
+- **Verified evidence:** `npx gitnexus analyze` succeeded on 2026-08-05 — ~1,860 nodes, ~2,535 edges; `npx gitnexus status` reports the index up to date. **The index currently covers Markdown documentation only, because no source code exists.**
 - **Consequences:** `npx gitnexus <command>` is the documented invocation (the project-local `run.cjs` runner was not generated — see `ASM-009`). Graph coverage gates in `REQ-KG-001` cannot be meaningfully evaluated until code lands.
 - **Alternatives rejected:** Hand-maintained dependency documentation (drifts immediately); deferring graph tooling until code exists (would let the first commits merge without impact analysis).
 

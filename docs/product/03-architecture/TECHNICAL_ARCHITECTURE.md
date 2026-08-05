@@ -132,7 +132,7 @@ Recorded from direct execution on 2026-08-05, not assumed:
 | Repository | `/Users/deepeshgupta/Projects/journeylab`, git initialised, remote `https://github.com/deepeshgupta12/journeylab.git` |
 | Application source files | **0** — repository contains documentation only |
 | Contracts on disk | **None** — no OpenAPI, AsyncAPI, JSON Schema, migrations, CI or IaC |
-| Knowledge graph | GitNexus indexed: 119 nodes, 143 edges — **Markdown documentation only** |
+| Knowledge graph | GitNexus indexed: ~1,860 nodes, ~2,535 edges — **Markdown documentation only** |
 | Node.js available | v25.9.0 (note: **newer than the Node 24 LTS baseline**; the runtime for the application must be pinned to 24 LTS regardless of the local version) |
 
 **Consequence:** every path in this document and in the step files is `PROPOSED`. None has been verified against source.
