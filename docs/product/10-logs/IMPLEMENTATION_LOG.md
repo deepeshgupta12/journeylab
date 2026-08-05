@@ -60,6 +60,52 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-006 — STEP-001.06 — CI workflows and the change-impact merge gate
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-05 |
+| Requirements | REQ-KG-003, REQ-KG-008 |
+| Blast radius | BR-006 (MEDIUM) |
+| Graph indexed commit | `e0062c2` — matched HEAD at pre-change |
+
+### What was built
+Three workflows (`verify`, `change-impact`, `knowledge-graph`), the enforcement gate `tests/guards/change-impact-record.sh`, and `tests/guards/workflow-refs.sh`.
+
+### Why this approach
+**The gate logic is a local script; the workflow is a thin caller.** A gate written only as workflow YAML cannot be verified until a PR exercises it — and an unverified gate is precisely the shape of `BUG-004`, where a guard was trusted before its scope was tested. Writing the logic locally made it meta-testable immediately.
+
+This is the sub-step that converts `REQ-KG-008` from a rule people follow because they remember it into one the build enforces.
+
+### Deliberate exemptions
+Documentation, generated context files and lock-file-only refreshes are exempt. A gate that blocks legitimate work gets disabled, and a disabled gate is worse than none. The exemption branch is meta-tested, not assumed.
+
+### What was verified — and what was not
+| Claim | Evidence |
+| --- | --- |
+| Code without a record is blocked | Meta-test on a scratch branch: exit 1, cites `REQ-KG-008` |
+| Docs-only changes pass | Meta-test: exemption branch taken, exit 0 |
+| Incomplete record (no risk score) is blocked | Meta-test: exit 1, names the missing section |
+| Workflow YAML parses; references resolve | `workflow-refs.sh`, meta-tested with a bogus script |
+| **Workflows actually run on GitHub** | **NOT VERIFIED** — cannot execute Actions locally. The first PR is the real test |
+| **10-minute refresh target met** | **NOT MEASURED** — no merge has run the workflow |
+
+### Honest limitation in the graph workflow
+The runner rebuilds the index rather than upserting a commit diff, because it starts with no `.gitnexus/` state. That satisfies the freshness *target* but not the incremental *design* in `INDEXING_AND_REFRESH` §5. True incremental refresh needs persisted index state and is deferred to `STEP-026`. Recorded in the workflow header, the design doc and here — not silently glossed.
+
+### What surprised us
+1. **Two meta-tests were invalid before they were right.** `git stash -u` and `git checkout` both removed the untracked guard script, so the harness reported exit 127 ("file not found") which I initially read as a gate verdict. Fixed by committing the guard first, then testing on a scratch branch. Same lesson as `BUG-004`: a test can fail for reasons that have nothing to do with what it claims to measure.
+2. **`BUG-004`'s fix worked immediately.** The markup guard caught a stray tag in an untracked `BR-006` *before* commit — the identical defect that slipped through in `f80c8b3` one sub-step earlier.
+
+### Verification
+| Check | Result |
+| --- | --- |
+| Gate meta-tests (4 scenarios) | PASS |
+| Workflow guard meta-test | PASS |
+| `pnpm verify` (15 checks) | PASS |
+
+---
+
 ## IMPL-005 — STEP-001.05 — README, architecture map and ADR files
 
 | Field | Value |

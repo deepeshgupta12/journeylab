@@ -1,0 +1,25 @@
+# Change-impact merge gate — STEP-001.06, enforcing REQ-KG-008.
+#
+# "No code, schema, API, event, model, prompt, infrastructure or configuration
+#  change may begin until the pre-change impact analysis is complete and recorded."
+#
+# The enforcement LOGIC lives in tests/guards/change-impact-record.sh so it is
+# meta-testable locally. This workflow is a thin caller — deliberately, because a
+# gate that only exists in CI cannot be verified before it is relied upon.
+name: change-impact
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  change-impact-record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require a complete blast-radius record for substantive changes
+        run: bash tests/guards/change-impact-record.sh "origin/${{ github.base_ref }}"

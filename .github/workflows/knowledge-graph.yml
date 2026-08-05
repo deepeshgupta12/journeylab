@@ -1,0 +1,48 @@
+# Knowledge-graph refresh and freshness check — STEP-001.06 (REQ-KG-003).
+#
+# Target: the default-branch graph is current within 10 minutes of merge.
+#
+# HONEST LIMITATION: the index is rebuilt per run rather than incrementally
+# updated, because the runner starts with no .gitnexus/ state. That satisfies the
+# freshness target but not the "incremental commit-diff upsert" design in
+# INDEXING_AND_REFRESH §5. True incremental refresh needs persisted index state
+# (cache or artifact) and is deferred to STEP-026.
+name: knowledge-graph
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Build the code graph
+        run: npx --yes gitnexus analyze
+
+      - name: Assert the index matches HEAD
+        run: |
+          set -euo pipefail
+          npx --yes gitnexus status | tee /tmp/kg.txt
+          if grep -qi 'stale' /tmp/kg.txt; then
+            echo "::error::Knowledge graph is stale after analyze (REQ-KG-003)."
+            exit 1
+          fi
+          echo "Graph current at $(git rev-parse --short HEAD)."
+
+      - name: Report coverage gaps
+        run: |
+          echo "Coverage gates REQ-KG-001 (>=95% files) and REQ-KG-002 (>=90% symbols owned)"
+          echo "are NOT YET EVALUABLE: the index currently covers documentation only."
+          echo "They become enforceable once application source exists (BLK-002)."

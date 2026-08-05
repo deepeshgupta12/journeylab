@@ -2,7 +2,7 @@
 sub_step_id: STEP-001.06
 parent_step: STEP-001
 title: Knowledge-graph workflow wiring
-status: IN_PROGRESS
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-KG-003, REQ-KG-008]
 blast_radius_id: BR-006
@@ -43,10 +43,10 @@ GitNexus indexes this repository, the working agreement in `CLAUDE.md` documents
 - [x] Verify freshness (`npx gitnexus status`)
 - [x] `.gitignore` entry for `.gitnexus/`
 - [x] `CLAUDE.md` / `AGENTS.md` working agreement, preserving the `<!-- gitnexus:start -->` … `<!-- gitnexus:end -->` marked region so `analyze` can regenerate it without destroying repository rules
-- [ ] `.github/workflows/knowledge-graph.yml` — incremental refresh on merge
-- [ ] Freshness check surfacing index/HEAD divergence
-- [ ] **CI gate blocking merges without a change-impact record** (`TST-KG-008`)
-- [ ] Document the full command reference in `INDEXING_AND_REFRESH`
+- [x] `.github/workflows/knowledge-graph.yml` — refresh on merge (**rebuild, not incremental** — see BR-006)
+- [x] Freshness check surfacing index/HEAD divergence — workflow fails on `stale`
+- [x] **CI gate blocking merges without a change-impact record** (`TST-KG-008`) — logic in `tests/guards/change-impact-record.sh`, meta-tested 4 ways
+- [x] Command reference documented in `INDEXING_AND_REFRESH`
 
 ## 6. Contracts and schema changes
 None.
@@ -79,14 +79,14 @@ Index freshness monitored (`ALRT-KG-001`). **Embeddings remain disabled** until 
 ## 12. Acceptance criteria
 - [x] Repository indexed and `status` reports current
 - [x] Working agreement documents the pre-change workflow and the marked-region convention
-- [ ] CI refreshes the graph on merge within 10 minutes
-- [ ] A pull request without a change-impact record is blocked
-- [ ] Command reference documented and verified working (`npx gitnexus`, not `run.cjs`)
+- [~] **PARTIAL** — workflow implemented; **runtime unmeasured until a real merge runs**
+- [x] A PR without a change-impact record is blocked — gate logic meta-tested; **CI wiring unproven until the first PR**
+- [x] Command reference documented and verified working (`npx gitnexus`, not `run.cjs`)
 
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | Partially — indexing and working agreement done; CI gate outstanding |
+| Completed | 2026-08-05 |
 | Commit SHA | *(baseline commit)* |
 | Graph re-indexed at | 2026-08-05 |
 | Notes / surprises | Two findings worth carrying forward: (1) `analyze` did **not** generate `.gitnexus/run.cjs`, so the documented invocation is `npx gitnexus`; (2) `analyze` **generates and overwrites `CLAUDE.md`** inside its marker block — repository rules must live outside that block or they will be destroyed on the next index |

@@ -74,10 +74,10 @@ Owner instructed to proceed. MEDIUM risk with a single owner — self-approved, 
 ## 11. Post-change verification
 | Field | Value |
 | --- | --- |
-| Re-indexed at commit | *(pending)* |
-| `detect_changes()` | *(pending)* |
-| Regression R1–R7 | *(pending)* |
-| Gate meta-test | *(pending)* |
+| Re-indexed at commit | post-commit re-index |
+| `detect_changes()` | Workflows, guards, docs; no application symbols |
+| Regression R1–R7 | **PASS** — see REGRESSION_LOG |
+| Gate meta-test | **PASS** — 4 scenarios: code-without-record blocked, docs-only exempt, incomplete record blocked, complete record passes |
 
 ## 12. Disposition
-*(pending)*
+**Merged.** Gate logic proven locally. **CI wiring remains unverified until the first PR** — recorded, not claimed. Incremental graph refresh deferred to STEP-026.

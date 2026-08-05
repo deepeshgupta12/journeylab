@@ -1,0 +1,44 @@
+# JourneyLab verification pipeline — STEP-001.06
+#
+# Single fast-tier gate. Every check here is a script in tests/guards/ or a
+# package script, so it is runnable and debuggable LOCALLY with `pnpm verify`.
+# CI must never be the only place a check exists.
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # guards diff against the base ref
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc   # Node 24 LTS, single source of truth
+          cache: pnpm
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version-file: .python-version
+
+      - run: pnpm install --frozen-lockfile
+      - run: uv sync --frozen
+
+      # The same 14 checks a developer runs locally.
+      - run: pnpm verify

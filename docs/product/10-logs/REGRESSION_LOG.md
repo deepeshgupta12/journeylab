@@ -67,6 +67,44 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-001.06 — 2026-08-05 — CI workflows and the change-impact merge gate
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `e0062c2` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` — 15 checks (new: `guard:workflows`) |
+| R2 contract compatibility | **N/A** | No contracts yet |
+| R3 graph diff as expected | **PASS** | Workflows, two guards, docs; no application symbols |
+| R4 untested requirements | **PASS** | Not increased |
+| R5 orphan/unowned nodes | **PASS** | All tracked paths owned |
+| R6 closed-bug tests | **PASS** | BUG-001/002/003/004 guards all pass |
+| R7 tenant isolation | **N/A** | No tenancy until STEP-002.01 |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Meta-test B exit 127 | `git stash -u` stashed the untracked guard script; bash could not find it | Committed the guard first, then tested on a scratch branch |
+| Meta-test B2 exit 127 | `git checkout` likewise removed the untracked script | Same |
+| `guard:markup` failed pre-commit | Stray tag in untracked `BR-006` | **BUG-004's fix caught it before commit** — the same defect that shipped in `f80c8b3` |
+
+### Notes
+Two meta-tests reported failures that had nothing to do with the gate — the harness
+could not find the script it was testing. Read naively, exit 127 looks like "the gate
+blocked it". This is the third instance of the repository's recurring lesson: **verify
+that a check failed for the reason you think it did.**
+
+`BUG-004`'s fix proved itself one sub-step after being written, catching a stray tag in
+an untracked file before it could be committed.
+
+Two claims are deliberately **not** made: the workflows have never run on GitHub, and
+the 10-minute refresh target is unmeasured. Both are recorded as outstanding.
+
 ## STEP-001.05 — 2026-08-05 — README, architecture map and ADR files
 
 | Field | Value |

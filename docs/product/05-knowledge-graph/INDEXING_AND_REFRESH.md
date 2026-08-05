@@ -99,7 +99,7 @@ graph LR
 
 | Trigger | Action |
 | --- | --- |
-| Every merge to `main` | Incremental refresh, target ≤ 10 min (`REQ-KG-003`) |
+| Every merge to `main` | **Implemented** — `.github/workflows/knowledge-graph.yml`. Target ≤ 10 min (`REQ-KG-003`).<br>**Limitation:** the runner rebuilds the index rather than upserting a commit diff, because it starts with no `.gitnexus/` state. Meets the freshness target, not the incremental design in §5. True incremental refresh needs persisted index state and is deferred to `STEP-026` |
 | **Every sub-step commit** | `npx gitnexus analyze` locally before the next sub-step begins |
 | Release cut | Full index + **immutable tagged release graph** (`REQ-KG-004`) |
 | Extractor version change | Full re-index (`--force`) |
@@ -155,7 +155,7 @@ Runbook: `RB-KG-001`.
 | --- | --- | --- | --- |
 | First-party files parsed | ≥ 95% | Documentation only; **no source files exist** | **Not evaluable** |
 | Public symbols owned | ≥ 90% | No symbols exist | **Not evaluable** |
-| Refresh ≤ 10 min after merge | Required | No CI exists | **Not implemented** |
+| Refresh ≤ 10 min after merge | Required | CI workflow implemented; **runtime unmeasured until a real merge** | **Implemented, unverified** |
 | Release graph immutable/tagged | Required | No release | **Not implemented** |
 | Edge precision threshold | Agreed threshold | No inferred edges | **Not evaluable** |
 | No unowned API/event/migration/model/service | Required | None exist | **Not evaluable** |
