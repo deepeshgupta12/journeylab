@@ -67,6 +67,51 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-001.04 — 2026-08-05 — Local dependency stack
+
+| Field | Value |
+| --- | --- |
+| Commit | `8a9af9b` |
+| Graph indexed commit | `28923aa` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` — 12 checks (new: `guard:ports`) |
+| R2 contract compatibility | **N/A** | No contracts yet |
+| R3 graph diff as expected | **PASS** | Compose, Dockerfile, guards, env template; no symbols |
+| R4 untested requirements | **PASS** | Not increased |
+| R5 orphan/unowned nodes | **PASS** | 183 tracked paths owned |
+| R6 closed-bug tests | **PASS** | BUG-001 and BUG-002 guards pass |
+| R7 tenant isolation | **N/A** | No tenancy until STEP-002.01 |
+
+**Overall:** PASS (implementation) — **but see the process failure below**
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| PostGIS PG18 build failed | Image is amd64-only on an arm64 host | Platform pin + emulation (~3s to ready) |
+| pgvector install failed | No PGDG package; no compiler in base image | Multi-stage copy from the pgvector image |
+| Postgres container exited (1) | **PG18 changed the volume mount point** | Mount `/var/lib/postgresql`, not `.../data` |
+| Jaeger image pull failed | Tag `all-in-one:1.62` invented; does not exist | `jaegertracing/jaeger:2.0.0` |
+| Jaeger reported unhealthy | Healthcheck used bash `/dev/tcp`; image has no bash | wget-based healthcheck (wget is present) |
+| **Documentation not written before commit** | Log-writing script failed; commit ran in the same shell invocation and proceeded regardless | `BUG-003` — see below |
+
+### Process failure — BUG-003
+`8a9af9b` was committed **without** `IMPL-004`, this regression entry, or the sub-step
+status update. The R1–R7 checks above genuinely passed, but
+[SUB_STEP_PROTOCOL](../02-delivery/SUB_STEP_PROTOCOL.md) §8 requires documentation in
+the *same commit* — so the sub-step was not actually complete when it was committed.
+
+Corrected in the follow-up commit. Guard added: `tests/guards/substep-docs.sh`.
+
+### Notes
+Five technical assumptions failed here, every one caught by execution rather than
+review. The port work is the part most likely to have caused real harm: checking only
+live sockets would have allocated 5544, colliding with Saakshya on its next start.
+
+New guard `port-collisions.sh` reads other projects' compose files precisely because
+`lsof` cannot see a stopped project's claim.
+
 ## STEP-001.03 + TS7 — 2026-08-05 — Ownership assignment and TypeScript 7 upgrade
 
 | Field | Value |

@@ -60,6 +60,57 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-004 — STEP-001.04 — Local dependency stack
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-05 |
+| Requirements | REQ-PLAT-001, REQ-PLAT-002 |
+| Blast radius | BR-004 (LOW) |
+| Graph indexed commit | `28923aa` — matched HEAD at pre-change |
+| Commit | `8a9af9b` |
+
+### What was built
+`docker-compose.dev.yml` bringing up PostgreSQL 18.4 (PostGIS 3.6.4 + pgvector 0.8.6 + pg_trgm 1.6), Redis 8, MinIO, NATS JetStream and Jaeger v2 — all on the reserved port block **5700-5709**, bound to `127.0.0.1` only. Plus `infra/local/postgres/Dockerfile`, init SQL, `.env.example`, a port-collision guard, and `pnpm dev` / `dev:down` / `dev:reset` / `dev:logs`.
+
+### Why this approach
+**Port isolation was an explicit repository-owner constraint** — multiple projects share this Docker host. Rather than picking ports ad hoc, JourneyLab reserves a contiguous documented block and a guard enforces it.
+
+The important subtlety: **a stopped project still owns its ports.** Port 5544 read as free to `lsof` purely because Saakshya was stopped. The guard therefore parses other projects' compose *files*, not just live sockets. Checking only what is running would have produced a collision the first time that project restarted.
+
+### Decisions taken during implementation
+| Decision | Alternatives | Rationale |
+| --- | --- | --- |
+| Multi-stage PostGIS + copied pgvector | Downgrade to PG17; drop pgvector locally; build from source | **Preserves the full baseline.** PG17 has no arm64 PostGIS either; dropping an extension would make local diverge from production; no compiler exists in the base image |
+| amd64 emulation for PostgreSQL | Native PG17 | Measured ~3s to ready — cheaper than breaching the PG18 baseline |
+| NATS as local queue | Kafka, Redpanda | `DEC-009` is open; the AsyncAPI contract is transport-independent, so this is deliberately substitutable |
+| Bind all ports to `127.0.0.1` | Default `0.0.0.0` | Nothing on a dev machine should be network-reachable by default |
+| Pinned MinIO `RELEASE.*` tag | `latest` | `REQ-PLAT-002` forbids floating tags |
+
+### What surprised us — five wrong assumptions, all caught by execution
+1. **`postgis/postgis:18-3.6` is amd64-only.** `docker manifest inspect` said EXISTS, so it looked fine until the build failed with "no match for platform". Existence and runnability are different questions on Apple Silicon.
+2. **PGDG has no PostGIS or pgvector package for PG18** on either image's repo — the postgis image carries only 4 packages and no compiler, ruling out both apt and source builds.
+3. **PostgreSQL 18 changed its volume mount point.** Mounting `/var/lib/postgresql/data` makes the container refuse to start; PG18 wants `/var/lib/postgresql` so `pg_upgrade --link` does not cross a mount boundary.
+4. **`jaegertracing/all-in-one:1.62` does not exist.** I invented a plausible tag; the correct image is `jaegertracing/jaeger:2.0.0`.
+5. **I twice wrote a wrong comment about the Jaeger image** — first "distroless, no shell" (it has a shell), then "no wget or nc" (it has both). Corrected to a working healthcheck rather than documenting a limitation that was not real. Writing a confident explanation for a failure is easy; verifying it is the work.
+
+### Process slip — recorded rather than hidden
+The heredoc that should have written this entry, the regression entry and the sub-step status **failed with a Python syntax error, and the commit proceeded anyway**. `8a9af9b` therefore shipped without its required documentation, violating [SUB_STEP_PROTOCOL](../02-delivery/SUB_STEP_PROTOCOL.md) §8.
+
+Cause: the commit ran in the same shell invocation as the log-writing script, so a failure in the first half did not stop the second. **Correction:** documentation writes must succeed before `git commit` runs, not alongside it. Logged as `BUG-003`.
+
+### Verification
+| Check | Result |
+| --- | --- |
+| 5/5 services healthy | PASS |
+| Extensions functional (157 km geodesic; L2 √27) | PASS |
+| Host connectivity on 5700-5707 | PASS |
+| No collision with trekyatra / saakshya / real-estate | PASS |
+| Port guard meta-test | PASS |
+| `pnpm verify` (12 checks) | PASS |
+
+---
+
 ## IMPL-002 — STEP-001.02 — Formatting, linting, strict TypeScript and module boundaries
 
 | Field | Value |

@@ -2,7 +2,7 @@
 sub_step_id: STEP-001.04
 parent_step: STEP-001
 title: Local dependency stack
-status: NOT_STARTED
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-001]
 blast_radius_id: BR-004
@@ -78,6 +78,6 @@ Remove the compose file; earlier sub-steps remain functional (they need no servi
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
+| Completed | 2026-08-05 |
 | Commit SHA | — |
-| Notes / surprises | — |
+| Notes / surprises | Five wrong assumptions caught by execution: PostGIS PG18 is amd64-only; PGDG lacks both extensions for PG18; PG18 changed its volume mount point; the Jaeger tag was invented; the Jaeger image was twice mis-described. Reserved port block 5700-5709. The port guard parses other projects compose files because a stopped project still owns its ports. Process slip logged as BUG-003: the commit shipped before the docs were written. |
