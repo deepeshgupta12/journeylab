@@ -28,10 +28,77 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BUG-006 | CI failed: duplicate pnpm version | **S2** | first real CI run | Repository owner | verify pipeline failed in 7s, ERR_PNPM_BAD_PM_VERSION | `version:` in workflow duplicated `packageManager` in package.json | *(this commit)* | none possible locally — see entry | **CLOSED** | 2026-08-05 |
+| BUG-005 | Missing IMPL-003; guard passed on a mention | **S3** | STEP-001 closure audit | Closure audit | 5 IMPL entries for 6 VERIFIED sub-steps, guard reported PASS | Guard grepped for the ID anywhere, not a real heading | *(this commit)* | `tests/guards/meta/run-all.sh` | **CLOSED** | 2026-08-05 |
 | BUG-004 | Guards checked only tracked files; new files bypassed them | **S2** | STEP-001.05 post-commit | Post-commit verification | Stray markup shipped in `f80c8b3` despite verify passing | Guards iterated `git ls-files` (tracked only); new files were invisible until after their first commit | *(this commit)* | extended meta-test with an untracked seed | **CLOSED** | 2026-08-05 |
 | BUG-003 | Sub-step committed without required documentation | **S3** | STEP-001.04 close-out | Post-commit verification | `8a9af9b` shipped without IMPL-004, regression entry or status update | Log script failed; commit ran in the same shell invocation regardless | *(this commit)* | `tests/guards/substep-docs.sh` | **CLOSED** | 2026-08-05 |
 | BUG-002 | `node_modules/` tracked in git | **S3** | STEP-001.02 pre-change analysis | Pre-change inventory | 2 dependency files committed; `.gitignore` contained only `.gitnexus` | `.gitignore` written without dependency/build exclusions in STEP-001.01 | *(this commit)* | `tests/guards/no-tracked-artifacts.sh` | **CLOSED** | 2026-08-05 |
 | BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-006 — CI workflow failed: duplicate pnpm version
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — the entire verify pipeline failed to start on every push |
+| Found during | First real CI run, reported by the repository owner |
+| Date found | 2026-08-05 |
+
+### Symptom
+`pnpm/action-setup@v4` failed in 7s:
+```
+Error: Multiple versions of pnpm specified:
+  - version 11 in the GitHub Action config with the key "version"
+  - version pnpm@11.20.0 in the package.json with the key "packageManager"
+Remove one of these versions to avoid version mismatch errors like ERR_PNPM_BAD_PM_VERSION
+```
+
+### Root cause
+I set `version: 11` in the workflow while `package.json` already declared `packageManager: pnpm@11.20.0`. The action treats two sources as a configuration error, not something to reconcile.
+
+### Why existing tests did not catch it
+`workflow-refs.sh` validates that workflows **parse** and that everything they **reference** exists. It cannot validate action *input semantics* — that is knowledge held by the action, not the repository.
+
+**This is the failure `BR-006` explicitly predicted:** *"the workflows have never run on GitHub — the first PR is the real test."* Recording it honestly at the time meant the failure was expected rather than surprising, but it was still a real defect that reached the default branch.
+
+### Fix
+Removed `version:` from the workflow. `package.json` `packageManager` is now the single source of truth, matching how `.nvmrc` and `.python-version` are already used.
+
+### Prevention
+No local guard can fully substitute for a real CI run. The honest control is the one already applied: **state plainly when something is unverified**, and treat the first run as the test. Local guards now cover parse-and-reference errors; semantic errors in third-party action inputs surface on first execution.
+
+---
+
+## BUG-005 — Missing IMPL-003, and a guard that passed on a mere mention
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — documentation completeness and a weak guard |
+| Found during | STEP-001 closure audit |
+| Date found | 2026-08-05 |
+
+### Symptom
+The closure audit counted **5 implementation-log entries for 6 VERIFIED sub-steps**. `IMPL-003` (STEP-001.03) did not exist — yet `substep-docs.sh` reported PASS.
+
+### Root cause
+Two independent defects:
+1. `IMPL-003` was never written. STEP-001.03 shipped with `BR-003` and a regression entry, but no implementation entry.
+2. `substep-docs.sh` checked `grep -q "$id" "$IMPL"` — **any mention anywhere**. `IMPL-004`'s prose happened to name `STEP-001.03`, so the guard was satisfied by a passing reference to a document that did not exist.
+
+A third, smaller issue surfaced on the fix: the STEP-001.03 regression heading used a non-standard format (`## STEP-001.03 + TS7 — …`), so the strengthened guard rejected it until normalised.
+
+### Why existing tests did not catch it
+The guard tested for *presence of a string*, not *presence of an entry*. It was correct about the wrong thing — the fourth instance of that pattern in this repository (`BUG-001` guard, `BUG-004` scope, the exit-127 meta-tests, and now this).
+
+### Fix
+Wrote `IMPL-003`; strengthened the guard to require real headings (`^## IMPL-NNN — STEP-X.YY — ` and `^## STEP-X.YY — `); normalised the non-conforming regression heading.
+
+### Regression test
+Committed in `tests/guards/meta/run-all.sh`: reformatting an `IMPL` heading makes the guard exit 1. Meta-tested.
+
+### Prevention
+**The larger fix is `tests/guards/meta/run-all.sh` itself.** Until the closure audit, every guard's meta-test existed only as ad-hoc commands in an implementation session — the guards were committed, the evidence they worked was not. The suite makes guard validity reproducible by anyone, and it immediately found two defects in its own first run.
 
 ---
 

@@ -26,8 +26,11 @@ for f in $(git ls-files 'docs/product/08-steps/sub-steps/**/*.md' 2>/dev/null); 
   [ -n "$id" ] || continue
   checked=$((checked + 1))
 
-  grep -q "$id" "$REG" 2>/dev/null || { echo "MISSING regression entry for $id"; missing=$((missing+1)); }
-  grep -q "$id" "$IMPL" 2>/dev/null || { echo "MISSING implementation-log entry for $id"; missing=$((missing+1)); }
+  # BUG-005: match a real ENTRY HEADING, not a passing mention anywhere in the file.
+  # The original greps passed because IMPL-004's prose happened to name STEP-001.03,
+  # while IMPL-003 did not exist.
+  grep -qE "^## $id — " "$REG" 2>/dev/null || { echo "MISSING regression entry for $id"; missing=$((missing+1)); }
+  grep -qE "^## IMPL-[0-9]{3} — $id — " "$IMPL" 2>/dev/null || { echo "MISSING implementation-log entry for $id"; missing=$((missing+1)); }
 
   br=$(grep -m1 '^blast_radius_id:' "$f" | awk '{print $2}')
   if [ -n "${br:-}" ] && [ "$br" != "BR-NNN" ]; then

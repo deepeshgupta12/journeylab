@@ -223,6 +223,51 @@ Cause: the commit ran in the same shell invocation as the log-writing script, so
 
 ---
 
+## IMPL-003 — STEP-001.03 — Ownership, governance and the TypeScript 7 upgrade
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-05 |
+| Requirements | REQ-PLAT-003 |
+| Decisions | `ADR-009` (TypeScript 7.0.2), `ADR-010` (ownership) |
+| Blast radius | BR-003 (LOW after mitigation) |
+| Graph indexed commit | `ef7af7a` — matched HEAD at pre-change |
+| Commit | `1a44d71` |
+
+> **Written retrospectively during the STEP-001 closure audit.** The audit found this
+> entry missing: `STEP-001.03` was committed with `BR-003` and a regression entry, but
+> no implementation-log entry. Recorded as `BUG-005` — including why the
+> `substep-docs` guard failed to catch it.
+
+### What was built
+`CODEOWNERS` (catch-all + 9 rules), `SECURITY.md`, `CONTRIBUTING.md`; ownership propagated across 56 documents and every step's front-matter; TypeScript upgraded 6.0.3 → 7.0.2; `dependency-cruiser` removed and the boundary check rewritten TypeScript-independently.
+
+### Why this approach
+Two owner decisions arrived together. `ADR-010` closed `BLK-001`, the highest-exposure realised risk in the register — until then no step could leave `READY` and no gate could be signed off.
+
+`ADR-009` was the `ASM-004` revalidation case: the blueprint baseline said TypeScript 6.0, but 7.0.2 was `latest`, and portfolio standard §4.18 requires current stable at implementation time. I pinned 6.0.3 first and surfaced 7 for explicit owner choice rather than adopting it silently.
+
+### What surprised us
+**TypeScript 7 silently broke module-boundary enforcement.** `dependency-cruiser` 18.1.1 supports `typescript <7`; under the new pin it cruised **0 modules and reported "no dependency violations found"** — a green check verifying nothing. `ADR-003`'s splittability guarantee would have become unenforced without anyone noticing.
+
+Caught only because the boundary guard's meta-test asserts the **rule name**, not merely a non-zero exit. The fix was to rewrite the check TypeScript-independently: import paths are textual, so no compiler upgrade can disable the rule again.
+
+**My pre-change analysis missed this.** I checked the *source* dependency surface (0 files) and called the risk minimal, without checking which *tools* consume TypeScript. Lesson recorded in `BR-003`: for version upgrades, enumerate consuming tools, not just importing source.
+
+### Consequence recorded, not hidden
+A single owner **cannot satisfy four-eyes approval** (`REQ-ADMIN-002`, `SC-GOV-02`). That control is now structurally unsatisfiable and must be resolved before `STEP-021` — either a second reviewer or an explicit accepted-risk decision.
+
+### Verification
+| Check | Result |
+| --- | --- |
+| `CODEOWNERS` coverage — all paths owned | PASS |
+| TS 7 config valid; `noUncheckedIndexedAccess` still enforced | PASS (exit 0 / exit 1 respectively) |
+| Boundary rule fires after rewrite | PASS |
+| R5 gap closed — 178 paths owned | PASS |
+| `pnpm verify` | PASS |
+
+---
+
 ## IMPL-002 — STEP-001.02 — Formatting, linting, strict TypeScript and module boundaries
 
 | Field | Value |

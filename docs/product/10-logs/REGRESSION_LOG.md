@@ -183,7 +183,7 @@ live sockets would have allocated 5544, colliding with Saakshya on its next star
 New guard `port-collisions.sh` reads other projects' compose files precisely because
 `lsof` cannot see a stopped project's claim.
 
-## STEP-001.03 + TS7 — 2026-08-05 — Ownership assignment and TypeScript 7 upgrade
+## STEP-001.03 — 2026-08-05 — Ownership assignment and TypeScript 7 upgrade
 
 | Field | Value |
 | --- | --- |
