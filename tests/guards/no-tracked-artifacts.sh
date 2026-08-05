@@ -10,7 +10,8 @@ set -uo pipefail
 cd "$(dirname "$0")/../.."
 
 FORBIDDEN='^(node_modules|dist|build|\.next|\.venv|coverage|htmlcov)/|(^|/)__pycache__/|\.pyc$|(^|/)\.env$|(^|/)\.DS_Store$'
-hits=$(git ls-files | grep -E "$FORBIDDEN" || true)
+# BUG-004: check untracked-but-stageable paths too, not just tracked ones.
+hits=$({ git ls-files; git ls-files --others --exclude-standard; } | sort -u | grep -E "$FORBIDDEN" || true)
 if [ -n "$hits" ]; then
   echo "TRACKED ARTIFACTS (BUG-002 regression):"
   echo "$hits" | head -20
@@ -18,5 +19,5 @@ if [ -n "$hits" ]; then
   echo "FAIL: $(echo "$hits" | wc -l | tr -d ' ') forbidden path(s) tracked in git."
   exit 1
 fi
-echo "PASS: no dependency or build artifacts tracked ($(git ls-files | wc -l | tr -d ' ') files checked)."
+echo "PASS: no dependency or build artifacts ($({ git ls-files; git ls-files --others --exclude-standard; } | sort -u | wc -l | tr -d ' ') files checked)."
 exit 0

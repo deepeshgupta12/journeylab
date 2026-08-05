@@ -81,4 +81,3 @@ Owner instructed to proceed. Risk LOW — no additional approval required.
 
 ## 13. Disposition
 **Merged.** ADR naming deviation recorded and step file corrected. README acceptance criterion recorded as **partial** — commands proven by execution; newcomer comprehensibility outstanding.
-</content>

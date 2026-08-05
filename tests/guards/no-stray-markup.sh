@@ -39,7 +39,12 @@ while IFS= read -r f; do
     grep -nE "$PATTERN" "$f" | head -3
     hits=$((hits + 1))
   fi
-done < <(git ls-files)
+done < <(
+  # BUG-004: `git ls-files` lists only TRACKED files, so a brand-new file carrying
+  # the defect passes on the run that precedes its first commit — exactly how
+  # BR-005 shipped the tag. Check tracked AND untracked-but-not-ignored files.
+  { git ls-files; git ls-files --others --exclude-standard; } | sort -u
+)
 
 if [ "$hits" -gt 0 ]; then
   echo ""
@@ -47,5 +52,5 @@ if [ "$hits" -gt 0 ]; then
   exit 1
 fi
 
-echo "PASS: no stray authoring markup in $(git ls-files | wc -l | tr -d ' ') tracked files."
+echo "PASS: no stray authoring markup in $({ git ls-files; git ls-files --others --exclude-standard; } | sort -u | wc -l | tr -d ' ') tracked + untracked file(s)."
 exit 0

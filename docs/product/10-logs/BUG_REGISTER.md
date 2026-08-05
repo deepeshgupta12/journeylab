@@ -28,9 +28,52 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BUG-004 | Guards checked only tracked files; new files bypassed them | **S2** | STEP-001.05 post-commit | Post-commit verification | Stray markup shipped in `f80c8b3` despite verify passing | Guards iterated `git ls-files` (tracked only); new files were invisible until after their first commit | *(this commit)* | extended meta-test with an untracked seed | **CLOSED** | 2026-08-05 |
 | BUG-003 | Sub-step committed without required documentation | **S3** | STEP-001.04 close-out | Post-commit verification | `8a9af9b` shipped without IMPL-004, regression entry or status update | Log script failed; commit ran in the same shell invocation regardless | *(this commit)* | `tests/guards/substep-docs.sh` | **CLOSED** | 2026-08-05 |
 | BUG-002 | `node_modules/` tracked in git | **S3** | STEP-001.02 pre-change analysis | Pre-change inventory | 2 dependency files committed; `.gitignore` contained only `.gitnexus` | `.gitignore` written without dependency/build exclusions in STEP-001.01 | *(this commit)* | `tests/guards/no-tracked-artifacts.sh` | **CLOSED** | 2026-08-05 |
 | BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-004 — Guards checked only tracked files, so new files bypassed them on first commit
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — a guard that can be bypassed provides false assurance; it let a known-closed bug (BUG-001) recur in a commit |
+| Found during | STEP-001.05 post-commit verification |
+| Date found | 2026-08-05 |
+| Affected requirements | Process integrity; regression check **R6** |
+
+### Symptom
+`BR-005-readme-and-adr.md` was committed in `f80c8b3` containing a stray `</content>` line — the exact defect `BUG-001` closed. `pnpm verify` had passed immediately before the commit.
+
+### Root cause
+`tests/guards/no-stray-markup.sh` iterated `git ls-files`, which lists **only tracked files**. `BR-005` was still untracked when `verify` ran, so the guard skipped it entirely. `git add -A` then staged and committed it with the defect intact.
+
+**The guard was structurally incapable of catching a defect in any new file on the run before its first commit** — precisely when new files are most likely to carry authoring artifacts.
+
+### Why existing tests did not catch it
+The `BUG-001` meta-test seeded its violation into a file it had **already `git add`-ed**, so the seeded file was tracked and the guard saw it. The meta-test validated the detection logic but not the *file selection* logic. A correct-looking meta-test masked an incomplete guard.
+
+### Fix
+Both guards now enumerate tracked **and** untracked-but-not-ignored files:
+```
+{ git ls-files; git ls-files --others --exclude-standard; } | sort -u
+```
+`--exclude-standard` keeps `.gitignore` honoured, so `node_modules/` is still skipped.
+
+Applied to `no-stray-markup.sh` and `no-tracked-artifacts.sh` — both had the same flaw.
+
+### Regression test
+| Field | Value |
+| --- | --- |
+| Test | `tests/guards/no-stray-markup.sh` meta-test, extended |
+| **Proves** | Seeded an **untracked** file containing the tag → guard exits 1. Before the fix the same seed passed |
+| Coverage now | 204 tracked + untracked files, up from 190 tracked |
+
+### Prevention
+- Both guards fixed; meta-tests now seed **untracked** files specifically.
+- **General lesson recorded:** when writing a guard, test its *selection* logic as well as its *detection* logic. Asking "what does this guard not look at?" is as important as "what does it detect?". Three of four bugs in this repository have been guards or checks that were correct about the wrong scope.
 
 ---
 
