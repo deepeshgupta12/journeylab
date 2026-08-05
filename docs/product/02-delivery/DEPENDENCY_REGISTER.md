@@ -95,4 +95,3 @@ These are outside the delivery team's control. Each has a named fallback because
 2. A step may not be marked `READY` while a blocking dependency is open.
 3. Provider dependencies must be reviewed for concentration (`RISK-008`) before Phase 2 expands coverage.
 4. Version dependencies are pinned by lock file (`REQ-PLAT-002`); upgrades follow the change-impact protocol like any other change.
-</content>

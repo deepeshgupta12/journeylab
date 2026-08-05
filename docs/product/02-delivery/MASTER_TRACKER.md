@@ -136,7 +136,7 @@ Legend for sub-columns: `—` not applicable to this step · `NS` not started ·
 
 | Step | Name | Phase | Outcome | Deps | Status | Owner | FE | BE | API/Evt | Data | AI/ML | Sec/Priv | KG pre-check | BR | Impl | Test | Docs | PR/Release | Exit criteria | Blockers | Updated |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [STEP-001](../08-steps/STEP-001-foundation-and-repository-governance.md) | Foundation & repo governance | 1 | Reproducible monorepo with ownership and contract boundaries | — | `DISCOVERY` | — | NS | NS | — | — | — | NS | `BLOCKED` | N/A | NS | NS | ✅ | — | New engineer runs lint/tests/app from docs; CI rejects unowned changes | BLK-001, BLK-002 | 2026-08-05 |
+| [STEP-001](../08-steps/STEP-001-foundation-and-repository-governance.md) | Foundation & repo governance | 1 | Reproducible monorepo with ownership and contract boundaries | — | `IN_PROGRESS` | — | NS | NS | — | — | — | NS | `BLOCKED` | N/A | NS | NS | ✅ | — | New engineer runs lint/tests/app from docs; CI rejects unowned changes | BLK-001, BLK-002 | 2026-08-05 |
 | [STEP-002](../08-steps/STEP-002-identity-tenancy-and-authorization.md) | Identity, tenancy & authorization | 1 | Isolation and permission primitives | 001 | `DISCOVERY` | — | NS | NS | NS | NS | — | NS | `BLOCKED` | N/A | NS | NS | ✅ | — | Cross-tenant ops fail deterministically and are audited | BLK-001, DEC-004 | 2026-08-05 |
 | [STEP-003](../08-steps/STEP-003-design-system-and-application-shell.md) | Design system & app shell | 1 | Accessible responsive shell and primitives | 002 | `DISCOVERY` | — | NS | — | — | — | — | NS | `BLOCKED` | N/A | NS | NS | ✅ | — | WCAG 2.2 AA on core components; all states implemented | BLK-001 | 2026-08-05 |
 | [STEP-004](../08-steps/STEP-004-contract-first-platform-apis.md) | Contract-first platform APIs | 1 | Stable resource/command/event contracts | 002 | `DISCOVERY` | — | NS | NS | NS | — | — | NS | `BLOCKED` | N/A | NS | NS | ✅ | — | CI generates clients, validates examples, blocks breaking change | BLK-001 | 2026-08-05 |
@@ -204,4 +204,3 @@ Legend for sub-columns: `—` not applicable to this step · `NS` not started ·
 4. `KG pre-check` and `BR` columns must be non-empty before `IMPL` may start (`REQ-KG-008`).
 5. Status changes require the `Updated` date to change in the same edit.
 6. Documentation-only progress is never reported as delivery progress (see §3).
-</content>

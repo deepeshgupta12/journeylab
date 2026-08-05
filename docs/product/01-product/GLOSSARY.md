@@ -108,4 +108,3 @@ Navigation: [Charter](PRODUCT_CHARTER.md) · [Scope](PRODUCT_SCOPE.md) · [Data 
 | **Stop condition** | A pre-agreed circumstance under which work halts rather than continues. Contractual, not rhetorical. |
 | **Four-eyes approval** | Two distinct authorized humans required; the actor cannot be an approver. |
 | **Documentation freshness** | Whether a document's `Last reviewed` date is within its review interval and consistent with the release commit. |
-</content>

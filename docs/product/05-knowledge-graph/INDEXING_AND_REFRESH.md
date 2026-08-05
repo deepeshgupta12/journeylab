@@ -162,4 +162,3 @@ Runbook: `RB-KG-001`.
 | Extraction gaps visible | Required | Coverage report available via `status` | **Partially met** |
 
 **Required next action:** re-run `npx gitnexus analyze` immediately after the first source-code merge, then evaluate every gate above for the first time.
-</content>

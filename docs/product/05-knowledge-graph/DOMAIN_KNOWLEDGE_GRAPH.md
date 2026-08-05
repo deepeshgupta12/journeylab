@@ -131,4 +131,3 @@ Query bodies and permission filters: [GRAPH_QUERY_PLAYBOOK](GRAPH_QUERY_PLAYBOOK
 ## 7. Status
 
 Not built. Requires `STEP-026`, which requires the canonical data model (`STEP-006`). The store decision — Neo4j versus PostgreSQL recursive queries — is deliberately deferred to the `STEP-026` design review so it can be made against measured traversal depth rather than assumed need.
-</content>

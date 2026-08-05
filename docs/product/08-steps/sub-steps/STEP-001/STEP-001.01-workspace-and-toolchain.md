@@ -2,7 +2,7 @@
 sub_step_id: STEP-001.01
 parent_step: STEP-001
 title: Workspace skeleton and pinned toolchain
-status: NOT_STARTED
+status: VERIFIED
 owners: []
 requirement_ids: [REQ-PLAT-001, REQ-PLAT-002]
 blast_radius_id: BR-001
@@ -91,11 +91,10 @@ Revert the commit; the repository returns to documentation-only. No data or cons
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
+| Completed | 2026-08-05 |
 | Commit SHA | — |
 | Pushed | — |
 | Graph re-indexed at | — |
-| `main` green and deployable | — |
-| Bugs found | — |
+| `main` green and deployable | Yes — `pnpm verify` passes |
+| Bugs found | **BUG-001** (stray markup, 110 files) — fixed, guarded, closed |
 | Notes / surprises | Local Node is v25.9.0; the pinned application runtime must remain **Node 24 LTS** regardless |
-</content>

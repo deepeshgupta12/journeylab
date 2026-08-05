@@ -201,4 +201,3 @@ Never claim the graph was queried when it was not.
 | Test additions that touch no production code | Test changes that alter fixtures used by other suites |
 
 Emergency security fixes are **not exempt**. They may compress approval, never the analysis.
-</content>

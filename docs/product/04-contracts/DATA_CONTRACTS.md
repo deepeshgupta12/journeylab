@@ -126,4 +126,3 @@ Every canonical record traces: provider payload → normalizer version → entit
 ## 6. Status
 
 No migration, schema or expectation file exists. Contracts are implemented in `STEP-005` (sources) and `STEP-006` (canonical model).
-</content>

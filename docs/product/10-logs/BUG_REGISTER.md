@@ -28,7 +28,70 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| — | *No bugs recorded* | | | | | | | | | |
+| BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-001 — Stray authoring markup in 110 committed files
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — core tooling broken; blocked all JS/Python dependency resolution |
+| Found during | STEP-001.01, first `pnpm install` |
+| Date found | 2026-08-05 |
+| Affected requirements | REQ-PLAT-001, REQ-PLAT-002 |
+| Affected users/tenants | None — pre-release, no users exist |
+
+### Symptom
+`pnpm install` failed immediately:
+```
+[ERROR] Unexpected non-whitespace character after JSON at position 1180 (line 32 column 1)
+```
+`package.json` had a literal closing-tag line appended after the final `}`.
+
+### Reproduction
+Deterministic. `node -e "JSON.parse(...)"` on the committed `package.json` threw at the same offset.
+
+### Diagnosis
+| Hypothesis | Tested how | Result |
+| --- | --- | --- |
+| Hand-editing error in one file | Read `package.json` tail | Confirmed the stray line, but suggested a wider cause |
+| Only the three config files affected | `grep -rl` across the repo | **Rejected — 110 files affected**, including every step file, template and log |
+| Markdown files harmless because the tag renders invisibly | Considered | Rejected: harmless *rendering* is not harmless *content*; the same defect broke JSON, TOML and YAML |
+
+### Root cause
+The file-writing wrapper used throughout this session appended its own closing tag into the written file body. Because Markdown swallows an unknown inline tag without visible effect, the defect stayed invisible for **147 files across ~4 hours** and only surfaced when the first machine-parsed file (`package.json`) was consumed by a real tool.
+
+### Why existing tests did not catch it
+**There were no tests.** This was the first executable verification in the repository — the first sub-step of the first step. Every prior artifact was Markdown, which no tool parsed. The defect was undetectable by inspection precisely because the rendered output looked correct.
+
+This is the strongest available argument for the fast-tier discipline in [TEST_STRATEGY](../06-quality/TEST_STRATEGY.md) §6: the first thing a repository should acquire is something that *executes*.
+
+### Fix
+| Field | Value |
+| --- | --- |
+| Approach | Removed the stray line from all 110 files via a scoped `sed` matching only lines consisting solely of the tag |
+| Verification | `package.json` re-validated as JSON; `pnpm install` and `uv sync` both succeed |
+| Sub-step | STEP-001.01 |
+| Blast radius | BR-001 |
+
+### Regression test
+| Field | Value |
+| --- | --- |
+| Test | `tests/guards/no-stray-markup.sh` |
+| Wired into | `pnpm verify` (fast tier), so it runs at **every** sub-step as part of check R6 |
+| **Proves** | Verified by meta-test: seeded a file containing the tag → guard exited 1 and flagged exactly 1 file; removed it → guard exited 0 across 156 tracked files |
+
+### A second, related defect found while fixing this
+The **first version of the guard embedded the literal tag** in its own source. That literal truncated the guard's own file mid-write, producing a script with a bash syntax error. The syntax error exited non-zero, which the meta-test initially misread as "the guard detected the regression".
+
+Two lessons, both recorded in the guard's header comment:
+1. The patterns are now **assembled at runtime** from fragments, never written literally.
+2. **A non-zero exit is not proof of detection.** The meta-test now asserts the *specific* exit code and the count of flagged files, not merely failure. A test that passes for the wrong reason is worse than one that fails.
+
+### Prevention
+- `tests/guards/no-stray-markup.sh` in the fast tier — fails the build on recurrence.
+- Meta-testing convention: every guard must be proven to fail against a seeded violation, asserting exit code and output, before it is trusted.
 
 ---
 
@@ -110,4 +173,3 @@ Derived from the architecture's known hazards — these are where defects are mo
 | Tenant leakage via cache key or job | Tenant context not propagated | `TST-SEC-002` — R7 every sub-step |
 | Deletion missing a derived store | Many derived stores | `TST-PRIV-006` traversal proof |
 | Model output reaching state without validation | Gateway boundary erosion | `TST-AI-001` |
-</content>

@@ -84,4 +84,3 @@ These were open questions that have been **checked**, not assumed. Recorded here
 2. If an assumption is invalidated, the change it forces is logged in [DECISION_LOG](DECISION_LOG.md) — invalidation is a result, not a failure.
 3. Any document citing an `OPEN` assumption must label it as an assumption at the point of use.
 4. Assumptions carrying a stop condition are cross-referenced in [RISK_REGISTER](RISK_REGISTER.md): `ASM-010`→`RISK-002`, `ASM-011`→`RISK-001`, `ASM-012`→`RISK-005`.
-</content>

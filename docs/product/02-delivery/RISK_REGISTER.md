@@ -166,4 +166,3 @@ Scores below are **initial estimates by the documentation author**, not owner-ac
 | **≤10** | `RISK-004`, `RISK-007`, `RISK-010`, `RISK-012` | Monitored; mitigations are mandatory controls |
 
 **Two risks are already realised, not prospective:** `RISK-011` (no owners assigned) and `RISK-014` (graph covers documentation only). Both are reflected as blockers in [MASTER_TRACKER](MASTER_TRACKER.md).
-</content>

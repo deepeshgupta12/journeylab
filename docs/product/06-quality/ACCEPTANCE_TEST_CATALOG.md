@@ -134,4 +134,3 @@ Each test states the **observable pass condition**, not the implementation. `Typ
 ## Status
 
 No test exists. Suites are created within the sub-steps that produce the code they cover; the harness and gates are built in `STEP-027`.
-</content>

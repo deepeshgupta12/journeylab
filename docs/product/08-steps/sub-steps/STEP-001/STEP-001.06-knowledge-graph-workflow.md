@@ -90,4 +90,3 @@ Index freshness monitored (`ALRT-KG-001`). **Embeddings remain disabled** until 
 | Commit SHA | *(baseline commit)* |
 | Graph re-indexed at | 2026-08-05 |
 | Notes / surprises | Two findings worth carrying forward: (1) `analyze` did **not** generate `.gitnexus/run.cjs`, so the documented invocation is `npx gitnexus`; (2) `analyze` **generates and overwrites `CLAUDE.md`** inside its marker block — repository rules must live outside that block or they will be destroyed on the next index |
-</content>

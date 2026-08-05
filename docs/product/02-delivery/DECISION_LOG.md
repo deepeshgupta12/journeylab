@@ -112,4 +112,3 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 ## 4. Superseded decisions
 
 None. This log begins at 2026-08-05.
-</content>

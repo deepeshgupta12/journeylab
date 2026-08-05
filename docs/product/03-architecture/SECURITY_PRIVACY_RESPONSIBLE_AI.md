@@ -120,4 +120,3 @@ Threat modelling runs **before beta and after material architecture changes**, i
 - Incident response, breach notification, backup restoration, DR and third-party outage playbooks **before production launch**.
 - Annual penetration testing; SAST, DAST, dependency, container and IaC scanning in CI; authorization fuzzing and tenant-isolation tests continuously.
 - Any confirmed cross-tenant exposure halts release immediately and triggers incident response.
-</content>

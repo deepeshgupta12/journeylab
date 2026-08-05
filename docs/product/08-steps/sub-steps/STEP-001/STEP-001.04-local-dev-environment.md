@@ -81,4 +81,3 @@ Remove the compose file; earlier sub-steps remain functional (they need no servi
 | Completed | — |
 | Commit SHA | — |
 | Notes / surprises | — |
-</content>

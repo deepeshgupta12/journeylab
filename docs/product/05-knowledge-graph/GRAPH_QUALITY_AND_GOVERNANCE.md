@@ -110,4 +110,3 @@ A file that fails to parse is never counted as excluded.
 | What single action changes this? | The first source-code merge, followed immediately by `npx gitnexus analyze` |
 
 Reporting this as "knowledge graph: complete ✅" would be false. It is: **pipeline operational, coverage pending code** (`RISK-014`).
-</content>

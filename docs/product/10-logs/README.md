@@ -61,4 +61,3 @@ Git history says what changed. These logs say **what it cost to learn**, which i
 | `IMPL-NNN` | 001+ | Next free number in the implementation log |
 
 Numbers are never reused, including for dropped or rejected items.
-</content>

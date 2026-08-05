@@ -121,4 +121,3 @@ Each arrow is an immutable artifact handoff, not a mutation. That is what makes 
 | Call providers during solve | Reproducibility requires frozen evidence | `ADR-004` |
 | Store precise location by default | Privacy and stalking risk | `REQ-PRIV-008`, `RISK-006` |
 | Serve a graph path the caller cannot inspect at source | Permission integrity | `REQ-KG-006` |
-</content>

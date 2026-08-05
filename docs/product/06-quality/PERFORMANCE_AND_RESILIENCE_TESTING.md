@@ -102,4 +102,3 @@ What can be tested now, once code exists, without projections: relative scaling 
 | Performance baselines | Not measured |
 | Drill records | None |
 | Capacity projections | **Missing — blocks meaningful load testing** |
-</content>

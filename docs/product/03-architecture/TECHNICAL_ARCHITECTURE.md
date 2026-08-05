@@ -136,4 +136,3 @@ Recorded from direct execution on 2026-08-05, not assumed:
 | Node.js available | v25.9.0 (note: **newer than the Node 24 LTS baseline**; the runtime for the application must be pinned to 24 LTS regardless of the local version) |
 
 **Consequence:** every path in this document and in the step files is `PROPOSED`. None has been verified against source.
-</content>

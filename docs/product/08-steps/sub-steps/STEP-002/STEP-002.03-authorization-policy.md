@@ -81,4 +81,3 @@ Policy is code; revert restores the prior version. **Loosening a policy is a sec
 | --- | --- |
 | Completed | — |
 | Notes / surprises | Generating tests from the matrix is what stops the matrix becoming documentation that drifts from behavior |
-</content>

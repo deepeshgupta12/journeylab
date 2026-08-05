@@ -1,0 +1,32 @@
+{
+  "name": "journeylab",
+  "version": "0.0.0",
+  "private": true,
+  "description": "JourneyLab \u2014 a trip digital twin for comparing feasible futures before and during travel",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepeshgupta12/journeylab.git"
+  },
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "lint": "echo \"[STEP-001.02] lint not yet configured\" && exit 0",
+    "format:check": "echo \"[STEP-001.02] format check not yet configured\" && exit 0",
+    "typecheck": "echo \"[STEP-001.02] typecheck not yet configured\" && exit 0",
+    "test": "echo \"[STEP-001.02] tests not yet configured\" && exit 0",
+    "dev": "echo \"[STEP-001.04] local stack not yet configured\" && exit 0",
+    "py:sync": "uv sync",
+    "py:lint": "uv run ruff check .",
+    "py:format:check": "uv run ruff format --check .",
+    "py:typecheck": "uv run mypy .",
+    "py:test": "uv run pytest",
+    "verify": "pnpm guard:markup && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
+    "kg:status": "npx --yes gitnexus status",
+    "kg:refresh": "npx --yes gitnexus analyze",
+    "guard:markup": "bash tests/guards/no-stray-markup.sh"
+  }
+}

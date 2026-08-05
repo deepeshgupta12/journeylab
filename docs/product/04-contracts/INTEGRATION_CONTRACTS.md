@@ -125,4 +125,3 @@ Not in Phase 1 scope. When introduced (advisor/partner integrations, Phase 4), t
 | INT-006, INT-007, INT-008 | ❌ | — | ❌ | ❌ |
 
 **No integration exists.** This is the largest concentration of unresolved external dependency in the programme and the reason `STEP-005` is `BLOCKED` in [MASTER_TRACKER](../02-delivery/MASTER_TRACKER.md).
-</content>

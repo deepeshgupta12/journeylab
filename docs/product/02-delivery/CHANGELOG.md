@@ -74,4 +74,3 @@ This changelog follows a Keep-a-Changelog structure adapted for a documentation-
 - **Graph evidence:** pre-change record ID, post-change verification result
 - **Author/owner:** …
 ```
-</content>

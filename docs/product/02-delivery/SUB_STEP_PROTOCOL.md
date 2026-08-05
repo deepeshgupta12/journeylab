@@ -188,4 +188,3 @@ Nothing is "done" until these are updated in the same commit:
 - [ ] Committed without AI attribution and pushed
 - [ ] Graph re-indexed
 - [ ] `main` is green and deployable
-</content>

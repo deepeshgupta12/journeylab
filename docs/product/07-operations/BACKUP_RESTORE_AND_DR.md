@@ -107,4 +107,3 @@ graph LR
 | Rehearsals | Never performed |
 | Region strategy | Undecided (`DEC-007`) |
 | Multi-region failover | **Explicitly out of Phase 1 scope** — recovery is from backup |
-</content>

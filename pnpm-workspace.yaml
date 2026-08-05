@@ -1,0 +1,14 @@
+# JourneyLab workspace definition — STEP-001.01
+#
+# Package boundaries mirror the portfolio reference shape documented in
+# docs/product/03-architecture/TECHNICAL_ARCHITECTURE.md §2.
+#
+# Module import boundaries are ENFORCED in CI from STEP-001.02 onward:
+# a cross-module import that bypasses a package's public interface fails the
+# build. Without that enforcement, ADR-003 (modular monolith) degrades into a
+# structure that cannot be split later.
+
+packages:
+  - "apps/*"        # web (Next.js) and api (FastAPI) deployable surfaces
+  - "packages/*"    # ui, contracts, authz, analytics, observability, security
+  - "services/*"    # domain, data, retrieval, AI, ML and workflow services

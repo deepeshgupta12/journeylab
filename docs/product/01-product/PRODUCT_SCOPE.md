@@ -364,5 +364,4 @@ Operating rule: the scope must run from before first interaction through retirem
 - [MASTER_TRACKER](../02-delivery/MASTER_TRACKER.md) — canonical status
 - [ROADMAP](../02-delivery/ROADMAP.md) — phase gating and sequencing
 - [CHANGE_IMPACT_PROTOCOL](../05-knowledge-graph/CHANGE_IMPACT_PROTOCOL.md) — mandatory before any implementation
-</content>
 </invoke>

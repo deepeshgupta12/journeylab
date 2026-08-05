@@ -111,4 +111,3 @@ Cheapest and safest first; each step is measured before the next:
 | Capacity projections | None (`ASM-002`) |
 | Budget alerts | Not configured |
 | `RISK-003` stop condition | **Currently unmeasurable** — a gap that must close before Phase 1 exit |
-</content>

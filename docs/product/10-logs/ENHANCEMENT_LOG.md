@@ -89,4 +89,3 @@ deleted from? Every enhancement has a permanent tail.
 | "Add one more scenario objective" | Increases solver latency against `REQ-NFR-004`; diversity, not count, is the goal |
 | "Auto-apply obviously-safe replans" | Violates the user-control principle (`EXC-004`) — no replan is obviously safe to the person travelling |
 | "Store location to make the live view faster" | Breaches `REQ-PRIV-008` and increases `RISK-006` |
-</content>

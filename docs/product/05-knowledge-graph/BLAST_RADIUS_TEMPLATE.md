@@ -178,4 +178,3 @@ Untested requirement count:    before / after
 | Customer criticality | Internal tooling | Core planning path |
 
 **Anti-pattern this template exists to prevent:** a small diff, a stale graph, an empty "unknown areas" section, and a LOW score. If the graph is `BLOCKED`, confidence is 5 and the overall risk cannot be LOW.
-</content>

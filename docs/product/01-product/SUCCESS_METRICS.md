@@ -141,4 +141,3 @@ These are not product KPIs but gate release. Detail in [NON_FUNCTIONAL_REQUIREME
 - KPI review cadence, decision forum and escalation path: **undecided** (`DEC-006`).
 - A negative result is recorded in [DECISION_LOG](../02-delivery/DECISION_LOG.md) as portfolio evidence, never discarded (portfolio standard §7.38).
 - Stop conditions tied to metrics live in [RISK_REGISTER](../02-delivery/RISK_REGISTER.md): `RISK-002` (comparison not preferred), `RISK-003` (unit economics), `RISK-004` (constraint violations).
-</content>

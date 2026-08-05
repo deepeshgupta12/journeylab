@@ -169,4 +169,3 @@ Full process in [CONTRACT_CHANGE_POLICY](CONTRACT_CHANGE_POLICY.md).
 ## 5. Status
 
 `contracts/asyncapi.yaml` **does not exist**. All events above are specifications produced in `STEP-004` and implemented in `STEP-006`.
-</content>

@@ -124,4 +124,3 @@ Blameless, within five working days, for every SEV1 and SEV2. Required output:
 | Status page | Does not exist |
 | Breach notification obligations | Undetermined (`DEC-007`) |
 | Playbooks | `PROPOSED` — required before production launch |
-</content>

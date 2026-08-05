@@ -126,4 +126,3 @@
 ---
 
 **An unchecked box blocks the release.** It does not become a follow-up item — that is how gates decay into rituals.
-</content>

@@ -210,4 +210,3 @@ The project-local `.gitnexus/run.cjs` runner was **not** generated — use `npx 
 - No graph coverage gate (`REQ-KG-001`, `REQ-KG-002`) has been evaluated — they have no subject.
 - No test has been executed; all `TST-*` IDs are specifications.
 - No legal, privacy, accessibility or security review has been performed on this content.
-</content>

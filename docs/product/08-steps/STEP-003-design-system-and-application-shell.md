@@ -139,4 +139,3 @@ Headless component library not selected. RTL implementation deferred to Phase 2 
 | Sub-steps completed | 0 of 8 |
 | Regression result | — |
 | Verified by | — |
-</content>

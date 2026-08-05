@@ -119,4 +119,3 @@ graph LR
 | Correlation IDs are tenant-safe and non-reversible to a person | `REQ-OBS-001` |
 | Analytics events are typed and carry a privacy tier; untyped events rejected server-side | `REQ-OBS-005` |
 | Accessibility, age and location never in analytics payloads | `REQ-PRIV-004` |
-</content>

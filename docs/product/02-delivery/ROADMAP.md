@@ -147,4 +147,3 @@ The longest dependency chain to a shippable Phase 1:
 ## Portfolio context
 
 The portfolio index recommends JourneyLab **second** of five products, after DemandForge, because it adds a highly visual consumer experience, map/timeline synchronization, optimisation and uncertainty without requiring transaction processing. That ordering is a portfolio-building recommendation, not a market-size ranking, and a live design partner can justify changing it.
-</content>

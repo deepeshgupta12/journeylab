@@ -231,4 +231,3 @@ To prevent false precision, these are **open** and tracked in [ASSUMPTION_REGIST
 - Named destination region for Phase 1 (`DEC-002`).
 - Data residency and regional deployment obligations (`ASM-003`).
 - Specific provider identities and their contractual freshness SLAs (`ASM-011`).
-</content>

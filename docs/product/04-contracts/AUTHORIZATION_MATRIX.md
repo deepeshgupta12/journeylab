@@ -110,4 +110,3 @@ Authorization is decided by three independent checks, **all of which must pass**
 | TST-KG-006 | Graph traversal respects repository, tenant and source permissions |
 
 **This matrix is the test fixture.** Authorization tests are generated from it so a matrix change without a test change fails CI.
-</content>

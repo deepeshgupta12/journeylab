@@ -131,4 +131,3 @@ If residency obligations exist, storage design, provider selection and backup to
 | Security review | Threat model, penetration test and supply-chain controls required first |
 | DR rehearsal | Restoration exercise must complete before GA |
 | Runbooks | Every deployable unit needs an owner and rehearsed runbook |
-</content>

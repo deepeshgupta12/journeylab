@@ -124,4 +124,3 @@ Agents operating in this repository follow the same rules as people, plus:
 | Graph quality review | Each release | [GRAPH_QUALITY_AND_GOVERNANCE](../05-knowledge-graph/GRAPH_QUALITY_AND_GOVERNANCE.md) §1 |
 | Incident retrospective | Per incident | Actions into the backlog and runbooks |
 | DR and offline-sync drill | Quarterly | Rehearsal record |
-</content>

@@ -108,4 +108,3 @@ These must **not** be rendered as failures. Treating them as errors is the exact
 | Provider identities are logged internally but **never returned** to clients | Commercial confidentiality and attack-surface reduction |
 | `tenant.isolation_violation` triggers SEV1 immediately | `RISK-010` |
 | 5xx rates feed error-budget burn; 4xx do not | Client errors are not service failures |
-</content>

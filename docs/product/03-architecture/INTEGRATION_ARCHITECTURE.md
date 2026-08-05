@@ -104,4 +104,3 @@ Every provider is reached through a **provider-independent interface** so substi
 - LLM: gateway with structured output, not a provider SDK in domain code.
 
 Provider concentration is tracked as `RISK-008`; second-source evaluation is required before Phase 2 coverage expansion.
-</content>

@@ -78,4 +78,3 @@ Revert documentation. No functional impact.
 | Completed | — |
 | Commit SHA | — |
 | Notes / surprises | The genuine test is a second engineer running it cold — self-review of one's own setup instructions reliably misses assumed context |
-</content>

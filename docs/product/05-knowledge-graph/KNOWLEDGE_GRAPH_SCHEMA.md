@@ -145,4 +145,3 @@ Traversal across the boundary requires authorization for **both** sides. A calle
 | Code graph | GitNexus index (`.gitnexus/`) | Purpose-built; already operational |
 | Domain graph | Neo4j **or** PostgreSQL recursive queries — **open** (`DEC` in `STEP-026`) | Polyglot persistence must be justified by real traversal depth, not assumed |
 | Embeddings | Graph index or pgvector | Permission-filtered; **no secrets or customer payloads** (`REQ-KG-007`) |
-</content>

@@ -146,4 +146,3 @@ Every box needs **evidence**, not an opinion — a test run, a report, a drill r
 | `RISK-014` | Knowledge graph covers documentation only |
 
 The honest status is **pre-implementation**: the documentation system that defines this release exists; the release does not.
-</content>

@@ -132,4 +132,3 @@ These are enforced repository rules, restated in `CLAUDE.md`:
 | No release graph tagging | Add to the release procedure in `STEP-027` | SRE |
 | Edge precision unmeasured | Sample and measure before enabling the release gate | Platform |
 | Requirement linkage untested | Verify `IMPLEMENTS_REQUIREMENT` edges resolve from `docs/product/` IDs | TPM |
-</content>

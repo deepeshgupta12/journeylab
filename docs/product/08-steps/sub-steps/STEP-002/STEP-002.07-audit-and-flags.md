@@ -87,4 +87,3 @@ Flag primitives revert cleanly. **Audit records never revert** — they are appe
 | --- | --- |
 | Completed | — |
 | Notes / surprises | "Fail conservative" on flags is easy to get backwards: a flag service outage that enables a half-built feature is a far worse outcome than one that disables a finished one |
-</content>

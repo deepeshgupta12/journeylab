@@ -190,4 +190,3 @@ Navigation: [Requirements](FUNCTIONAL_REQUIREMENTS.md) · [Scope](PRODUCT_SCOPE.
 | STEP-014 | REQ-CONS-010, 011, REQ-A11Y-005 | STEP-028 | REQ-TRIP-009, REQ-BOOK-005 |
 
 **Validation result:** 28/28 steps carry at least one requirement; 130/130 requirements carry at least one step, one test ID and a release disposition. No orphans.
-</content>

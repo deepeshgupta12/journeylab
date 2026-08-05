@@ -91,4 +91,3 @@ Expand-phase only; the migration adds tables and policies. Reverting drops them.
 | Completed | — |
 | Commit SHA | — |
 | Notes / surprises | `FORCE ROW LEVEL SECURITY` matters: without it the table owner silently bypasses every policy, which is the most common way RLS is believed-present but absent |
-</content>

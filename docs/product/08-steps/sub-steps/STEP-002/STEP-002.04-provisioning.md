@@ -82,4 +82,3 @@ Provisioning logic reverts cleanly. **Migrated trips do not** — re-parenting i
 | --- | --- |
 | Completed | — |
 | Notes / surprises | Migration idempotency matters more than it looks: a retried migration that duplicates trips is indistinguishable from a user creating them |
-</content>

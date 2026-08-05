@@ -106,4 +106,3 @@ Every contract change must update, in the same pull request:
 ## 8. Emergency changes
 
 A security fix may bypass the dual-run window **only** with: an incident record, the security owner's approval, an immediate consumer notice, and a retrospective within five working days. Everything else in this policy — versioning, blast-radius record, rollback plan — still applies. Speed is bought from the deprecation window, never from the safety analysis.
-</content>

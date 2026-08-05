@@ -181,4 +181,3 @@ The blueprint's central design claim is that travel planning is a **constrained 
 | Ranker unavailable | Health | Deterministic objective ordering | Diversity may reduce; feasibility unaffected |
 
 **The product remains functional with every AI capability disabled.** Scenario generation, comparison and booking handoff are deterministic paths.
-</content>

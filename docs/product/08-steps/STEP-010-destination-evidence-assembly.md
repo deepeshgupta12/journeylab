@@ -151,4 +151,3 @@ Retrieval evaluation report; temporal-filter correctness proof; abstention preci
 | Sub-steps completed | 0 of 10 |
 | Regression result | — |
 | Verified by | — |
-</content>

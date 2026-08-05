@@ -176,4 +176,3 @@ services/
 
 db/migrations/{001_identity_tenancy.sql,010_domain.sql}
 ```
-</content>

@@ -83,4 +83,3 @@ Removing this suite is a **governance regression** requiring owner approval — 
 | --- | --- |
 | Completed | — |
 | Notes / surprises | The meta-test matters most: a passing isolation suite that would also pass with RLS disabled is worse than no suite, because it manufactures confidence |
-</content>

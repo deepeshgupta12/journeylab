@@ -128,4 +128,3 @@ never approve their own change.*
 | Written after implementation | Then it documents what was done, not what should have been considered |
 | "No consumers" without checking generated clients and contract tests | Generated clients are exactly where breakage hides |
 | Skipping the data-flow check on an auth change | Taint paths are not visible in a call graph alone |
-</content>

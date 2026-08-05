@@ -111,4 +111,3 @@ Every finding gets a regression test (R6), so a fixed vulnerability cannot silen
 | Isolation tests | **Cannot run — no application** |
 
 **Precondition for GA:** threat model closed or accepted, pen test complete, all critical/high findings resolved, deletion proof passing.
-</content>

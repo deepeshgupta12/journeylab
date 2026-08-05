@@ -110,4 +110,3 @@ not from memory.*
 - Removal is gated on **observed consumer traffic**, not on the sunset date arriving.
 - Emergency security fixes may compress the deprecation window, **never** the impact analysis.
 - Commit and PR text must contain **no AI co-authorship attribution** (`ADR-006`).
-</content>

@@ -105,4 +105,3 @@ to copy personal data into a shared channel.
 | Rehearsed | An unrehearsed runbook is a document, not a capability |
 | Rehearsal updates the runbook | The correction is the rehearsal's real output |
 | Verification includes data honesty | For this product, recovering while serving stale data as current turns an outage into a correctness incident |
-</content>

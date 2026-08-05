@@ -110,4 +110,3 @@ Real tension exists and is resolved by explicit precedence, not by wishful think
 | Freshness (`REQ-NFR-011`) vs. provider quota | Degrade to marked-stale data and block options requiring fresh facts; never present stale data as current |
 | Offline availability vs. privacy | Sensitive documents require explicit opt-in and device protection |
 | Availability vs. tenant isolation | **Isolation wins.** A confirmed cross-tenant exposure halts release |
-</content>

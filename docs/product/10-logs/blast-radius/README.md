@@ -38,4 +38,3 @@ Navigation: [Template](../../05-knowledge-graph/BLAST_RADIUS_TEMPLATE.md) · [Ch
 The code knowledge graph indexes **documentation only** (`RISK-014`). Until application source exists and is indexed, every assessment must record:
 
 > Graph status: `BLOCKED — static fallback applied`. Dependency coverage unverified. Confidence: 5. This does not satisfy the `REQ-KG-008` release gate.
-</content>

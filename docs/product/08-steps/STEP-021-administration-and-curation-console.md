@@ -138,4 +138,3 @@ What constitutes "high impact" needs a numeric threshold (affected trips or scen
 | Sub-steps completed | 0 of 8 |
 | Regression result | — |
 | Verified by | — |
-</content>

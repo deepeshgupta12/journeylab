@@ -151,4 +151,3 @@ Every AI result records prompt version, model version, retrieval configuration, 
 | Scorers (`mlflow/scorers/`) | Do not exist |
 | Baselines | Not measured |
 | Thresholds | Only two are fixed by the blueprint: **0 hard-constraint violations** and **≥95% citation correctness**. All others await Phase 0/1 baselines (`DEC-005`) |
-</content>

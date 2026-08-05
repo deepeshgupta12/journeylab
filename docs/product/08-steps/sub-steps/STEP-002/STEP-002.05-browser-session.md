@@ -83,4 +83,3 @@ Client session code reverts cleanly; server-side revocation remains authoritativ
 | --- | --- |
 | Completed | — |
 | Notes / surprises | A guest token is a bearer capability — anyone holding the link holds the trip. The expiry warning is a security control, not copy |
-</content>

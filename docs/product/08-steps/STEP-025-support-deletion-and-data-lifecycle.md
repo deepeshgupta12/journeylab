@@ -143,4 +143,3 @@ Traversal proof test output for all seven stores; DSR rehearsal record; retry-qu
 | Sub-steps completed | 0 of 11 |
 | Regression result | — |
 | Verified by | — |
-</content>

@@ -133,4 +133,3 @@ Within the first week:
 | `DEC-002` | Phase 1 destination region undecided |
 | `DEC-005` | KPI thresholds undefined, so exit gates are not objectively evaluable |
 | `EV-GAP-002` | Provider licence viability unproven (`RISK-001`) |
-</content>

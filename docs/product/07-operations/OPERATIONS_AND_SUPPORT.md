@@ -117,4 +117,3 @@ That exclusion list is what makes it possible to debug a user's trip without rea
 ## 7. Status
 
 Nothing is operational. Every runbook, dashboard, alert and rotation is `PROPOSED`, created in `STEP-024`. The support model itself is an open decision that must close before GA.
-</content>

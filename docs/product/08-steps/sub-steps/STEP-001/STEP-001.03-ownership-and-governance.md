@@ -85,4 +85,3 @@ Revert governance files. **Note:** removing branch protection is a security regr
 | Completed | — |
 | Blocked by | **`BLK-001` — no named owners exist** |
 | Notes | This sub-step is the first hard stop in the programme. Everything before it can be built by anyone; nothing after it can be signed off by no one |
-</content>

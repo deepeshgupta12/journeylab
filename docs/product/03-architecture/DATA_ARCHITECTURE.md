@@ -134,4 +134,3 @@ Destructive migrations require a blast-radius record and an owner approval; a ro
 ## 8. Tenancy
 
 Every row carries an organization/tenant identifier, enforced by row-level security. Cache keys and event partition keys include it. Cross-tenant isolation is tested continuously, including via cache, jobs, exports and graph traversal (`REQ-SEC-002`, `REQ-KG-006`).
-</content>

@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (1859 symbols, 2535 relationships, 0 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (2496 symbols, 3419 relationships, 0 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -269,4 +269,3 @@ These are product promises, not preferences. Breaking one is a defect regardless
 | Find a contract | [API](docs/product/04-contracts/API_CONTRACTS.md) · [Event](docs/product/04-contracts/EVENT_CONTRACTS.md) · [Data](docs/product/04-contracts/DATA_CONTRACTS.md) |
 | Know what is gated and why | [OUT_OF_SCOPE](docs/product/01-product/OUT_OF_SCOPE.md) |
 | Everything else | [00-START-HERE](docs/product/00-START-HERE.md) |
-</content>

@@ -138,4 +138,3 @@ Payment-credential negative test; segregation isolation test; affiliate outage d
 | Sub-steps completed | 0 of 7 |
 | Regression result | — |
 | Verified by | — |
-</content>

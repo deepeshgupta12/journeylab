@@ -82,4 +82,3 @@ Revert the dependency; endpoints do not yet exist, so blast radius is contained.
 | --- | --- |
 | Completed | — |
 | Notes / surprises | Ambient context (thread-locals, contextvars) crossing an async boundary is the classic leak — propagation must be explicit and tested |
-</content>

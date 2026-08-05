@@ -172,4 +172,3 @@ Every pre-change and post-change record must carry:
 ```
 
 If the graph could not be queried, state `BLOCKED`, name the reason, and apply the static fallback — never present fallback results as graph results.
-</content>

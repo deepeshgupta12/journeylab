@@ -178,4 +178,3 @@ SSE stream of progress, warnings and terminal result. Auth: job owner. Supports 
 | Contract tests | `tests/contracts/` | **Does not exist** |
 
 Created in `STEP-004`. Until then every operation above is a specification, not an implementation, and must not be cited as an available API.
-</content>

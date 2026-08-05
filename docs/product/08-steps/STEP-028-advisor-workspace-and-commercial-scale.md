@@ -139,4 +139,3 @@ Advisor buyer has had **no discovery** (`PER-003` unvalidated). Liability model 
 | Sub-steps completed | 0 of 9 |
 | Regression result | — |
 | Verified by | — |
-</content>

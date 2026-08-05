@@ -125,4 +125,3 @@ STEP-NNN.MM: <imperative summary>
 - [ ] Touches one coherent concern
 
 If any box is unchecked, split the sub-step.
-</content>

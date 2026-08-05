@@ -87,4 +87,3 @@ Revert configuration files; `.01` remains intact and installable.
 | Completed | — |
 | Commit SHA | — |
 | Notes / surprises | — |
-</content>

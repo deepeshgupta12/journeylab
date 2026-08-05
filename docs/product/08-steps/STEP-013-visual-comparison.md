@@ -141,4 +141,3 @@ Map-disabled e2e run; screen-reader journey recording; citation correctness repo
 | Sub-steps completed | 0 of 10 |
 | Regression result | — |
 | Verified by | — |
-</content>

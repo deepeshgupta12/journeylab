@@ -109,4 +109,3 @@ last_updated: YYYY-MM-DD
 5. **§19 and §20 must be complete before any code is written** (`REQ-KG-008`).
 6. **Sub-steps are created before implementation starts**, not discovered during it.
 7. Security, privacy, accessibility and observability appear in every step — they are never deferred to a later step.
-</content>

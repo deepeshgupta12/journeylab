@@ -140,4 +140,3 @@ CI run showing generation and validation; a deliberately breaking change proven 
 | Sub-steps completed | 0 of 8 |
 | Regression result | — |
 | Verified by | — |
-</content>

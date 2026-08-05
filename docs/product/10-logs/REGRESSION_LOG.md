@@ -67,9 +67,40 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
-*No entries. Implementation has not begun.*
+## STEP-001.01 — 2026-08-05 — Workspace skeleton and pinned toolchain
 
-The first entry will be for `STEP-001.01`.
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `c37d106` at pre-change; re-indexed post-commit |
+| Duration | — |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` green. Suite is minimal by construction — this is the first sub-step; lint/type/test are placeholders until STEP-001.02 |
+| R2 contract compatibility | **N/A** | No contracts exist yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | New root config files and workspace dirs only; no unexpected scope |
+| R4 untested requirements | **BASELINE** | First measurement — establishes the ratchet floor |
+| R5 orphan/unowned nodes | **BASELINE (known gap)** | `CODEOWNERS` does not exist until STEP-001.03, so all paths are unowned. Expected and tracked, not silently accepted |
+| R6 closed-bug tests | **PASS** | `BUG-001` guard passes; meta-tested to fail on a seeded violation |
+| R7 tenant isolation | **N/A** | No application, no tenancy until STEP-002.01 |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Check | Failure | Cause | Resolution | Bug ID |
+| --- | --- | --- | --- | --- |
+| Acceptance (`pnpm install`) | Invalid JSON in `package.json` | Stray authoring markup in 110 files | Scoped removal + permanent guard | **BUG-001** |
+| Guard meta-test | Guard reported failure for the wrong reason (bash syntax error, not detection) | Guard embedded the literal pattern and truncated itself | Runtime pattern assembly; meta-test now asserts exit code **and** flagged-file count | Folded into BUG-001 |
+
+### Notes
+Several checks are `N/A` or `BASELINE` here — legitimately, since this is the first
+executable commit. That will not hold from STEP-001.02 onward: R1 and R3 must produce
+real results, and R4/R5 become ratchets that may not worsen.
+
+The R5 gap is the honest one to watch: **every path is currently unowned**, and that
+is only acceptable because `STEP-001.03` (which is itself `BLOCKED` by `BLK-001`,
+no named owners) has not run yet.
 
 ---
 
@@ -98,4 +129,3 @@ The R1 suite grows with every sub-step, which is the point — and also a cost. 
 | Slow suite tempting shortcuts | Track suite duration in this log; a trend upward is a scheduled task, not a reason to skip |
 | Redundant tests | Prune only with owner approval and a recorded rationale |
 | Fast tier must always include | R7 tenant isolation, R6 closed-bug tests, contract compatibility |
-</content>

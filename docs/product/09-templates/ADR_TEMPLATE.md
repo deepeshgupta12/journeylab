@@ -79,4 +79,3 @@ failed assumption.*
 4. **Name a person as owner**, not a team.
 5. **State the review trigger** so the decision has an expiry condition rather than drifting into folklore.
 6. Accepted ADRs are indexed in [DECISION_LOG](../02-delivery/DECISION_LOG.md) §1.
-</content>
