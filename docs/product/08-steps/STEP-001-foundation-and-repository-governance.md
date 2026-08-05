@@ -88,7 +88,9 @@ Branch protection; reviewed deployments; `SECURITY.md` vulnerability process; se
 CI pass rate and local setup time (measured by asking the next engineer). No product telemetry exists yet.
 
 ## 18. Files and modules expected to change
-All `PROPOSED`: `README.md`, `CLAUDE.md`, `AGENTS.md`, `package.json`, `pnpm-workspace.yaml`, `pyproject.toml`, `uv.lock`, `.editorconfig`, `biome.json`, `tsconfig.base.json`, `CODEOWNERS`, `SECURITY.md`, `CONTRIBUTING.md`, `docker-compose.dev.yml`, `docs/adr/0001-architecture.md`.
+All `PROPOSED`: `README.md`, `CLAUDE.md`, `AGENTS.md`, `package.json`, `pnpm-workspace.yaml`, `pyproject.toml`, `uv.lock`, `.editorconfig`, `biome.json`, `tsconfig.base.json`, `CODEOWNERS`, `SECURITY.md`, `CONTRIBUTING.md`, `docker-compose.dev.yml`, `docs/adr/ADR-NNN-*.md`.
+
+**Naming deviation (recorded, `BR-005`):** this step originally listed `docs/adr/0001-architecture.md`, a filename predating ADR numbering. `ADR-001` is "documentation is the source of truth"; the architecture decision is `ADR-003`. Files use the established `ADR-NNN-<slug>.md` numbering — renumbering would break cross-references across ~100 documents.
 
 **Verified existing:** `CLAUDE.md` and `AGENTS.md` exist (GitNexus-generated block plus the working agreement); `.gitignore` and `.claude/skills/gitnexus/` exist.
 
@@ -126,7 +128,7 @@ Purely additive; revert by deleting the branch or reverting commits. No data or 
 - [ ] A clean checkout runs lint, type-check, tests and the app from documented commands (`REQ-PLAT-001`)
 - [ ] CI fails on an unlocked dependency change (`REQ-PLAT-002`)
 - [ ] CI fails on a path with no owner (`REQ-PLAT-003`)
-- [ ] `ADR-001` exists and is indexed in the decision log (`REQ-PLAT-004`)
+- [x] ADRs exist as files in `docs/adr/` and are indexed in the decision log (`REQ-PLAT-004`) — 10 accepted ADRs
 - [ ] `CLAUDE.md` documents the GitNexus workflow and the no-AI-attribution commit rule
 - [ ] `npx gitnexus status` reports the index current at `HEAD`
 

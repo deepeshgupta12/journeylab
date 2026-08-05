@@ -13,7 +13,7 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 
 ## How decisions are recorded
 
-- **Accepted architectural decisions** get a full ADR file (`docs/adr/ADR-NNN-*.md` in the code repository) using [ADR_TEMPLATE](../09-templates/ADR_TEMPLATE.md). This log is the index and the record of decisions not yet promoted to an ADR.
+- **Accepted architectural decisions** have a full ADR file in [`docs/adr/`](../../adr/) using [ADR_TEMPLATE](../09-templates/ADR_TEMPLATE.md). This log is the index and the record of decisions not yet promoted to an ADR.
 - **Open decisions** block specific work and name what is blocked. An open decision with no blocked work is not a decision — it is a preference.
 - A decision that is later reversed is **superseded, not deleted**. History is evidence.
 
@@ -21,35 +21,35 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 
 ## 1. Accepted decisions
 
-### ADR-001 — Documentation is the source of truth before code exists
+### [ADR-001](../../adr/ADR-001-documentation-source-of-truth.md) — Documentation is the source of truth before code exists
 - **Date:** 2026-08-05 · **Owner:** Documentation lead · **Status:** Accepted
 - **Context:** No application code exists. Work must be specifiable and reviewable before implementation.
 - **Decision:** `docs/product/` is the operational source of truth for scope, contracts, architecture and delivery status. Markdown explains contracts; when machine-readable contracts exist (`contracts/openapi.yaml`), those become authoritative for schemas and Markdown must link rather than duplicate.
 - **Consequences:** Documentation drift becomes a release blocker (`REQ-PLAT-009`). Every contract in [API_CONTRACTS](../04-contracts/API_CONTRACTS.md) is marked `PROPOSED` until a schema file exists.
 - **Alternatives rejected:** Code-first with documentation after (loses the pre-change impact discipline required by `REQ-KG-008`).
 
-### ADR-002 — Deterministic engines own feasibility; the LLM owns language
+### [ADR-002](../../adr/ADR-002-deterministic-engines-own-feasibility.md) — Deterministic engines own feasibility; the LLM owns language
 - **Date:** 2026-08-05 · **Owner:** AI/ML Architect · **Status:** Accepted (inherited from blueprint §1.3, portfolio standard §4.20)
 - **Context:** Travel planning is a constrained decision problem. Model fluency is not feasibility.
 - **Decision:** CP-SAT and deterministic validators own time, route, budget, eligibility, permissions and workflow state. The LLM parses intent, asks clarifications and explains trade-offs. Model output can never mutate trip state without command validation and user authorization (`REQ-AI-001`).
 - **Consequences:** Every AI capability needs a non-AI fallback (`REQ-AI-007`). Scenario scores are never model-generated.
 - **Alternatives rejected:** LLM-orchestrated planning with tool calls deciding feasibility — unreproducible and unverifiable against `REQ-CONS-004`.
 
-### ADR-003 — Modular monolith plus isolated compute workers for the MVP
+### [ADR-003](../../adr/ADR-003-modular-monolith-and-workers.md) — Modular monolith plus isolated compute workers for the MVP
 - **Date:** 2026-08-05 · **Owner:** Product Architect · **Status:** Accepted (blueprint §9.117)
 - **Context:** Blueprint names 14 service boundaries. Deploying 14 services at MVP adds operational cost without scaling need.
 - **Decision:** Start as one deployable API application with enforced internal module boundaries, plus separately scaled solver, simulation and ingestion workers. Split only when scaling, ownership or failure isolation justifies it.
 - **Consequences:** Module boundaries must be enforced in CI (import rules), otherwise the split becomes impossible later. Solver workers get explicit CPU/memory budgets.
 - **Alternatives rejected:** Microservices from day one (premature); single process including solvers (a solver timeout would degrade API availability).
 
-### ADR-004 — Immutable evidence packs as solver input
+### [ADR-004](../../adr/ADR-004-immutable-evidence-packs.md) — Immutable evidence packs as solver input
 - **Date:** 2026-08-05 · **Owner:** Data Architect · **Status:** Accepted (blueprint §10.140)
 - **Context:** `REQ-CONS-006` requires reproducible scenario runs. Live provider data is not reproducible.
 - **Decision:** An `EvidencePack` is assembled, versioned and frozen before solving. Solvers read only from the pack, never from arbitrary web content or live provider calls.
 - **Consequences:** Requires cache rights from providers (`ASM-019`). Stale packs must be detected and rebuilt. Storage grows per generation run and needs a retention policy.
 - **Alternatives rejected:** Live provider calls during solve (unreproducible, latency-unbounded, quota-fragile).
 
-### ADR-005 — GitNexus is the knowledge-graph toolchain
+### [ADR-005](../../adr/ADR-005-gitnexus-knowledge-graph.md) — GitNexus is the knowledge-graph toolchain
 - **Date:** 2026-08-05 · **Owner:** Platform · **Status:** Accepted
 - **Context:** `KNOWLEDGE_GRAPH_TOOL` was `AUTO_DISCOVER`. GitNexus was verified present and functional, with an MCP server and CLI.
 - **Decision:** GitNexus provides the codebase knowledge graph, pre-change impact analysis and change detection. The **product domain graph is a separate concern** and is not served by GitNexus; it is specified in [DOMAIN_KNOWLEDGE_GRAPH](../05-knowledge-graph/DOMAIN_KNOWLEDGE_GRAPH.md) as a Neo4j/PostgreSQL design to be built in `STEP-026`.
@@ -57,14 +57,14 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 - **Consequences:** `npx gitnexus <command>` is the documented invocation (the project-local `run.cjs` runner was not generated — see `ASM-009`). Graph coverage gates in `REQ-KG-001` cannot be meaningfully evaluated until code lands.
 - **Alternatives rejected:** Hand-maintained dependency documentation (drifts immediately); deferring graph tooling until code exists (would let the first commits merge without impact analysis).
 
-### ADR-006 — Commit messages carry no AI co-authorship attribution
+### [ADR-006](../../adr/ADR-006-no-ai-commit-attribution.md) — Commit messages carry no AI co-authorship attribution
 - **Date:** 2026-08-05 · **Owner:** Repository owner (user directive) · **Status:** Accepted
 - **Context:** Default tooling appends a `Co-Authored-By: Claude` trailer to commits.
 - **Decision:** Commit messages and pull-request descriptions in this repository must **not** contain AI co-authorship trailers or attribution.
 - **Consequences:** Contributors and agents must strip the trailer. The baseline commit was amended to comply (`73766ca`). This rule is restated in `CLAUDE.md`, [CONTRACT_CHANGE_POLICY](../04-contracts/CONTRACT_CHANGE_POLICY.md) and [CHANGE_IMPACT_PROTOCOL](../05-knowledge-graph/CHANGE_IMPACT_PROTOCOL.md).
 - **Alternatives rejected:** Leaving the default trailer (contradicts an explicit repository-owner directive).
 
-### ADR-007 — Decisions are resolved just-in-time at the step that needs them
+### [ADR-007](../../adr/ADR-007-just-in-time-decisions.md) — Decisions are resolved just-in-time at the step that needs them
 - **Date:** 2026-08-05 · **Owner:** Repository owner (user directive) · **Status:** Accepted
 - **Context:** Eight decisions (`DEC-002` … `DEC-009`) are open. Forcing them all now would mean deciding region, cloud provider and identity vendor before the work that depends on them has surfaced any real constraints.
 - **Decision:** Two linked rules.
@@ -73,14 +73,14 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 - **Consequences:** Steps blocked on a decision cannot be marked `READY`, and unblocked steps proceed in parallel. The implementer carries the burden of a researched recommendation rather than an open question — an unresearched "which region?" is not an acceptable escalation. Decisions arrive later, so architecture must stay substitutable where it can (`ADR-003`, provider-independent interfaces).
 - **Alternatives rejected:** Deciding everything upfront (guesses become commitments); building fully behind abstractions to defer indefinitely (`DEC-002` region and `DEC-007` residency genuinely block and cannot be abstracted away).
 
-### ADR-008 — Sub-step files are written just-ahead-of-need
+### [ADR-008](../../adr/ADR-008-just-ahead-of-need-sub-steps.md) — Sub-step files are written just-ahead-of-need
 - **Date:** 2026-08-05 · **Owner:** Repository owner (user directive) · **Status:** Accepted
 - **Context:** The 28 steps decompose into **228 sub-steps**. Writing all of them now would produce ~186 files describing work whose shape depends on decisions not yet made.
 - **Decision:** Sub-step files for the **foundation chain (`STEP-002` … `STEP-006`, 42 files)** are written upfront because that work is well-determined. Sub-steps for `STEP-007` … `STEP-028` are created when their step moves `READY` → `IN_PROGRESS`, and must exist and be reviewed **before** that step's first line of code.
 - **Consequences:** The full sub-step layer is never visible as one artifact until late; the tracker and each step's §21 table carry the plan in the interim. In exchange, sub-step files describe real work rather than speculation.
 - **Alternatives rejected:** Generating all 228 upfront (speculative rewrites once `DEC-002`/`DEC-004`/`DEC-007`/`DEC-009` land).
 
-### ADR-009 — TypeScript 7.0.2 supersedes the documented 6.0 baseline
+### [ADR-009](../../adr/ADR-009-typescript-7.md) — TypeScript 7.0.2 supersedes the documented 6.0 baseline
 - **Date:** 2026-08-05 · **Owner:** Deepesh Kumar Gupta · **Status:** Accepted
 - **Context:** The blueprint baseline (§10, August 2026) specifies TypeScript 7.0, and `ASM-004` requires version revalidation before pinning. At implementation time `npm view typescript dist-tags` reports **`latest: 7.0.2`**; 6.0.3 is a real stable release but no longer current. Portfolio standard §4.18 requires *current stable/LTS at implementation time*, which is what triggered the revalidation rather than a preference for novelty.
 - **Decision:** Pin **TypeScript 7.0.2**. This supersedes the 6.0 baseline for this repository.
@@ -89,7 +89,7 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 - **Alternatives rejected:** Staying on 6.0.3 (contradicts §4.18's current-stable requirement once 7 is `latest`); waiting until source exists (a major-version migration is cheapest at zero files).
 - **Review trigger:** TypeScript 8, or a breaking incompatibility with Next.js 16.2 / React 19.2.
 
-### ADR-010 — Repository ownership assigned to a single accountable owner
+### [ADR-010](../../adr/ADR-010-repository-ownership.md) — Repository ownership assigned to a single accountable owner
 - **Date:** 2026-08-05 · **Owner:** Deepesh Kumar Gupta · **Status:** Accepted
 - **Context:** `BLK-001` — no step, document or gate had a named owner. Every step file carried `owners: []`, no exit gate could be signed off, and `STEP-001.03` was hard-blocked because `CODEOWNERS` cannot be written without a name. This was the highest-exposure realised risk in the register (`RISK-011`, exposure 20).
 - **Decision:** **Deepesh Kumar Gupta** (GitHub `@deepeshgupta12`) is the named owner for all roles, paths and gates until the team grows.

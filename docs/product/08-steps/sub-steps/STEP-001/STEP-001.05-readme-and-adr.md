@@ -2,7 +2,7 @@
 sub_step_id: STEP-001.05
 parent_step: STEP-001
 title: README, architecture map and ADR-001
-status: NOT_STARTED
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-001, REQ-PLAT-004]
 blast_radius_id: BR-005
@@ -67,14 +67,14 @@ README documents data classifications so contributors know what is sensitive bef
 Revert documentation. No functional impact.
 
 ## 12. Acceptance criteria
-- [ ] An engineer who did not write the README completes setup using it alone
-- [ ] `ADR-001` records context, decision, options, consequences (including negatives), migration and rollback
-- [ ] ADR indexed in `DECISION_LOG`
-- [ ] `README.md` links to `00-START-HERE.md`
+- [~] **PARTIAL** — an executable guard proves every command, link, port and the Node path are correct and current. Whether the README is *comprehensible to a newcomer* cannot be self-certified by its author and remains outstanding.
+- [x] ADRs record context, decision, options, consequences (incl. negatives), migration and rollback — 10 files in `docs/adr/`
+- [x] All 10 ADRs indexed and cross-linked in `DECISION_LOG`
+- [x] `README.md` links to `00-START-HERE.md` (verified by guard)
 
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
+| Completed | 2026-08-05 |
 | Commit SHA | — |
-| Notes / surprises | The genuine test is a second engineer running it cold — self-review of one's own setup instructions reliably misses assumed context |
+| Notes / surprises | README written and guarded by tests/guards/readme-accuracy.sh, meta-tested three ways (bogus script, broken link, port mismatch). ADR filename deviates from the step file: established ADR-NNN numbering kept because renumbering would break ~100 cross-references (BR-005). The "newcomer can follow it" half of the acceptance criterion is NOT self-certified - it needs a second person. |

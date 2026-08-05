@@ -67,6 +67,39 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-001.05 — 2026-08-05 — README, architecture map and ADR files
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `23ec095` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` — 14 checks (new: `guard:readme`) |
+| R2 contract compatibility | **N/A** | No contracts yet |
+| R3 graph diff as expected | **PASS** | Documentation and one guard; no symbols |
+| R4 untested requirements | **PASS** | Not increased |
+| R5 orphan/unowned nodes | **PASS** | 190 tracked paths owned |
+| R6 closed-bug tests | **PASS** | BUG-001/002/003 guards all pass |
+| R7 tenant isolation | **N/A** | No tenancy until STEP-002.01 |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `guard:substep-docs` failed mid-run | `STEP-001.05` marked `VERIFIED` before its records were written | Wrote `IMPL-005` and this entry, then re-ran. **The BUG-003 guard worked exactly as designed** |
+
+### Notes
+This is the first sub-step where a guard from a *previous* sub-step caught a live
+mistake rather than a seeded one. The failure mode it prevented — a sub-step declared
+complete without evidence — is precisely `BUG-003`, one sub-step earlier.
+
+One acceptance criterion is deliberately recorded as **partial**: the README's
+commands are proven correct by execution, but its comprehensibility to a newcomer
+cannot be self-certified by its author.
+
 ## STEP-001.04 — 2026-08-05 — Local dependency stack
 
 | Field | Value |

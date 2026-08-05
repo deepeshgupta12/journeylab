@@ -60,6 +60,72 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-005 — STEP-001.05 — README, architecture map and ADR files
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-05 |
+| Requirements | REQ-PLAT-001, REQ-PLAT-004 |
+| Blast radius | BR-005 (LOW) |
+| Graph indexed commit | `23ec095` — matched HEAD at pre-change |
+
+### What was built
+`README.md` (orientation, prerequisites, setup, port table, repository map, data
+classifications, working agreement, blockers); `docs/adr/` with **10 ADR files** plus
+an index; ADR cross-links added to `DECISION_LOG`; and
+`tests/guards/readme-accuracy.sh`.
+
+### Why this approach
+A README is the first thing a newcomer runs, so its failure mode is silent: it drifts,
+and the reader concludes the documentation cannot be trusted. Rather than asserting it
+is accurate, the guard **executes the claim** — every `pnpm` script it mentions must
+exist, every link must resolve, every documented port must match
+`docker-compose.dev.yml` in both directions, and the documented Node path must yield
+v24.
+
+ADRs were promoted from decision-log entries into files because a decision that lives
+only inside a larger document cannot be reviewed, superseded or linked from a commit
+message independently.
+
+### Decisions taken during implementation
+| Decision | Alternatives | Rationale |
+| --- | --- | --- |
+| Keep `ADR-NNN-<slug>.md` numbering | Rename to `0001-architecture.md` as `STEP-001` §18 listed | The step file's name predates ADR numbering. `ADR-001` is "documentation is the source of truth"; the architecture decision is `ADR-003`. Renumbering would break cross-references across ~100 documents and invalidate commit messages citing ADRs. **Step file corrected instead** |
+| Guard checks ports **bidirectionally** | Only check README→compose | A port published but undocumented is as bad as one documented but unpublished |
+| Guard does not run `pnpm verify` | Run full setup end to end | It is itself part of `pnpm verify` — that would recurse |
+
+### The acceptance criterion I did not claim
+The sub-step required *"an engineer who did not write the README completes setup using
+it alone."* **I wrote it, so I cannot certify that.** The guard proves the commands are
+correct and current; it cannot prove they are comprehensible to a newcomer.
+
+Recorded as **partially satisfied**, with the human half outstanding. Marking it done
+would have been the fourth false pass in this repository — the pattern each time is a
+check that verifies something adjacent to, but not the same as, the actual claim.
+
+### What surprised us
+The `substep-docs` guard added in the previous sub-step **immediately blocked this
+one**: I set `STEP-001.05` to `VERIFIED` before writing this entry, and `pnpm verify`
+failed with *"1 missing record across 5 VERIFIED sub-steps"*. The guard written to
+prevent `BUG-003` caught the same mistake one sub-step later. That is the clearest
+evidence so far that these guards earn their cost.
+
+### Follow-up created
+| Item | Type |
+| --- | --- |
+| Newcomer walkthrough of the README | **Open** — needs a second person |
+| ADR files for future decisions | Use `ADR_TEMPLATE`, index in `DECISION_LOG` |
+
+### Verification
+| Check | Result |
+| --- | --- |
+| README guard — scripts, links, ports, Node path | PASS |
+| Guard meta-tests (bogus script, broken link, port mismatch) | PASS — all three caught, exit 1 each |
+| 10 ADR files created and indexed | PASS |
+| `pnpm verify` (14 checks) | PASS |
+
+---
+
 ## IMPL-004 — STEP-001.04 — Local dependency stack
 
 | Field | Value |

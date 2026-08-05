@@ -24,7 +24,7 @@
     "py:format:check": "uv run ruff format --check .",
     "py:typecheck": "bash tests/guards/py-typecheck.sh",
     "py:test": "uv run pytest",
-    "verify": "pnpm guard:markup && pnpm guard:artifacts && pnpm guard:codeowners && pnpm guard:ports && pnpm guard:substep-docs && pnpm guard:boundaries && pnpm lint && pnpm format:check && pnpm typecheck && pnpm py:lint && pnpm py:format:check && pnpm py:typecheck && pnpm test",
+    "verify": "pnpm guard:markup && pnpm guard:artifacts && pnpm guard:codeowners && pnpm guard:ports && pnpm guard:substep-docs && pnpm guard:readme && pnpm guard:boundaries && pnpm lint && pnpm format:check && pnpm typecheck && pnpm py:lint && pnpm py:format:check && pnpm py:typecheck && pnpm test",
     "kg:status": "npx --yes gitnexus status",
     "kg:refresh": "npx --yes gitnexus analyze",
     "guard:markup": "bash tests/guards/no-stray-markup.sh",
@@ -36,7 +36,8 @@
     "dev:down": "docker compose -f docker-compose.dev.yml down",
     "dev:reset": "docker compose -f docker-compose.dev.yml down -v && docker compose -f docker-compose.dev.yml up -d --wait",
     "dev:logs": "docker compose -f docker-compose.dev.yml logs -f",
-    "guard:substep-docs": "bash tests/guards/substep-docs.sh"
+    "guard:substep-docs": "bash tests/guards/substep-docs.sh",
+    "guard:readme": "bash tests/guards/readme-accuracy.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.7",
