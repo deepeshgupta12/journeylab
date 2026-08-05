@@ -64,6 +64,22 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 - **Consequences:** Contributors and agents must strip the trailer. The baseline commit was amended to comply (`73766ca`). This rule is restated in `CLAUDE.md`, [CONTRACT_CHANGE_POLICY](../04-contracts/CONTRACT_CHANGE_POLICY.md) and [CHANGE_IMPACT_PROTOCOL](../05-knowledge-graph/CHANGE_IMPACT_PROTOCOL.md).
 - **Alternatives rejected:** Leaving the default trailer (contradicts an explicit repository-owner directive).
 
+### ADR-007 — Decisions are resolved just-in-time at the step that needs them
+- **Date:** 2026-08-05 · **Owner:** Repository owner (user directive) · **Status:** Accepted
+- **Context:** Eight decisions (`DEC-002` … `DEC-009`) are open. Forcing them all now would mean deciding region, cloud provider and identity vendor before the work that depends on them has surfaced any real constraints.
+- **Decision:** Two linked rules.
+  1. **Resolution timing.** A decision is resolved when its blocking step is reached, not before. Until then it stays open in §2 and the step stays `BLOCKED` in the tracker.
+  2. **Resolution method — propose, then confirm.** When a step is reached, the implementer researches the options and puts a **specific recommendation with rationale** to the repository owner, who approves or overrides. The outcome becomes an ADR and closes the `DEC-*` entry.
+- **Consequences:** Steps blocked on a decision cannot be marked `READY`, and unblocked steps proceed in parallel. The implementer carries the burden of a researched recommendation rather than an open question — an unresearched "which region?" is not an acceptable escalation. Decisions arrive later, so architecture must stay substitutable where it can (`ADR-003`, provider-independent interfaces).
+- **Alternatives rejected:** Deciding everything upfront (guesses become commitments); building fully behind abstractions to defer indefinitely (`DEC-002` region and `DEC-007` residency genuinely block and cannot be abstracted away).
+
+### ADR-008 — Sub-step files are written just-ahead-of-need
+- **Date:** 2026-08-05 · **Owner:** Repository owner (user directive) · **Status:** Accepted
+- **Context:** The 28 steps decompose into **228 sub-steps**. Writing all of them now would produce ~186 files describing work whose shape depends on decisions not yet made.
+- **Decision:** Sub-step files for the **foundation chain (`STEP-002` … `STEP-006`, 42 files)** are written upfront because that work is well-determined. Sub-steps for `STEP-007` … `STEP-028` are created when their step moves `READY` → `IN_PROGRESS`, and must exist and be reviewed **before** that step's first line of code.
+- **Consequences:** The full sub-step layer is never visible as one artifact until late; the tracker and each step's §21 table carry the plan in the interim. In exchange, sub-step files describe real work rather than speculation.
+- **Alternatives rejected:** Generating all 228 upfront (speculative rewrites once `DEC-002`/`DEC-004`/`DEC-007`/`DEC-009` land).
+
 ---
 
 ## 2. Open decisions

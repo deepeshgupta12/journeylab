@@ -184,6 +184,7 @@ Legend for sub-columns: `—` not applicable to this step · `NS` not started ·
 | `08-steps/` | 28 | `DISCOVERY` / `DEFERRED` | On step status change | 2026-08-05 |
 | `09-templates/` | 6 | `READY` | On governance change | 2026-08-05 |
 | Root `CLAUDE.md` | 1 | `READY` | On rule or graph change | 2026-08-05 |
+| `08-steps/sub-steps/` | 48 | `NOT_STARTED` | At step start (`ADR-008`) | 2026-08-05 |
 
 ---
 

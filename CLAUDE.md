@@ -58,7 +58,7 @@ This file is the condensed operating contract for anyone changing this repositor
 | Target release | Phase 1 MVP — one region, 3–7 day trips, deep-link handoff |
 | Repository | `https://github.com/deepeshgupta12/journeylab.git` |
 | Implementation status | **0%** — documentation only; no application code exists |
-| Documentation | **105 files** across 10 groups — [start here](docs/product/00-START-HERE.md) |
+| Documentation | **147 files** across 10 groups — [start here](docs/product/00-START-HERE.md) |
 | Last reviewed | 2026-08-05 |
 
 ---

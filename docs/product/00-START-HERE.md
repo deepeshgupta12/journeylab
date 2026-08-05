@@ -167,13 +167,13 @@ The project-local `.gitnexus/run.cjs` runner was **not** generated — use `npx 
 
 | Metric | Count | Method |
 | --- | --- | --- |
-| Markdown files in `docs/product/` | **105** | `find docs/product -name '*.md'` |
-| Files created this session | **102** | 105 minus 3 pre-existing |
+| Markdown files in `docs/product/` | **147** | `find docs/product -name '*.md'` |
+| Files created this session | **144** | 147 minus 3 pre-existing |
 | Files updated this session | **1** | `OUT_OF_SCOPE.md` reclassified per owner direction |
 | Files pre-existing and preserved | **3** | charter, problem/evidence, personas |
 | Scope steps defined | **28** | `PRODUCT_SCOPE` §4 |
 | Step files | **28** | one per step, all 28 sections each |
-| Sub-step files | **6** | `STEP-001.01`–`.06` worked example |
+| Sub-step files | **48** | STEP-001…006 foundation chain (of 228 total; rest created just-ahead-of-need per `ADR-008`) |
 | Requirements | **130** | 124 matching `REQ-[A-Z]+-NNN` + 6 `REQ-A11Y-NNN` |
 | Acceptance test IDs | **130** | 124 + 6 `TST-A11Y-NNN` |
 | API operations | **18** | `API-001`–`API-018` |
