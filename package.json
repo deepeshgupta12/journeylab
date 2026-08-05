@@ -40,7 +40,8 @@
     "guard:readme": "bash tests/guards/readme-accuracy.sh",
     "guard:workflows": "bash tests/guards/workflow-refs.sh",
     "guard:change-impact": "bash tests/guards/change-impact-record.sh",
-    "guard:meta": "bash tests/guards/meta/run-all.sh"
+    "guard:meta": "bash tests/guards/meta/run-all.sh",
+    "test:security": "bash tests/security/test_tenant_isolation.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.7",

@@ -28,12 +28,54 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BUG-007 | Security suite passed while schema was absent | **S2** | STEP-002.01 | First R7 run | 3 write-denial assertions passed with no tables; migration had failed on missing citext | Migration not self-contained; assertions could not distinguish policy denial from query error | *(this commit)* | suite meta-test: weakened policy must expose both tenants | **CLOSED** | 2026-08-05 |
 | BUG-006 | CI failed: duplicate pnpm version | **S2** | first real CI run | Repository owner | verify pipeline failed in 7s, ERR_PNPM_BAD_PM_VERSION | `version:` in workflow duplicated `packageManager` in package.json | *(this commit)* | none possible locally — see entry | **CLOSED** | 2026-08-05 |
 | BUG-005 | Missing IMPL-003; guard passed on a mention | **S3** | STEP-001 closure audit | Closure audit | 5 IMPL entries for 6 VERIFIED sub-steps, guard reported PASS | Guard grepped for the ID anywhere, not a real heading | *(this commit)* | `tests/guards/meta/run-all.sh` | **CLOSED** | 2026-08-05 |
 | BUG-004 | Guards checked only tracked files; new files bypassed them | **S2** | STEP-001.05 post-commit | Post-commit verification | Stray markup shipped in `f80c8b3` despite verify passing | Guards iterated `git ls-files` (tracked only); new files were invisible until after their first commit | *(this commit)* | extended meta-test with an untracked seed | **CLOSED** | 2026-08-05 |
 | BUG-003 | Sub-step committed without required documentation | **S3** | STEP-001.04 close-out | Post-commit verification | `8a9af9b` shipped without IMPL-004, regression entry or status update | Log script failed; commit ran in the same shell invocation regardless | *(this commit)* | `tests/guards/substep-docs.sh` | **CLOSED** | 2026-08-05 |
 | BUG-002 | `node_modules/` tracked in git | **S3** | STEP-001.02 pre-change analysis | Pre-change inventory | 2 dependency files committed; `.gitignore` contained only `.gitnexus` | `.gitignore` written without dependency/build exclusions in STEP-001.01 | *(this commit)* | `tests/guards/no-tracked-artifacts.sh` | **CLOSED** | 2026-08-05 |
 | BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-007 — Security suite reported passes while the schema was absent
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — a tenant-isolation suite that passes without a schema is the most dangerous kind of false assurance |
+| Found during | STEP-002.01, first run of `tests/security/test_tenant_isolation.sh` |
+| Date found | 2026-08-05 |
+| Affected requirements | REQ-SEC-001, REQ-SEC-002; regression check **R7** |
+
+### Symptom
+The first run reported **3 passes** for cross-tenant INSERT, UPDATE and DELETE denial — while the tables did not exist. Migration 001 had failed (`type "citext" does not exist`), so every write query errored. The assertions tested only "did the command fail?", and a missing table fails exactly like a policy denial.
+
+### Root cause
+Two independent defects:
+1. **Migration not self-contained.** It used `citext` but relied on `infra/local/postgres/init/01-extensions.sql`, which creates only postgis, vector and pg_trgm. A managed production database never runs that init script, so the migration would have failed there too.
+2. **Assertions could not distinguish denial from error.** `if <query>; then bad else ok` treats *any* non-zero exit as a successful denial.
+
+A third, cosmetic issue surfaced next: `psql -c` echoes a `SET` status line per statement, so captured values were `"SET\nSET\n1"` and comparisons failed even when the security behaviour was correct.
+
+### Why existing tests did not catch it
+This *is* the test. Nothing sat above it. The suite was written and immediately trusted — the same pattern as `BUG-004` (guard trusted before its scope was tested) and `BUG-001`'s first guard (passed for the wrong reason).
+
+**Sixth occurrence of the same class in this repository: a check that was correct about the wrong thing.**
+
+### Fix
+1. Migration declares its own extensions (`citext`, `pgcrypto`) — self-contained for any target database.
+2. **Precondition gate:** the suite counts the 5 expected tables and **exits 1 with `ERROR` if any is missing**, refusing to run assertions that would report false passes.
+3. Write denial asserts on **error text** (`row-level security`), distinguishing a policy denial from a schema error, and reporting which occurred.
+4. UPDATE/DELETE assert on **affected row count** via a CTE rather than empty output.
+5. Output parsing takes the final line only.
+
+### Regression test
+The suite's own **meta-test**: a deliberately weakened policy (`USING (true)`) must expose both tenants. It reports 2 rows, then the strict policy is restored and it reports 1. Without that, a suite passing against disabled RLS would look identical to one passing against working RLS.
+
+### Prevention
+- **Precondition gates on security tests.** A security test whose subject is absent must ERROR, never pass.
+- **Assert on the reason, not the exit code.** "It failed" is not "it was denied."
+- Migrations declare their own extension dependencies rather than inheriting from local bootstrap.
 
 ---
 

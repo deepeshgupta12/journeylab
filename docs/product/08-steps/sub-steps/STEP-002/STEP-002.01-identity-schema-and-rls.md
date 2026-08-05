@@ -2,10 +2,10 @@
 sub_step_id: STEP-002.01
 parent_step: STEP-002
 title: Identity schema and row-level security
-status: NOT_STARTED
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-SEC-001, REQ-SEC-002]
-blast_radius_id: BR-007
+blast_radius_id: BR-008
 depends_on: [STEP-001.06]
 last_updated: 2026-08-05
 ---
@@ -88,6 +88,6 @@ Expand-phase only; the migration adds tables and policies. Reverting drops them.
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
+| Completed | 2026-08-05 |
 | Commit SHA | — |
-| Notes / surprises | `FORCE ROW LEVEL SECURITY` matters: without it the table owner silently bypasses every policy, which is the most common way RLS is believed-present but absent |
+| Notes / surprises | FORCE RLS verified by test. The security suite falsely passed 3 write assertions on its first run because the schema was absent (BUG-007) - a failed query is indistinguishable from a policy denial. R7 established with 12/12 and its own meta-test. |

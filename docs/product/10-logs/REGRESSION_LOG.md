@@ -67,6 +67,42 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-002.01 — 2026-08-05 — Identity schema and row-level security
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `0cac408` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` — 15 checks |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | Migration, security suite, docs |
+| R4 untested requirements | **PASS** | Decreased — `REQ-SEC-001`/`002` now have executable tests |
+| R5 orphan/unowned nodes | **PASS** | All paths owned |
+| R6 closed-bug tests | **PASS** | BUG-001…007 guards all pass |
+| **R7 tenant isolation** | **PASS — 12/12** | **Established by this sub-step.** Non-negotiable from here on |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Migration failed | `citext` not created by local init SQL | Migration now declares its own extensions — self-contained for any target database |
+| **3 write assertions falsely passed** | Tables absent; a failed query is indistinguishable from a policy denial | `BUG-007` — precondition gate + assert on error text |
+| 8 assertions failed on parsing | `psql -c` echoes a `SET` line per statement | Capture the final line only |
+| Migration not idempotent | Bare `CREATE TABLE` / `CREATE POLICY` | `IF NOT EXISTS`, `ON CONFLICT DO NOTHING`, `DROP POLICY IF EXISTS` — proven by applying twice |
+
+### Notes
+**R7 now exists and has real detection power** — proven by its own meta-test rather than
+asserted. The security controls were correct throughout; the failures were in how the
+test measured them, which is exactly the distinction `BUG-007` records.
+
+Alerting is a known gap: `ALRT-SEC-001` is specified but not implemented until
+`STEP-024`, so a cross-tenant denial is logged and tested but does not page anyone.
+Recorded in `BR-008` §5 category 11, not glossed.
+
 ## STEP-001.06 — 2026-08-05 — CI workflows and the change-impact merge gate
 
 | Field | Value |

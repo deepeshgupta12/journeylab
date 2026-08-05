@@ -60,6 +60,57 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-007 — STEP-002.01 — Identity schema and row-level security
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-05 |
+| Requirements | REQ-SEC-001, REQ-SEC-002 |
+| Blast radius | BR-008 (**HIGH**) |
+| Graph indexed commit | `0cac408` — matched HEAD at pre-change |
+
+### What was built
+`db/migrations/001_identity_tenancy.sql` — organizations, users, roles, memberships, service identities, with RLS **enabled and forced**, a non-owner `journeylab_app` role carrying `NOBYPASSRLS`, and transaction-scoped tenant context via `SET LOCAL`. Plus `tests/security/test_tenant_isolation.sh`, which **establishes regression check R7**.
+
+### Why this approach
+Four decisions where the obvious option was weaker:
+
+| Decision | Weaker alternative | Why |
+| --- | --- | --- |
+| `FORCE ROW LEVEL SECURITY` | `ENABLE` alone | Without FORCE the table owner bypasses every policy silently — the commonest way RLS is believed present but absent. Verified by test |
+| `SET LOCAL` (transaction-scoped) | Session-level `SET` | A pooled connection would carry one tenant's context into another's transaction. Tested explicitly per `BR-008` §9 |
+| Deny-by-default via NULL | Explicit deny policies | `app_current_org()` returns NULL when unset; every comparison is NULL, so **missing context denies access** rather than exposing everything |
+| No column for a static service key | `secret` column | `REQ-SEC-003` — a credential that cannot be stored cannot be leaked |
+
+Migration 001 sets the convention every later migration inherits, documented in its header.
+
+### `DEC-004` is not blocking here
+STEP-002 is blocked on the identity-provider decision, but **`.01` is not**: schema and RLS are provider-independent. `users.idp_subject` is a provider-neutral opaque string. `DEC-004` binds at `.04` (provisioning), confirmed by reading the sub-step files rather than assuming.
+
+### What surprised us — a false pass in a security test
+The suite's first run reported **3 passes for cross-tenant write denial while the tables did not exist**. Migration 001 had failed on missing `citext`, so every write errored — and `if <query>; then bad else ok` cannot tell a policy denial from a schema error.
+
+That is the sixth instance in this repository of a check being correct about the wrong thing, and the most dangerous, because the subject was tenant isolation. Logged as `BUG-007` with three fixes: a precondition gate that ERRORs when the schema is absent, assertions on error *text* rather than exit code, and a self-contained migration.
+
+The suite now carries its own meta-test: a weakened `USING (true)` policy must expose both tenants. It does — 2 rows — then the strict policy is restored and it returns 1. Without that, a suite passing against disabled RLS would look identical to one passing against working RLS.
+
+### Follow-up created
+| Item | Type |
+| --- | --- |
+| `ALRT-SEC-001` / `RB-SEC-001` not implemented — cross-tenant denials do not alert | Deferred to `STEP-024` (recorded in `BR-008` §5 category 11) |
+| Migration runner (ordering, applied-tracking) | `STEP-006` |
+| `DEC-004` identity provider | Open — binds at `.04` |
+
+### Verification
+| Check | Result |
+| --- | --- |
+| R7 isolation suite | **PASS — 12/12 assertions** |
+| Suite meta-test (weakened policy exposes both tenants) | **PASS** |
+| Migration idempotency (applied twice) | **PASS — 0 errors on re-run** |
+| `pnpm verify` | PASS — 15 checks |
+
+---
+
 ## IMPL-006 — STEP-001.06 — CI workflows and the change-impact merge gate
 
 | Field | Value |
