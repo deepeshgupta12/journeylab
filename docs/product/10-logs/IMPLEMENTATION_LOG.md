@@ -60,6 +60,64 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-002 — STEP-001.02 — Formatting, linting, strict TypeScript and module boundaries
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-05 |
+| Requirements | REQ-PLAT-001 (and enables ADR-003 enforcement) |
+| Blast radius | BR-002 (LOW) |
+| Graph indexed commit | `11e47a6` — **found stale at `2fe8318`, refreshed per protocol step 3 before proceeding** |
+| Commit | *(this commit)* |
+
+### What was built
+`.editorconfig`, `biome.json` (Biome 2.5.7), `tsconfig.base.json` (TypeScript 6.0.3, strict + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`), `.dependency-cruiser.cjs` module boundary rules, four guards in `tests/guards/`, and a full `pnpm verify` chain covering both JS and Python.
+
+### Why this approach
+**Module boundaries are enforced from before the first source file exists.** `ADR-003` chose a modular monolith on the promise it can be split later; that promise is only real if cross-module reach-ins fail the build. Adding the rule after packages exist means retrofitting against violations already written.
+
+The five boundary rules encode architecture decisions directly:
+- `no-cross-module-internals` — packages expose entry points, not internals
+- `services-not-imported-by-web` — the web app talks to services over generated clients only
+- `no-generated-edits` — protects `REQ-PLAT-007`
+- `no-circular` — circular imports are the leading indicator of boundary erosion
+- `no-orphans` (warn) — surfaces dead modules
+
+### Decisions taken during implementation
+| Decision | Alternatives | Rationale | Promoted to ADR? |
+| --- | --- | --- | --- |
+| **TypeScript 6.0.3, not 7.0.2** | Adopt latest | Blueprint baseline is TS 6.0. Honoring a documented decision is not a new decision; deviating would be. **TS 7 surfaced to the owner for explicit `ASM-004` revalidation rather than silently adopted** | Not yet — pending owner |
+| Biome over ESLint+Prettier | ESLint ecosystem | Baseline is silent on linter; Biome is one tool for lint+format, and nothing depends on it yet so it is cheaply replaceable | No |
+| dependency-cruiser for boundaries | Biome/ESLint import rules | Only tool that expresses cross-package path rules with the needed precision | No |
+| Vacuous-pass guards for empty tree | Omit the scripts until code exists | `tsc` and `mypy` error on an empty tree — a false failure. Guards make the empty case **explicit and self-documenting** rather than silently skipped, and convert to real checks the moment source lands | No |
+
+### Deviations from the step file
+Sub-step listed "per-package `tsconfig.json` extending the base" — **deferred**, because zero packages exist. It moves to STEP-002 where the first package is created. Recorded rather than silently dropped.
+
+### What surprised us
+1. **The pre-change analysis earned its keep.** It found `BUG-002` (`node_modules` tracked) before any code was written — a defect no existing test covered.
+2. **The graph was stale on entry** (`2fe8318` vs `11e47a6`). Protocol step 3 says refresh before continuing; had I skipped it, the analysis would have been against the wrong tree.
+3. **Biome rejected its own config twice** — a deprecated `recommended` field and formatting that did not match its own formatter. Fixed via `biome migrate --write` and self-format. A linter that lints its own configuration is a genuinely good property.
+
+### Follow-up created
+| Item | Type | ID |
+| --- | --- | --- |
+| TypeScript 6 vs 7 baseline decision | **Open — owner** | `ASM-004` revalidation |
+| Per-package `tsconfig.json` | Deferred | STEP-002 |
+| Real lint/typecheck targets | Deferred | STEP-002 |
+| `node_modules` artifact guard | Regression test | BUG-002 |
+
+### Verification
+| Check | Result |
+| --- | --- |
+| `pnpm verify` (10-command chain) | **PASS** |
+| Boundary rule meta-test | **PASS** — rule `no-cross-module-internals` fired on seeded violation |
+| Artifact guard meta-test | **PASS** — exit 1 on seeded `dist/seeded.js` |
+| `ruff check` / `ruff format --check` | PASS — 12 files formatted |
+| `detect_changes()` | 0 changed symbols, 4 changed files, risk low |
+
+---
+
 ## IMPL-001 — STEP-001.01 — Workspace skeleton and pinned toolchain
 
 | Field | Value |

@@ -67,6 +67,44 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-001.02 — 2026-08-05 — Formatting, linting, strict TypeScript and module boundaries
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `11e47a6` — **stale on entry (`2fe8318`), refreshed per protocol step 3** |
+| Author | Implementation session |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` — 10-command chain incl. all STEP-001.01 guards |
+| R2 contract compatibility | **N/A** | No contracts exist yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | `detect_changes()`: 0 changed symbols, 4 changed files, risk low — config-only, as expected |
+| R4 untested requirements | **PASS** | Not increased |
+| R5 orphan/unowned nodes | **PASS (known gap)** | Not increased. All paths remain unowned — `CODEOWNERS` awaits `STEP-001.03`, blocked by `BLK-001` |
+| R6 closed-bug tests | **PASS** | BUG-001 guard PASS (169 files); **BUG-002 guard added** and meta-tested |
+| R7 tenant isolation | **N/A** | No application or tenancy until STEP-002.01 |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Check | Failure | Cause | Resolution | Bug ID |
+| --- | --- | --- | --- | --- |
+| Pre-change inventory | `node_modules/` tracked in git | `.gitignore` incomplete from STEP-001.01 | Full `.gitignore` + `git rm --cached` + permanent guard | **BUG-002** |
+| `pnpm lint` | Biome rejected its own config — deprecated `recommended` field | Config written against an older schema | `biome migrate --write` | — |
+| `pnpm lint` | Biome config failed its own formatter | Written by `json.dump`, not Biome | `biome check --write` self-format | — |
+| `pnpm typecheck` | `tsc` errors on empty tree | No TS files exist | Explicit vacuous-pass guard rather than a silent skip | — |
+| `pnpm py:typecheck` | `mypy` errors on empty tree | No Python files exist | Same pattern | — |
+
+### Notes
+Three checks remain `N/A` and one is a **known gap** (R5, unowned paths). The gap is
+acceptable only because `STEP-001.03` — which creates `CODEOWNERS` — is itself hard-blocked
+by `BLK-001`. It is tracked, not silently accepted.
+
+Boundary enforcement is now live **before any source exists**, which is the point: the rule
+has never had to be retrofitted against existing violations. Both new guards were meta-tested
+against seeded violations, asserting rule name and exit code rather than mere failure.
+
 ## STEP-001.01 — 2026-08-05 — Workspace skeleton and pinned toolchain
 
 | Field | Value |

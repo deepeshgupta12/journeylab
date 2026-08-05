@@ -2,7 +2,7 @@
 sub_step_id: STEP-001.02
 parent_step: STEP-001
 title: Formatting, linting and strict TypeScript defaults
-status: NOT_STARTED
+status: VERIFIED
 owners: []
 requirement_ids: [REQ-PLAT-001]
 blast_radius_id: BR-002
@@ -84,6 +84,6 @@ Revert configuration files; `.01` remains intact and installable.
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
+| Completed | 2026-08-05 |
 | Commit SHA | — |
-| Notes / surprises | — |
+| Notes / surprises | Pre-change analysis found BUG-002 before any code was written. Biome rejected its own config twice. Per-package tsconfig deferred to STEP-002 (no packages exist). TypeScript 7.0.2 available but baseline 6.0.3 pinned — owner decision pending. |

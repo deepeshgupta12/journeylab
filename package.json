@@ -14,19 +14,27 @@
     "pnpm": ">=11"
   },
   "scripts": {
-    "lint": "echo \"[STEP-001.02] lint not yet configured\" && exit 0",
-    "format:check": "echo \"[STEP-001.02] format check not yet configured\" && exit 0",
-    "typecheck": "echo \"[STEP-001.02] typecheck not yet configured\" && exit 0",
+    "lint": "biome check .",
+    "format:check": "biome format .",
+    "typecheck": "bash tests/guards/typecheck.sh",
     "test": "echo \"[STEP-001.02] tests not yet configured\" && exit 0",
     "dev": "echo \"[STEP-001.04] local stack not yet configured\" && exit 0",
     "py:sync": "uv sync",
     "py:lint": "uv run ruff check .",
     "py:format:check": "uv run ruff format --check .",
-    "py:typecheck": "uv run mypy .",
+    "py:typecheck": "bash tests/guards/py-typecheck.sh",
     "py:test": "uv run pytest",
-    "verify": "pnpm guard:markup && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
+    "verify": "pnpm guard:markup && pnpm guard:artifacts && pnpm guard:boundaries && pnpm lint && pnpm format:check && pnpm typecheck && pnpm py:lint && pnpm py:format:check && pnpm py:typecheck && pnpm test",
     "kg:status": "npx --yes gitnexus status",
     "kg:refresh": "npx --yes gitnexus analyze",
-    "guard:markup": "bash tests/guards/no-stray-markup.sh"
+    "guard:markup": "bash tests/guards/no-stray-markup.sh",
+    "lint:fix": "biome check --write .",
+    "guard:boundaries": "bash tests/guards/module-boundaries.sh",
+    "guard:artifacts": "bash tests/guards/no-tracked-artifacts.sh"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.7",
+    "dependency-cruiser": "18.1.1",
+    "typescript": "6.0.3"
   }
 }

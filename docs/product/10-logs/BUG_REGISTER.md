@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Owner | Engineering (unassigned — `BLK-001`) |
-| Status | `READY` — **no entries; no code exists to have bugs** |
+| Status | `ACTIVE` — 2 bugs recorded, both closed with regression tests |
 | Rule | **Every fixed bug gets a regression test.** Check R6 verifies they all still pass at every sub-step |
 | Last reviewed | 2026-08-05 |
 
@@ -28,7 +28,42 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BUG-002 | `node_modules/` tracked in git | **S3** | STEP-001.02 pre-change analysis | Pre-change inventory | 2 dependency files committed; `.gitignore` contained only `.gitnexus` | `.gitignore` written without dependency/build exclusions in STEP-001.01 | *(this commit)* | `tests/guards/no-tracked-artifacts.sh` | **CLOSED** | 2026-08-05 |
 | BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-002 — `node_modules/` tracked in git
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — repository hygiene; no runtime or data impact, but pollutes the graph and every clone |
+| Found during | **STEP-001.02 pre-change analysis** — not by a test |
+| Date found | 2026-08-05 |
+| Affected requirements | REQ-PLAT-002 (reproducible, pinned dependency state) |
+
+### Symptom
+`git ls-files` showed 2 tracked paths under `node_modules/`:
+`.package-map.json` and `.pnpm-workspace-state-v1.json`. `.gitignore` contained a single line: `.gitnexus`.
+
+### Root cause
+In STEP-001.01 I created `.gitignore` for the GitNexus index only, then ran `pnpm install` and committed with `git add -A`. pnpm writes workspace-state files at the `node_modules/` root; with no ignore rule they were swept in.
+
+### Why existing tests did not catch it
+No guard existed for tracked build artifacts. The STEP-001.01 regression set covered stray markup (`R6`) but nothing about repository hygiene. **The pre-change analysis found it, which is precisely what that step of the protocol is for** — but a protocol step is not a test, and it only runs when a human or agent is paying attention.
+
+### Fix
+Full `.gitignore` covering dependencies, build output, test/coverage output, environment files and OS noise; `git rm -r --cached node_modules`.
+
+### Regression test
+| Field | Value |
+| --- | --- |
+| Test | `tests/guards/no-tracked-artifacts.sh` |
+| Wired into | `pnpm verify` fast tier — runs at every sub-step (check R6) |
+| **Proves** | Meta-tested: seeded `dist/seeded.js`, guard exited 1; removed it, guard exited 0 across 169 tracked files |
+
+### Prevention
+The guard makes recurrence a build failure. Broader lesson recorded in the implementation log: `git add -A` is only safe when `.gitignore` is complete, and completeness is worth verifying at the moment the first dependency install happens.
 
 ---
 

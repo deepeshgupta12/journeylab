@@ -9,6 +9,16 @@
 # structure that cannot be split later.
 
 packages:
-  - "apps/*"        # web (Next.js) and api (FastAPI) deployable surfaces
-  - "packages/*"    # ui, contracts, authz, analytics, observability, security
-  - "services/*"    # domain, data, retrieval, AI, ML and workflow services
+  - "apps/*" # web (Next.js) and api (FastAPI) deployable surfaces
+  - "packages/*" # ui, contracts, authz, analytics, observability, security
+  - "services/*" # domain, data, retrieval, AI, ML and workflow services
+minimumReleaseAgeExclude:
+  - '@biomejs/biome@2.5.7'
+  - '@biomejs/cli-darwin-arm64@2.5.7'
+  - '@biomejs/cli-darwin-x64@2.5.7'
+  - '@biomejs/cli-linux-arm64-musl@2.5.7'
+  - '@biomejs/cli-linux-arm64@2.5.7'
+  - '@biomejs/cli-linux-x64-musl@2.5.7'
+  - '@biomejs/cli-linux-x64@2.5.7'
+  - '@biomejs/cli-win32-arm64@2.5.7'
+  - '@biomejs/cli-win32-x64@2.5.7'
