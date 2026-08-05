@@ -21,10 +21,10 @@ Navigation: [Scope](../01-product/PRODUCT_SCOPE.md) · [Roadmap](ROADMAP.md) · 
 | Step files created | **28** |
 | Steps in Phase 1 (target release) | **19** |
 | Steps deferred to Phase 2/3/4 | **9** |
-| Steps `IN_PROGRESS` or beyond | **0** |
+| Steps `VERIFIED` | **1** (STEP-001) |
 | Requirements defined | **130** |
 | Requirements verified against implementation | **0** |
-| Application code files | **0** |
+| Application code files | **0** product code; foundation + 11 guards + 3 CI workflows |
 | Open blockers | **1** (`BLK-002`) — `BLK-001` closed via `ADR-010` |
 | Open decisions | **7** — `ASM-004` TS revalidation closed via `ADR-009` |
 | Open assumptions | **18** |
@@ -136,7 +136,7 @@ Legend for sub-columns: `—` not applicable to this step · `NS` not started ·
 
 | Step | Name | Phase | Outcome | Deps | Status | Owner | FE | BE | API/Evt | Data | AI/ML | Sec/Priv | KG pre-check | BR | Impl | Test | Docs | PR/Release | Exit criteria | Blockers | Updated |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [STEP-001](../08-steps/STEP-001-foundation-and-repository-governance.md) | Foundation & repo governance | 1 | Reproducible monorepo with ownership and contract boundaries | — | `IN_PROGRESS` | — | NS | NS | — | — | — | NS | `BLOCKED` | N/A | NS | NS | ✅ | — | New engineer runs lint/tests/app from docs; CI rejects unowned changes | BLK-001, BLK-002 | 2026-08-05 |
+| [STEP-001](../08-steps/STEP-001-foundation-and-repository-governance.md) | Foundation & repo governance | 1 | Reproducible monorepo with ownership and contract boundaries | — | **`VERIFIED`** | Deepesh Kumar Gupta | ✅ | ✅ | — | — | — | ✅ | partial | ✅ BR-001…007 | ✅ 6/6 | ✅ 15 checks + 25 meta | ✅ | `8dd20f4` | New engineer runs lint/tests/app from docs; CI rejects unowned changes | BLK-001, BLK-002 | 2026-08-05 |
 | [STEP-002](../08-steps/STEP-002-identity-tenancy-and-authorization.md) | Identity, tenancy & authorization | 1 | Isolation and permission primitives | 001 | `DISCOVERY` | — | NS | NS | NS | NS | — | NS | `BLOCKED` | N/A | NS | NS | ✅ | — | Cross-tenant ops fail deterministically and are audited | BLK-001, DEC-004 | 2026-08-05 |
 | [STEP-003](../08-steps/STEP-003-design-system-and-application-shell.md) | Design system & app shell | 1 | Accessible responsive shell and primitives | 002 | `DISCOVERY` | — | NS | — | — | — | — | NS | `BLOCKED` | N/A | NS | NS | ✅ | — | WCAG 2.2 AA on core components; all states implemented | BLK-001 | 2026-08-05 |
 | [STEP-004](../08-steps/STEP-004-contract-first-platform-apis.md) | Contract-first platform APIs | 1 | Stable resource/command/event contracts | 002 | `DISCOVERY` | — | NS | NS | NS | — | — | NS | `BLOCKED` | N/A | NS | NS | ✅ | — | CI generates clients, validates examples, blocks breaking change | BLK-001 | 2026-08-05 |

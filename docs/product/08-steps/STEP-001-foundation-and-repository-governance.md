@@ -1,7 +1,7 @@
 ---
 step_id: STEP-001
 title: Foundation and repository governance
-status: DISCOVERY
+status: VERIFIED
 release: Phase 1
 owners: ["Deepesh Kumar Gupta"]
 dependencies: []
@@ -146,9 +146,11 @@ Purely additive; revert by deleting the branch or reverting commits. No data or 
 ## 28. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
-| Sub-steps completed | 0 of 6 |
-| Commits / PR | — |
-| Regression result | — |
-| Post-change graph evidence | — |
-| Verified by | — |
+| Completed | **2026-08-05** |
+| Sub-steps completed | **6 of 6** — all `VERIFIED` |
+| Commits / PR | `73766ca` … `8dd20f4` on `main` |
+| Regression result | R1/R3/R4/R5/R6 PASS across all six sub-steps; R2/R7 `N/A` (no contracts, no tenancy yet) |
+| Post-change graph evidence | Index current at `HEAD` after every sub-step; coverage remains documentation-only (`RISK-014`) |
+| Verified by | Deepesh Kumar Gupta — closure audit `BR-007` |
+| Bugs found and closed | BUG-001…006, each with a committed regression test |
+| **Criteria recorded as PARTIAL** | (1) README comprehensibility to a newcomer — commands proven by execution, human walkthrough outstanding. (2) CI runtime — `verify` fixed after `BUG-006`, but the 10-min graph refresh target is unmeasured and the change-impact gate has not yet blocked a real PR |
