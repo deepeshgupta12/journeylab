@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Architect + SRE (unassigned — `BLK-001`) |
+| Owner | Product Architect + SRE (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — targets defined; none measured |
 | Upstream source | Blueprint §15 (NFRs and SLOs) |
 | Last reviewed | 2026-08-05 |

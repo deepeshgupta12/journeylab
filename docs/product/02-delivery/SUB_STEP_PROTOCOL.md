@@ -4,7 +4,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | TPM + Platform (unassigned — `BLK-001`) |
+| Owner | TPM + Platform (Deepesh Kumar Gupta) |
 | Status | `READY` — binding from the first implementation commit |
 | Origin | Repository-owner directive, 2026-08-05 |
 | Last reviewed | 2026-08-05 |

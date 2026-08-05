@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | SRE + Security Architect (unassigned — `BLK-001`) |
+| Owner | SRE + Security Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — process defined; **no on-call rotation exists** |
 | Requirement | Incident response, breach notification, backup restoration, DR and third-party outage playbooks **before production launch** |
 | Last reviewed | 2026-08-05 |

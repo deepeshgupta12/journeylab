@@ -3,7 +3,7 @@ step_id: STEP-021
 title: Administration and curation console
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-006, STEP-010]
 requirement_ids: [REQ-ADMIN-001, REQ-ADMIN-002, REQ-ADMIN-003, REQ-ADMIN-004, REQ-ADMIN-005, REQ-PLAT-012]
 api_ids: [API-016, API-017]

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Engineering + QA (unassigned — `BLK-001`) |
+| Owner | Engineering + QA (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — strategy defined; **no tests exist** |
 | Upstream source | Blueprint §16 (testing and evaluation strategy) |
 | Last reviewed | 2026-08-05 |

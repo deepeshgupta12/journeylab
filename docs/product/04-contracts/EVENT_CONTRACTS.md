@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Backend + Data Architect (unassigned — `BLK-001`) |
+| Owner | Backend + Data Architect (Deepesh Kumar Gupta) |
 | Status | **All events `PROPOSED`** — no AsyncAPI file exists |
 | Upstream source | Blueprint §11 (domain events), §9 (workflow and outbox) |
 | Last reviewed | 2026-08-05 |

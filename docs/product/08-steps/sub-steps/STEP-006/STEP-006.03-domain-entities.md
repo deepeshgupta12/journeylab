@@ -3,7 +3,7 @@ sub_step_id: STEP-006.03
 parent_step: STEP-006
 title: Domain entities, invariants and value objects
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-007]
 blast_radius_id: BR-042
 depends_on: [STEP-006.02]

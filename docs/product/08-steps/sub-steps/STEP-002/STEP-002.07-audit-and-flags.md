@@ -3,7 +3,7 @@ sub_step_id: STEP-002.07
 parent_step: STEP-002
 title: Audit event emission and runtime flag primitives
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-SEC-007, REQ-PLAT-012]
 blast_radius_id: BR-013
 depends_on: [STEP-002.06]

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Architect (unassigned — `BLK-001`) |
+| Owner | Product Architect (Deepesh Kumar Gupta) |
 | Status | `PROPOSED` |
 | Standard | RFC 9457 problem details (`application/problem+json`) |
 | Last reviewed | 2026-08-05 |

@@ -3,7 +3,7 @@ sub_step_id: STEP-006.08
 parent_step: STEP-006
 title: Data-quality expectations and quarantine
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-005, REQ-DATA-002]
 blast_radius_id: BR-047
 depends_on: [STEP-006.07]

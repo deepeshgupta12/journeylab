@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Architect (unassigned — `BLK-001`) |
+| Owner | Product Architect (Deepesh Kumar Gupta) |
 | Status | `READY` — policy is binding from the first contract commit |
 | Upstream source | Blueprint §11 (contract governance), portfolio standard §4.19 |
 | Last reviewed | 2026-08-05 |

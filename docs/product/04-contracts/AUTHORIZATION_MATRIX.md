@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Security Architect (unassigned — `BLK-001`) |
+| Owner | Security Architect (Deepesh Kumar Gupta) |
 | Status | `PROPOSED` — authoritative specification; no enforcement code exists |
 | Upstream source | Blueprint §5 (personas), §14 (security), §11 (per-operation auth) |
 | Last reviewed | 2026-08-05 |

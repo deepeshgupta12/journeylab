@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | QA + Engineering (unassigned — `BLK-001`) |
+| Owner | QA + Engineering (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — **all tests `PROPOSED`; none implemented** |
 | Coverage | 130 requirements → 130 acceptance test IDs |
 | Last reviewed | 2026-08-05 |

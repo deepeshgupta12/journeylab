@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | SRE (unassigned — `BLK-001`) |
+| Owner | SRE (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — **no infrastructure, no backups, no rehearsal** |
 | Blocking decision | `DEC-007` — cloud provider, region and residency undecided |
 | Last reviewed | 2026-08-05 |

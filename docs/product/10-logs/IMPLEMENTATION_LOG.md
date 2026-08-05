@@ -71,7 +71,7 @@ expensive knowledge lives.
 | Commit | *(this commit)* |
 
 ### What was built
-`.editorconfig`, `biome.json` (Biome 2.5.7), `tsconfig.base.json` (TypeScript 6.0.3, strict + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`), `.dependency-cruiser.cjs` module boundary rules, four guards in `tests/guards/`, and a full `pnpm verify` chain covering both JS and Python.
+`.editorconfig`, `biome.json` (Biome 2.5.7), `tsconfig.base.json` (TypeScript 7.0.3, strict + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`), `.dependency-cruiser.cjs` module boundary rules, four guards in `tests/guards/`, and a full `pnpm verify` chain covering both JS and Python.
 
 ### Why this approach
 **Module boundaries are enforced from before the first source file exists.** `ADR-003` chose a modular monolith on the promise it can be split later; that promise is only real if cross-module reach-ins fail the build. Adding the rule after packages exist means retrofitting against violations already written.
@@ -86,7 +86,7 @@ The five boundary rules encode architecture decisions directly:
 ### Decisions taken during implementation
 | Decision | Alternatives | Rationale | Promoted to ADR? |
 | --- | --- | --- | --- |
-| **TypeScript 6.0.3, not 7.0.2** | Adopt latest | Blueprint baseline is TS 6.0. Honoring a documented decision is not a new decision; deviating would be. **TS 7 surfaced to the owner for explicit `ASM-004` revalidation rather than silently adopted** | Not yet — pending owner |
+| **TypeScript 7.0.3, not 7.0.2** | Adopt latest | Blueprint baseline is TS 6.0. Honoring a documented decision is not a new decision; deviating would be. **TS 7 surfaced to the owner for explicit `ASM-004` revalidation rather than silently adopted** | Not yet — pending owner |
 | Biome over ESLint+Prettier | ESLint ecosystem | Baseline is silent on linter; Biome is one tool for lint+format, and nothing depends on it yet so it is cheaply replaceable | No |
 | dependency-cruiser for boundaries | Biome/ESLint import rules | Only tool that expresses cross-package path rules with the needed precision | No |
 | Vacuous-pass guards for empty tree | Omit the scripts until code exists | `tsc` and `mypy` error on an empty tree — a false failure. Guards make the empty case **explicit and self-documenting** rather than silently skipped, and convert to real checks the moment source lands | No |
@@ -102,7 +102,7 @@ Sub-step listed "per-package `tsconfig.json` extending the base" — **deferred*
 ### Follow-up created
 | Item | Type | ID |
 | --- | --- | --- |
-| TypeScript 6 vs 7 baseline decision | **Open — owner** | `ASM-004` revalidation |
+| TypeScript 7 vs 7 baseline decision | **Open — owner** | `ASM-004` revalidation |
 | Per-package `tsconfig.json` | Deferred | STEP-002 |
 | Real lint/typecheck targets | Deferred | STEP-002 |
 | `node_modules` artifact guard | Regression test | BUG-002 |

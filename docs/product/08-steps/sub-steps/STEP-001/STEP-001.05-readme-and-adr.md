@@ -3,7 +3,7 @@ sub_step_id: STEP-001.05
 parent_step: STEP-001
 title: README, architecture map and ADR-001
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-001, REQ-PLAT-004]
 blast_radius_id: BR-005
 depends_on: [STEP-001.04]

@@ -3,7 +3,7 @@ step_id: STEP-025
 title: Support, deletion and data lifecycle
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-023, STEP-026]
 requirement_ids: [REQ-PRIV-005, REQ-PRIV-006, REQ-PRIV-007, REQ-TRIP-007, REQ-ADMIN-005]
 api_ids: [API-015]

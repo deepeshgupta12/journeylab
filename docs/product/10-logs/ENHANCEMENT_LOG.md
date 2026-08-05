@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Lead (unassigned — `BLK-001`) |
+| Owner | Product Lead (Deepesh Kumar Gupta) |
 | Status | `READY` — no entries yet |
 | Purpose | Record improvements proposed or delivered beyond the stated requirement, so scope growth is visible rather than silent |
 | Last reviewed | 2026-08-05 |

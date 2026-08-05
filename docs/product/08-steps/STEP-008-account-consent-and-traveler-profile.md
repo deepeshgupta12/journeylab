@@ -3,7 +3,7 @@ step_id: STEP-008
 title: Account, consent and traveler profile
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-002, STEP-007]
 requirement_ids: [REQ-PRIV-001, REQ-PRIV-002, REQ-PRIV-003, REQ-PRIV-004, REQ-TRIP-003, REQ-TRIP-004, REQ-TRIP-005]
 api_ids: [API-001, API-002, API-003, API-015]

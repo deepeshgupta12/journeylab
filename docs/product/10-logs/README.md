@@ -4,7 +4,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | TPM (unassigned — `BLK-001`) |
+| Owner | TPM (Deepesh Kumar Gupta) |
 | Status | `READY` — logging begins with the first implementation commit |
 | Origin | Repository-owner directive, 2026-08-05 |
 | Last reviewed | 2026-08-05 |

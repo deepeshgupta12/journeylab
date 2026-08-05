@@ -4,7 +4,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | TPM (unassigned — `BLK-001`) |
+| Owner | TPM (Deepesh Kumar Gupta) |
 | Status | `READY` |
 | Last reviewed | 2026-08-05 |
 

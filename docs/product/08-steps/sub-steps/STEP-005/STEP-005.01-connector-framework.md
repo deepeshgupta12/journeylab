@@ -3,7 +3,7 @@ sub_step_id: STEP-005.01
 parent_step: STEP-005
 title: Connector framework: credentials, egress, limits, circuit breaker
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-002, REQ-DATA-003, REQ-SEC-005]
 blast_radius_id: BR-030
 depends_on: [STEP-004.08]

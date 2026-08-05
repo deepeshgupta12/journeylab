@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Data Architect (unassigned — `BLK-001`) |
+| Owner | Data Architect (Deepesh Kumar Gupta) |
 | Status | **All contracts `PROPOSED`** — no schema or migration exists |
 | Upstream source | Blueprint §12 (data model and lifecycle), §9 (ingestion) |
 | Last reviewed | 2026-08-05 |

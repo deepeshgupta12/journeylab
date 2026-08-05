@@ -3,7 +3,7 @@ sub_step_id: STEP-006.01
 parent_step: STEP-006
 title: Core transactional schema, constraints, indexes and RLS
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-SEC-001, REQ-DATA-007]
 blast_radius_id: BR-040
 depends_on: [STEP-005.10]

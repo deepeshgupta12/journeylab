@@ -3,7 +3,7 @@ step_id: STEP-018
 title: Condition monitoring
 status: DEFERRED
 release: Phase 3
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-017, STEP-006]
 requirement_ids: [REQ-LIVE-003, REQ-LIVE-004, REQ-NFR-011]
 api_ids: []

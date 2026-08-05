@@ -3,7 +3,7 @@ sub_step_id: STEP-004.01
 parent_step: STEP-004
 title: Global API conventions: errors, pagination, idempotency, ETags
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-005]
 blast_radius_id: BR-022
 depends_on: [STEP-003.08]

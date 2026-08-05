@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Security Architect (unassigned — `BLK-001`) |
+| Owner | Security Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — no tests, no scans, no pen test |
 | Upstream source | Blueprint §16 (security testing), §14 (controls) |
 | Last reviewed | 2026-08-05 |

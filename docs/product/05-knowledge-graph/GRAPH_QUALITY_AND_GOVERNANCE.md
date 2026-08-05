@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Platform (unassigned — `BLK-001`) |
+| Owner | Platform (Deepesh Kumar Gupta) |
 | Status | `READY` — gates defined; **most not yet evaluable** (no source code) |
 | Last reviewed | 2026-08-05 |
 

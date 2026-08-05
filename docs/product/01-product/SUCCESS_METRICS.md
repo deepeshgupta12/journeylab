@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Lead + TPM (unassigned — `BLK-001`) |
+| Owner | Product Lead + TPM (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — measures defined; **numeric thresholds are open** (`DEC-005`) |
 | Upstream source | Blueprint §5 (objectives), §17 (analytics, KPIs and decision governance) |
 | Last reviewed | 2026-08-05 |

@@ -120,17 +120,17 @@ None of these are treated as facts anywhere in this documentation set.
 
 | Role | Decision rights | Consulted on | Status |
 | --- | --- | --- | --- |
-| Product Lead | Scope, release phase boundary, KPI definitions, stop conditions | Everything | **Unassigned** |
-| Product Architect | Service boundaries, contract conventions, ADR approval | Roadmap sequencing | **Unassigned** |
-| Staff Engineer (Backend) | Backend implementation, migration and rollout plans | Contracts, SLOs | **Unassigned** |
-| Frontend Lead | Route inventory, state ownership, accessibility conformance | Design system | **Unassigned** |
-| AI/ML Architect | Model class selection, eval gates, fallback behavior | Cost budgets | **Unassigned** |
-| Security Architect | Threat model sign-off, authorization matrix, egress policy | Provider onboarding | **Unassigned** |
-| Data Architect | Canonical entities, freshness policy, retention/deletion | Licence compliance | **Unassigned** |
-| Privacy Owner | Consent model, deletion verification, DSR handling | Sensitive-data classes | **Unassigned** |
-| TPM | Master tracker, dependency and critical path, release readiness | All gates | **Unassigned** |
+| Product Lead | Scope, release phase boundary, KPI definitions, stop conditions | Everything | Deepesh Kumar Gupta |
+| Product Architect | Service boundaries, contract conventions, ADR approval | Roadmap sequencing | Deepesh Kumar Gupta |
+| Staff Engineer (Backend) | Backend implementation, migration and rollout plans | Contracts, SLOs | Deepesh Kumar Gupta |
+| Frontend Lead | Route inventory, state ownership, accessibility conformance | Design system | Deepesh Kumar Gupta |
+| AI/ML Architect | Model class selection, eval gates, fallback behavior | Cost budgets | Deepesh Kumar Gupta |
+| Security Architect | Threat model sign-off, authorization matrix, egress policy | Provider onboarding | Deepesh Kumar Gupta |
+| Data Architect | Canonical entities, freshness policy, retention/deletion | Licence compliance | Deepesh Kumar Gupta |
+| Privacy Owner | Consent model, deletion verification, DSR handling | Sensitive-data classes | Deepesh Kumar Gupta |
+| TPM | Master tracker, dependency and critical path, release readiness | All gates | Deepesh Kumar Gupta |
 
-**Blocker `BLK-001`:** no named owners exist. Every step file carries an empty `owners: []` front-matter list until assignment. Assignment is a prerequisite for any step to leave `READY`.
+**`BLK-001` CLOSED (2026-08-05, `ADR-010`).** Deepesh Kumar Gupta (`@deepeshgupta12`) is the named owner for all roles until the team grows. **Recorded consequence:** a single owner cannot satisfy four-eyes approval (`REQ-ADMIN-002`, `SC-GOV-02`) — that control is structurally unsatisfiable and must be resolved before `STEP-021` ships.
 
 ---
 

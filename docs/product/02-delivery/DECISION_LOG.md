@@ -2,8 +2,8 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Architect + Product Lead (unassigned — `BLK-001`) |
-| Status | `DISCOVERY` — 6 decisions accepted, 8 open |
+| Owner | Product Architect + Product Lead (Deepesh Kumar Gupta) |
+| Status | `DISCOVERY` — 10 decisions accepted, 7 open |
 | Rule | A decision is not made until it has an owner, a date and recorded consequences |
 | Last reviewed | 2026-08-05 |
 
@@ -79,6 +79,27 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 - **Decision:** Sub-step files for the **foundation chain (`STEP-002` … `STEP-006`, 42 files)** are written upfront because that work is well-determined. Sub-steps for `STEP-007` … `STEP-028` are created when their step moves `READY` → `IN_PROGRESS`, and must exist and be reviewed **before** that step's first line of code.
 - **Consequences:** The full sub-step layer is never visible as one artifact until late; the tracker and each step's §21 table carry the plan in the interim. In exchange, sub-step files describe real work rather than speculation.
 - **Alternatives rejected:** Generating all 228 upfront (speculative rewrites once `DEC-002`/`DEC-004`/`DEC-007`/`DEC-009` land).
+
+### ADR-009 — TypeScript 7.0.2 supersedes the documented 6.0 baseline
+- **Date:** 2026-08-05 · **Owner:** Deepesh Kumar Gupta · **Status:** Accepted
+- **Context:** The blueprint baseline (§10, August 2026) specifies TypeScript 7.0, and `ASM-004` requires version revalidation before pinning. At implementation time `npm view typescript dist-tags` reports **`latest: 7.0.2`**; 6.0.3 is a real stable release but no longer current. Portfolio standard §4.18 requires *current stable/LTS at implementation time*, which is what triggered the revalidation rather than a preference for novelty.
+- **Decision:** Pin **TypeScript 7.0.2**. This supersedes the 6.0 baseline for this repository.
+- **Verified evidence:** `tsconfig.base.json` compiles clean under 7.0.2 (exit 0) with an ESM package, and `noUncheckedIndexedAccess` still rejects an unguarded index access (exit 1). Both checked by explicit exit code, not by output inspection.
+- **Consequences:** Blueprint §10 and every doc citing "TypeScript 7" is now stale and updated. **Every package must declare `"type": "module"`** — under `module: nodenext` with `verbatimModuleSyntax`, TS 7 treats a package without it as CommonJS and rejects top-level `export`. This surfaced during validation and is a real constraint on `STEP-002` onward, not a theoretical one. Dependency surface at decision time was minimal: 0 TypeScript source files.
+- **Alternatives rejected:** Staying on 6.0.3 (contradicts §4.18's current-stable requirement once 7 is `latest`); waiting until source exists (a major-version migration is cheapest at zero files).
+- **Review trigger:** TypeScript 8, or a breaking incompatibility with Next.js 16.2 / React 19.2.
+
+### ADR-010 — Repository ownership assigned to a single accountable owner
+- **Date:** 2026-08-05 · **Owner:** Deepesh Kumar Gupta · **Status:** Accepted
+- **Context:** `BLK-001` — no step, document or gate had a named owner. Every step file carried `owners: []`, no exit gate could be signed off, and `STEP-001.03` was hard-blocked because `CODEOWNERS` cannot be written without a name. This was the highest-exposure realised risk in the register (`RISK-011`, exposure 20).
+- **Decision:** **Deepesh Kumar Gupta** (GitHub `@deepeshgupta12`) is the named owner for all roles, paths and gates until the team grows.
+- **Consequences:**
+  - `BLK-001` is **closed**; steps may now leave `READY` and gates can be signed off.
+  - `CODEOWNERS` gains a catch-all owner, unblocking `STEP-001.03`.
+  - **A single owner cannot satisfy four-eyes approval** (`REQ-ADMIN-002` high-impact fact overrides, `SC-GOV-02`). That control is now **structurally unsatisfiable** and is recorded as a live gap, not quietly dropped — it must be resolved before `STEP-021` ships, either by a second reviewer or by an explicit accepted-risk decision.
+  - The same person authoring and approving a change conflicts with `WAYS_OF_WORKING` §3 ("the author may never approve their own change"). Pragmatic for a solo repository, but it means review is a self-check, and the automated gates carry proportionally more weight.
+- **Alternatives rejected:** Leaving ownership unassigned (blocks all progress); inventing placeholder owners (fabricates accountability that does not exist).
+- **Review trigger:** A second contributor joins, or `STEP-021` reaches implementation.
 
 ---
 

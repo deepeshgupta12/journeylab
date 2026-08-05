@@ -8,7 +8,7 @@
 | Documentation status | **Complete and internally consistent; describes a product that does not yet exist** |
 | Implementation status | **0%** — no application code, contracts, tests or infrastructure |
 | Repository | `https://github.com/deepeshgupta12/journeylab.git` |
-| Document owner | Documentation lead — **unassigned** (`BLK-001`) |
+| Document owner | Deepesh Kumar Gupta (`@deepeshgupta12`) |
 | Last reviewed | 2026-08-05 |
 | Source blueprint | `01_JourneyLab_Product_and_Technical_Blueprint.pdf` v1.0 · `00_AI_Product_Portfolio_Index.pdf` v1.0 |
 
@@ -146,7 +146,7 @@ The project-local `.gitnexus/run.cjs` runner was **not** generated — use `npx 
 
 | ID | Blocker | Impact |
 | --- | --- | --- |
-| **BLK-001** | **No named owners for any step, document or gate** | No step can leave `READY`; no exit gate can be signed off; `STEP-001.03` is hard-blocked |
+| ~~BLK-001~~ | **CLOSED** — Deepesh Kumar Gupta (`@deepeshgupta12`) owns all roles (`ADR-010`) | Steps may leave `READY`. **New gap:** four-eyes approval unsatisfiable with one owner |
 | **BLK-002** | **No application code exists** | Contracts are `PROPOSED`; graph coverage gates are not evaluable; traceability is unverified |
 | `DEC-002` | Phase 1 destination region undecided | Blocks `STEP-005`, `STEP-010`, all evaluation corpora — **critical path** |
 | `DEC-003` | Business model undecided | Determines whether a billing step exists at all |

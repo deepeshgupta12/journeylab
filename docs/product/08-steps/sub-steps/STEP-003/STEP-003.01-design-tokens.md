@@ -3,7 +3,7 @@ sub_step_id: STEP-003.01
 parent_step: STEP-003
 title: Design tokens including high-contrast and reduced-motion
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-A11Y-004, REQ-NFR-013]
 blast_radius_id: BR-014
 depends_on: [STEP-002.07]

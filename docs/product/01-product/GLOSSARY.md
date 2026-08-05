@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Architect (unassigned — `BLK-001`) |
+| Owner | Product Architect (Deepesh Kumar Gupta) |
 | Status | `READY` — terminology stable; extend via pull request |
 | Upstream source | Blueprint Appendix B, §12 (data model), §20 (knowledge graphs) |
 | Last reviewed | 2026-08-05 |

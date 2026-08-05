@@ -3,7 +3,7 @@ sub_step_id: STEP-004.04
 parent_step: STEP-004
 title: Privacy, admin, coverage and job operations (API-015…018)
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-005, REQ-PRIV-005]
 blast_radius_id: BR-025
 depends_on: [STEP-004.03]

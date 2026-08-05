@@ -3,7 +3,7 @@ step_id: STEP-005
 title: Source integrations and ingestion
 status: BLOCKED
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-004]
 requirement_ids: [REQ-DATA-001, REQ-DATA-002, REQ-DATA-003, REQ-DATA-004, REQ-DATA-005, REQ-DATA-006, REQ-SEC-005]
 api_ids: []

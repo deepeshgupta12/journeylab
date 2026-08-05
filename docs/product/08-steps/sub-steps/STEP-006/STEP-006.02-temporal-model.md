@@ -3,7 +3,7 @@ sub_step_id: STEP-006.02
 parent_step: STEP-006
 title: Temporal model: observed, effective and recorded time
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-007, REQ-DATA-005]
 blast_radius_id: BR-041
 depends_on: [STEP-006.01]

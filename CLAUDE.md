@@ -247,7 +247,7 @@ These are product promises, not preferences. Breaking one is a defect regardless
 
 | ID | Blocker | Effect |
 | --- | --- | --- |
-| **BLK-001** | No named owners for any step or gate | Nothing can be signed off; `STEP-001.03` is hard-blocked |
+| ~~BLK-001~~ | **CLOSED** — Deepesh Kumar Gupta owns all roles (`ADR-010`) | **New gap:** four-eyes approval unsatisfiable with one owner |
 | **BLK-002** | No application code exists | Contracts `PROPOSED`; graph gates not evaluable |
 | `DEC-002` | Destination region undecided | Blocks `STEP-005`/`STEP-010` — critical path |
 | `DEC-004` | Identity provider undecided | Blocks `STEP-002` → 12-step fan-in |

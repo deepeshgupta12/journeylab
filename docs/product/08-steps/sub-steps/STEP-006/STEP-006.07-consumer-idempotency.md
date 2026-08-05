@@ -3,7 +3,7 @@ sub_step_id: STEP-006.07
 parent_step: STEP-006
 title: Consumer idempotency and replay
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-009]
 blast_radius_id: BR-046
 depends_on: [STEP-006.06]

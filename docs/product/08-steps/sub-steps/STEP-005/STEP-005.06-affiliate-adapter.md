@@ -3,7 +3,7 @@ sub_step_id: STEP-005.06
 parent_step: STEP-005
 title: Affiliate deep-link generation and signed callback receipt
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-BOOK-001, REQ-BOOK-002]
 blast_radius_id: BR-035
 depends_on: [STEP-005.05]

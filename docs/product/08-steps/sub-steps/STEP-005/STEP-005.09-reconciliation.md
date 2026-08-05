@@ -3,7 +3,7 @@ sub_step_id: STEP-005.09
 parent_step: STEP-005
 title: Reconciliation, backfill and checkpointing
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-002]
 blast_radius_id: BR-038
 depends_on: [STEP-005.08]

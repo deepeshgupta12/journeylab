@@ -3,7 +3,7 @@ step_id: STEP-023
 title: Security, privacy and compliance controls
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-002]
 requirement_ids: [REQ-SEC-006, REQ-SEC-007, REQ-SEC-009, REQ-SEC-010, REQ-PRIV-002, REQ-PRIV-003, REQ-PRIV-004]
 api_ids: []

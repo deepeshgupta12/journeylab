@@ -3,7 +3,7 @@ step_id: STEP-028
 title: Advisor workspace and commercial scale
 status: DEFERRED
 release: Phase 4
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-020]
 requirement_ids: [REQ-TRIP-009, REQ-BOOK-005]
 api_ids: [API-001, API-011]

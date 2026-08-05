@@ -3,7 +3,7 @@ sub_step_id: STEP-002.01
 parent_step: STEP-002
 title: Identity schema and row-level security
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-SEC-001, REQ-SEC-002]
 blast_radius_id: BR-007
 depends_on: [STEP-001.06]

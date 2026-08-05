@@ -3,7 +3,7 @@ sub_step_id: STEP-005.04
 parent_step: STEP-005
 title: Transit routes, schedules and service alerts adapter
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-002, REQ-NFR-011]
 blast_radius_id: BR-033
 depends_on: [STEP-005.03]

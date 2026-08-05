@@ -3,7 +3,7 @@ step_id: STEP-002
 title: Identity, tenancy and authorization
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-001]
 requirement_ids: [REQ-SEC-001, REQ-SEC-002, REQ-SEC-003, REQ-SEC-004, REQ-PLAT-012]
 api_ids: [API-001]

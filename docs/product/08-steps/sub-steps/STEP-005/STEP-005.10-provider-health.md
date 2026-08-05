@@ -3,7 +3,7 @@ sub_step_id: STEP-005.10
 parent_step: STEP-005
 title: Provider health events and coverage wiring
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-EVID-006, REQ-TRIP-002]
 blast_radius_id: BR-039
 depends_on: [STEP-005.09]

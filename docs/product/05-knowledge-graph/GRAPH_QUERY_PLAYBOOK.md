@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Platform (unassigned — `BLK-001`) |
+| Owner | Platform (Deepesh Kumar Gupta) |
 | Status | `READY` for code-graph queries · `DISCOVERY` for domain-graph queries (not built) |
 | Last reviewed | 2026-08-05 |
 

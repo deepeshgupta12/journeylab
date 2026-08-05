@@ -4,7 +4,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | TPM (unassigned — `BLK-001`) |
+| Owner | TPM (Deepesh Kumar Gupta) |
 | Target release | Phase 1 MVP — one region, 3–7 day trips, deep-link handoff |
 | Overall status | `DISCOVERY` |
 | Last reviewed | 2026-08-05 |
@@ -25,8 +25,8 @@ Navigation: [Scope](../01-product/PRODUCT_SCOPE.md) · [Roadmap](ROADMAP.md) · 
 | Requirements defined | **130** |
 | Requirements verified against implementation | **0** |
 | Application code files | **0** |
-| Open blockers | **2** (`BLK-001`, `BLK-002`) |
-| Open decisions | **8** |
+| Open blockers | **1** (`BLK-002`) — `BLK-001` closed via `ADR-010` |
+| Open decisions | **7** — `ASM-004` TS revalidation closed via `ADR-009` |
 | Open assumptions | **18** |
 
 **Status legend (the only permitted values):**
@@ -52,7 +52,7 @@ Navigation: [Scope](../01-product/PRODUCT_SCOPE.md) · [Roadmap](ROADMAP.md) · 
 
 | ID | Blocker | Impact | Owner | Needed by |
 | --- | --- | --- | --- | --- |
-| **BLK-001** | No named owners for any step, document or gate. Every step file carries `owners: []` | **No step can leave `READY`; no exit gate can be signed off.** Realised risk `RISK-011` | Whoever commissions the build | Before any implementation |
+| ~~BLK-001~~ | ~~No named owners~~ — **CLOSED 2026-08-05** (`ADR-010`): Deepesh Kumar Gupta owns all roles | Steps may now leave `READY`. **New gap:** four-eyes approval structurally unsatisfiable with one owner | Deepesh Kumar Gupta | Resolved |
 | **BLK-002** | No application code exists. Repository contains documentation only | All contracts are `PROPOSED`; graph coverage gates unevaluable; traceability unverified | Engineering | Before `STEP-001` exit |
 | `DEC-002` | Phase 1 destination region undecided | Blocks `STEP-005`, `STEP-010`, all evaluation corpora — **critical path** | Product Lead | Before Phase 1 |
 | `DEC-004` | Identity provider undecided | Blocks `STEP-002` → 12-step fan-in | Security Architect | Before `STEP-002` |

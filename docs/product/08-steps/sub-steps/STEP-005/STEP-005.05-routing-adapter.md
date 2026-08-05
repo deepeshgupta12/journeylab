@@ -3,7 +3,7 @@ sub_step_id: STEP-005.05
 parent_step: STEP-005
 title: Routing engine adapter with explicit profile declaration
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-002, REQ-A11Y-003]
 blast_radius_id: BR-034
 depends_on: [STEP-005.04]

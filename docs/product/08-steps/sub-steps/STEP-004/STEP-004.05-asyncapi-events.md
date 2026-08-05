@@ -3,7 +3,7 @@ sub_step_id: STEP-004.05
 parent_step: STEP-004
 title: AsyncAPI event contracts with delivery guarantees (EVT-001…008)
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-006, REQ-DATA-008]
 blast_radius_id: BR-026
 depends_on: [STEP-004.04]

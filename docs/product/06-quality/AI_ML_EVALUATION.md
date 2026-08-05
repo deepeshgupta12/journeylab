@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | AI/ML Architect (unassigned — `BLK-001`) |
+| Owner | AI/ML Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — **no datasets, no scorers, no baselines** |
 | Upstream source | Blueprint §13 (AI/ML), §16 (evaluation and release gates) |
 | Governing rule | `CON-005` — every AI feature ships with gold/adversarial evals, lineage, cost/latency budgets, safe fallback and a named human decision boundary |

@@ -3,7 +3,7 @@ sub_step_id: STEP-003.07
 parent_step: STEP-003
 title: Locale, time zone, currency and DST handling
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-NFR-007, REQ-NFR-008]
 blast_radius_id: BR-020
 depends_on: [STEP-003.06]

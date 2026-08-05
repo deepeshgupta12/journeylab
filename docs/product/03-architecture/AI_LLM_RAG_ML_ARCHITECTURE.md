@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | AI/ML Architect (unassigned — `BLK-001`) |
+| Owner | AI/ML Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — target design; nothing implemented |
 | Upstream source | Blueprint §13 (AI/ML), §14 (responsible AI), §16 (evaluation) |
 | Governing rule | `ADR-002` — deterministic engines own feasibility; the model owns language |

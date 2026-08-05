@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | TPM (unassigned — `BLK-001`) |
+| Owner | TPM (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — 0 of 18 assumptions validated |
 | Rule | Nothing in this documentation set may cite an open assumption as a fact |
 | Last reviewed | 2026-08-05 |

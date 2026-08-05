@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Lead (unassigned — `BLK-001`) |
+| Owner | Product Lead (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — scope decomposed from blueprint; step ownership unassigned |
 | Upstream source | Blueprint §6 (Complete end-to-end product scope), §19 (implementation manifest), §21 (roadmap) |
 | Step count | **28** (`STEP-001` … `STEP-028`) |

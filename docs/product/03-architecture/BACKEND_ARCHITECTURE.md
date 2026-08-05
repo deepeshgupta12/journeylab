@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Staff Engineer, Backend (unassigned — `BLK-001`) |
+| Owner | Staff Engineer, Backend (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — target architecture; **all paths `PROPOSED`, none verified** |
 | Upstream source | Blueprint §9 (Backend requirements), §10 (architecture), §11 (contracts) |
 | Last reviewed | 2026-08-05 |

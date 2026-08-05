@@ -3,7 +3,7 @@ step_id: STEP-022
 title: Analytics, feedback and experimentation
 status: DEFERRED
 release: Phase 2
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-006, STEP-013]
 requirement_ids: [REQ-OBS-005, REQ-OBS-006, REQ-PRIV-004]
 api_ids: []

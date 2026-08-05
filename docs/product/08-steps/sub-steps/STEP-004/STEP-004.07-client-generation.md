@@ -3,7 +3,7 @@ sub_step_id: STEP-004.07
 parent_step: STEP-004
 title: Client generation pipeline and no-hand-edit enforcement
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-007]
 blast_radius_id: BR-028
 depends_on: [STEP-004.06]

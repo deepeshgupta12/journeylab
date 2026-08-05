@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Architect (unassigned — `BLK-001`) |
+| Owner | Product Architect (Deepesh Kumar Gupta) |
 | Status | **All operations `PROPOSED`** — no OpenAPI file exists; nothing implemented |
 | Upstream source | Blueprint §11 (API and event contracts) |
 | Authority | When `contracts/openapi.yaml` exists it becomes authoritative for schemas. This document explains contracts and **must not duplicate schema definitions** (`ADR-001`) |

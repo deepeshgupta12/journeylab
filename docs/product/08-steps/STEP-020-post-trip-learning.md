@@ -3,7 +3,7 @@ step_id: STEP-020
 title: Post-trip learning
 status: DEFERRED
 release: Phase 3
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-019]
 requirement_ids: [REQ-TRIP-008, REQ-PRIV-003]
 api_ids: [API-014]

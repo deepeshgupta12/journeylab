@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Architect (unassigned — `BLK-001`) |
+| Owner | Product Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — no system exists; this is the target context |
 | Upstream source | Blueprint §10 (architecture), §11 (contracts), §14 (security) |
 | Last reviewed | 2026-08-05 |

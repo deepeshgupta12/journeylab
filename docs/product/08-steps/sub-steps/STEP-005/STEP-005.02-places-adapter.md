@@ -3,7 +3,7 @@ sub_step_id: STEP-005.02
 parent_step: STEP-005
 title: Places, hours and accessibility provider adapter
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-001, REQ-DATA-005]
 blast_radius_id: BR-031
 depends_on: [STEP-005.01]

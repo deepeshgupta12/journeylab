@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Data Architect + Partnerships (unassigned — `BLK-001`) |
+| Owner | Data Architect + Partnerships (Deepesh Kumar Gupta) |
 | Status | **All `PROPOSED`; no provider selected.** 10 of 11 external dependencies unidentified |
 | Upstream source | Blueprint §9 (connector framework), §11 (webhooks) |
 | Last reviewed | 2026-08-05 |

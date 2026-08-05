@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Platform + Data Architect (unassigned — `BLK-001`) |
+| Owner | Platform + Data Architect (Deepesh Kumar Gupta) |
 | Status | `READY` — schema specified; code graph populated by GitNexus, domain graph built in `STEP-026` |
 | Last reviewed | 2026-08-05 |
 

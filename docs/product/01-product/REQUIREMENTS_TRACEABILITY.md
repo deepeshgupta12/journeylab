@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | TPM + Product Architect (unassigned — `BLK-001`) |
+| Owner | TPM + Product Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — every requirement is linked; **no link is verified against code** (no implementation exists) |
 | Upstream source | [FUNCTIONAL_REQUIREMENTS](FUNCTIONAL_REQUIREMENTS.md), [PRODUCT_SCOPE](PRODUCT_SCOPE.md), [API_CONTRACTS](../04-contracts/API_CONTRACTS.md) |
 | Coverage | **130 / 130 requirements** linked to ≥1 scope step and ≥1 acceptance test |

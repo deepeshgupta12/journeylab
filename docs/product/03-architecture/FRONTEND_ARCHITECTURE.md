@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Frontend Lead (unassigned — `BLK-001`) |
+| Owner | Frontend Lead (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — target architecture; **all paths `PROPOSED`, none verified** |
 | Upstream source | Blueprint §8 (Frontend requirements), §15 (accessibility, i18n) |
 | Last reviewed | 2026-08-05 |

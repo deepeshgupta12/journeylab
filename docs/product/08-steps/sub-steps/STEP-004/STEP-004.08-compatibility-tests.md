@@ -3,7 +3,7 @@ sub_step_id: STEP-004.08
 parent_step: STEP-004
 title: Backward-compatibility and consumer contract tests
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-008]
 blast_radius_id: BR-029
 depends_on: [STEP-004.07]

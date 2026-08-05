@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Platform (unassigned — `BLK-001`) |
+| Owner | Platform (Deepesh Kumar Gupta) |
 | Status | **Operational but not yet load-bearing** — indexed 2026-08-05; contains documentation only |
 | Tool | GitNexus (`ADR-005`) |
 | Last reviewed | 2026-08-05 |

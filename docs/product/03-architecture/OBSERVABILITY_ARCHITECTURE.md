@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | SRE (unassigned — `BLK-001`) |
+| Owner | SRE (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` |
 | Upstream source | Blueprint §18 (observability), §15 (NFRs), portfolio standard §4.23 |
 | Last reviewed | 2026-08-05 |

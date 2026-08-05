@@ -3,7 +3,7 @@ step_id: STEP-026
 title: Knowledge graph platform
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-001]
 requirement_ids: [REQ-KG-001, REQ-KG-002, REQ-KG-003, REQ-KG-004, REQ-KG-005, REQ-KG-006, REQ-KG-007, REQ-KG-008]
 api_ids: [API-018]

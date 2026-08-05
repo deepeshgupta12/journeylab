@@ -3,7 +3,7 @@ sub_step_id: STEP-001.06
 parent_step: STEP-001
 title: Knowledge-graph workflow wiring
 status: IN_PROGRESS
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-KG-003, REQ-KG-008]
 blast_radius_id: BR-006
 depends_on: [STEP-001.05]

@@ -3,7 +3,7 @@ step_id: STEP-016
 title: Booking handoff
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-013, STEP-005]
 requirement_ids: [REQ-BOOK-001, REQ-BOOK-002, REQ-BOOK-003, REQ-BOOK-004, REQ-SEC-010, REQ-EVID-003]
 api_ids: [API-011]

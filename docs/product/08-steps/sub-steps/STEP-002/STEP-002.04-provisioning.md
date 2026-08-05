@@ -3,7 +3,7 @@ sub_step_id: STEP-002.04
 parent_step: STEP-002
 title: User, organization, invitation and service-account provisioning
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-SEC-003, REQ-TRIP-005]
 blast_radius_id: BR-010
 depends_on: [STEP-002.03]

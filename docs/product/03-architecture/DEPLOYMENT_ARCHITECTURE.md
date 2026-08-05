@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Architect + SRE (unassigned — `BLK-001`) |
+| Owner | Product Architect + SRE (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — **cloud provider, region and residency undecided (`DEC-007`)** |
 | Upstream source | Blueprint §18 (deployment topology), §10 (infrastructure) |
 | Last reviewed | 2026-08-05 |

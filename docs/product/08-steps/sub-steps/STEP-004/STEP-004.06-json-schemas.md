@@ -3,7 +3,7 @@ sub_step_id: STEP-004.06
 parent_step: STEP-004
 title: Shared JSON Schemas including model-output schemas
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-005, REQ-AI-002]
 blast_radius_id: BR-027
 depends_on: [STEP-004.05]

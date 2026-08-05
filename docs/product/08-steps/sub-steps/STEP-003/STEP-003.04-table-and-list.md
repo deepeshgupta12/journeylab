@@ -3,7 +3,7 @@ sub_step_id: STEP-003.04
 parent_step: STEP-003
 title: Table and list primitives — the accessible alternative to every visualization
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-A11Y-002]
 blast_radius_id: BR-017
 depends_on: [STEP-003.03]

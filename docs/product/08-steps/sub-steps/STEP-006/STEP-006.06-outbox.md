@@ -3,7 +3,7 @@ sub_step_id: STEP-006.06
 parent_step: STEP-006
 title: Transactional outbox publisher with idempotency
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-008, REQ-NFR-005]
 blast_radius_id: BR-045
 depends_on: [STEP-006.05]

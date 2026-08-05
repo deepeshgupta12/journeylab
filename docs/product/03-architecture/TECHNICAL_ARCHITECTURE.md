@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Architect (unassigned — `BLK-001`) |
+| Owner | Product Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — target architecture; nothing implemented |
 | Upstream source | Blueprint §10 (technology baseline), portfolio standard §4–5 |
 | Baseline validity | **August 2026.** Revalidate every version before pinning (`ASM-004`, `CON-007`) |
@@ -20,7 +20,7 @@ Versions are the **documented baseline as of August 2026**, not a licence for co
 | --- | --- | --- | --- |
 | Web framework | Next.js 16.2 (App Router) | Server components for read-heavy coverage/SEO pages; streaming for long solver runs; one framework for public and authenticated surfaces | Confirmed (blueprint) |
 | UI runtime | React 19.2 (current patched), React Compiler where supported | Baseline stable line | Confirmed |
-| Language (web) | TypeScript 6.0 strict | Strict-by-default typing across frontend and contract packages | Confirmed |
+| Language (web) | **TypeScript 7.0.2** strict | Strict-by-default typing. **Supersedes the blueprint's 6.0 baseline** — 7.0.2 is `latest` at implementation time, per portfolio standard §4.18 (current stable) | **`ADR-009`** |
 | Styling | Tailwind CSS 4.3 + accessible headless components | Utility baseline; headless components stay independently testable for WCAG | Confirmed |
 | Web runtime | Node.js 24 LTS | Supported server/build runtime | Confirmed |
 | Application services | Python 3.14 + FastAPI/Pydantic | Optimisation, ML, retrieval and data-intensive services; OR-Tools and the scientific stack live here | Confirmed |

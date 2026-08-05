@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Security Architect + Privacy Owner (unassigned — `BLK-001`) |
+| Owner | Security Architect + Privacy Owner (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — controls specified; none implemented or tested |
 | Upstream source | Blueprint §14 (security, privacy, responsible AI), §16 (security testing) |
 | Last reviewed | 2026-08-05 |

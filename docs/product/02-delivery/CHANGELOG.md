@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Documentation lead (unassigned — `BLK-001`) |
+| Owner | Documentation lead (Deepesh Kumar Gupta) |
 | Status | `READY` — maintained per change |
 | Scope | Changes to the documentation system, contracts, decisions and delivery status. Application code changes are recorded in Git history and release notes |
 | Last reviewed | 2026-08-05 |

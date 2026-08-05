@@ -3,7 +3,7 @@ sub_step_id: STEP-003.02
 parent_step: STEP-003
 title: Form and input primitives with validation states
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-A11Y-001]
 blast_radius_id: BR-015
 depends_on: [STEP-003.01]

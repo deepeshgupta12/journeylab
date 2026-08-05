@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | TPM + Product Lead (unassigned — `BLK-001`) |
+| Owner | TPM + Product Lead (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` |
 | Upstream source | Blueprint §22 (Risks, mitigations and stop conditions) |
 | Rule | A stop condition is contractual. If it triggers, work halts pending an explicit decision — it is not a discussion prompt |

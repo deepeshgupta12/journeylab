@@ -3,7 +3,7 @@ step_id: STEP-027
 title: Release automation and controlled rollout
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-004, STEP-023]
 requirement_ids: [REQ-PLAT-009, REQ-PLAT-010, REQ-PLAT-011, REQ-PLAT-012, REQ-SEC-009, REQ-KG-004]
 api_ids: []

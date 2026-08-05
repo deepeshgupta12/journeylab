@@ -3,7 +3,7 @@ sub_step_id: STEP-006.09
 parent_step: STEP-006
 title: Read-model projection and rebuild proof
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-010]
 blast_radius_id: BR-048
 depends_on: [STEP-006.08]

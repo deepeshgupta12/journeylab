@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | SRE (unassigned — `BLK-001`) |
+| Owner | SRE (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — **no runbook exists**; all are `PROPOSED` |
 | Rule | Every alert references a runbook; every runbook has an owner and a rehearsal date |
 | Last reviewed | 2026-08-05 |

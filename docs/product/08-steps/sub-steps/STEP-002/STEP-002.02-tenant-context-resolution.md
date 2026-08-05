@@ -3,7 +3,7 @@ sub_step_id: STEP-002.02
 parent_step: STEP-002
 title: Tenant and actor context resolution at the API boundary
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-SEC-001, REQ-SEC-004]
 blast_radius_id: BR-008
 depends_on: [STEP-002.01]

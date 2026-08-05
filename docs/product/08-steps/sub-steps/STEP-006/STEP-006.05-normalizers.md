@@ -3,7 +3,7 @@ sub_step_id: STEP-006.05
 parent_step: STEP-006
 title: Provider payload to canonical entity normalizers
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-007, REQ-DATA-004]
 blast_radius_id: BR-044
 depends_on: [STEP-006.04]

@@ -3,7 +3,7 @@ sub_step_id: STEP-004.02
 parent_step: STEP-004
 title: Trip, brief and scenario operations (API-001…009)
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-005, REQ-PLAT-008]
 blast_radius_id: BR-023
 depends_on: [STEP-004.01]

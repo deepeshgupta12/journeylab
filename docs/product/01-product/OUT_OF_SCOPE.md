@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Lead (unassigned — `BLK-001`) |
+| Owner | Product Lead (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` |
 | **Scope position** | **Nothing is permanently out of scope.** Every capability is either in a release phase or gated on a named condition |
 | Upstream source | Blueprint §23, reclassified per repository-owner direction (2026-08-05) |

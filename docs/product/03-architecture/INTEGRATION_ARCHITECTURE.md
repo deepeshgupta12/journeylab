@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Data Architect + Backend (unassigned — `BLK-001`) |
+| Owner | Data Architect + Backend (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — **no provider selected**; 10 of 11 external dependencies unidentified |
 | Upstream source | Blueprint §9 (destination evidence and live data), §11 (contracts) |
 | Last reviewed | 2026-08-05 |

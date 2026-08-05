@@ -3,7 +3,7 @@ step_id: STEP-014
 title: Interactive what-if editing
 status: DEFERRED
 release: Phase 2
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-013]
 requirement_ids: [REQ-CONS-010, REQ-CONS-011, REQ-A11Y-005]
 api_ids: [API-009]

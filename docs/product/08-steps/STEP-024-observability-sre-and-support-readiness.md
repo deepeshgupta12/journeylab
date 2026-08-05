@@ -3,7 +3,7 @@ step_id: STEP-024
 title: Observability, SRE and support readiness
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-006, STEP-027]
 requirement_ids: [REQ-OBS-001, REQ-OBS-002, REQ-OBS-003, REQ-OBS-004, REQ-AI-006]
 api_ids: []

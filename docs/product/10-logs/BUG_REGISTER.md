@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Engineering (unassigned — `BLK-001`) |
+| Owner | Engineering (Deepesh Kumar Gupta) |
 | Status | `ACTIVE` — 2 bugs recorded, both closed with regression tests |
 | Rule | **Every fixed bug gets a regression test.** Check R6 verifies they all still pass at every sub-step |
 | Last reviewed | 2026-08-05 |

@@ -3,7 +3,7 @@ sub_step_id: STEP-001.01
 parent_step: STEP-001
 title: Workspace skeleton and pinned toolchain
 status: VERIFIED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-001, REQ-PLAT-002]
 blast_radius_id: BR-001
 depends_on: []

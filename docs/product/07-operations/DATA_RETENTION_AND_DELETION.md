@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Privacy Owner + Data Architect (unassigned — `BLK-001`) |
+| Owner | Privacy Owner + Data Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — policy defined; **no implementation, no legal review** |
 | Upstream source | Blueprint §12 (data lifecycle), §14 (privacy) |
 | Caveat | **Not legal advice.** Statutory periods and jurisdictions are undetermined (`DEC-007`) |

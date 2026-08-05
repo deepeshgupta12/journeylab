@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | TPM (unassigned — `BLK-001`) |
+| Owner | TPM (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — phase content defined; **durations deliberately absent** (`ASM-002`) |
 | Upstream source | Blueprint §21 (Delivery roadmap and release gates) |
 | Last reviewed | 2026-08-05 |

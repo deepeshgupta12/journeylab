@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | SRE + Backend (unassigned — `BLK-001`) |
+| Owner | SRE + Backend (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — no tests; **no capacity projections exist** (`ASM-002`) |
 | Upstream source | Blueprint §16 (performance, resilience), §15 (SLOs) |
 | Last reviewed | 2026-08-05 |

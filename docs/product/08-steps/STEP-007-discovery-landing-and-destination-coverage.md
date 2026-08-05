@@ -3,7 +3,7 @@ step_id: STEP-007
 title: Discovery landing and destination coverage
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-003, STEP-006]
 requirement_ids: [REQ-TRIP-001, REQ-TRIP-002, REQ-EVID-006]
 api_ids: [API-017]

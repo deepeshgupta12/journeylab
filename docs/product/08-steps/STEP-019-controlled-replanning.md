@@ -3,7 +3,7 @@ step_id: STEP-019
 title: Controlled replanning
 status: DEFERRED
 release: Phase 3
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-018, STEP-012]
 requirement_ids: [REQ-LIVE-005, REQ-LIVE-006, REQ-CONS-011, REQ-PRIV-008]
 api_ids: [API-013]

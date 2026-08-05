@@ -3,7 +3,7 @@ step_id: STEP-012
 title: Scenario optimisation and simulation
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-011]
 requirement_ids: [REQ-CONS-004, REQ-CONS-005, REQ-CONS-006, REQ-CONS-007, REQ-CONS-008, REQ-A11Y-006, REQ-NFR-004]
 api_ids: [API-005, API-006, API-018]

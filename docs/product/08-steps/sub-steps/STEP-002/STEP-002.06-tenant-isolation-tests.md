@@ -3,7 +3,7 @@ sub_step_id: STEP-002.06
 parent_step: STEP-002
 title: Cross-tenant isolation test suite
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-SEC-002]
 blast_radius_id: BR-012
 depends_on: [STEP-002.05]

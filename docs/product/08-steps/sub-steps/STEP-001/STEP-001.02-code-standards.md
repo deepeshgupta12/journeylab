@@ -3,7 +3,7 @@ sub_step_id: STEP-001.02
 parent_step: STEP-001
 title: Formatting, linting and strict TypeScript defaults
 status: VERIFIED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-001]
 blast_radius_id: BR-002
 depends_on: [STEP-001.01]
@@ -13,7 +13,7 @@ last_updated: 2026-08-05
 # STEP-001.02 — Formatting, linting and strict TypeScript defaults
 
 ## 1. Outcome
-Formatting and linting run identically on every machine and in CI, and TypeScript 6 strict defaults plus module boundaries are enforced from the first line of code.
+Formatting and linting run identically on every machine and in CI, and TypeScript 7 strict defaults plus module boundaries are enforced from the first line of code.
 
 ## 2. Scope and boundary
 **In scope:** `.editorconfig`, `biome.json`, `tsconfig.base.json`, Python lint/type configuration, **module boundary import rules**.
@@ -39,7 +39,7 @@ Supports `ADR-003`: module boundary rules are what keep the modular monolith spl
 ## 5. Implementation plan
 - [ ] `.editorconfig` for whitespace and encoding
 - [ ] `biome.json` for formatting and linting with agreed rules
-- [ ] `tsconfig.base.json` with TypeScript 6 strict defaults and ES modules
+- [ ] `tsconfig.base.json` with TypeScript 7 strict defaults and ES modules
 - [ ] Per-package `tsconfig.json` extending the base
 - [ ] Python lint/type/test configuration in `pyproject.toml`
 - [ ] **Import-boundary rules** preventing cross-module imports that bypass a public module interface

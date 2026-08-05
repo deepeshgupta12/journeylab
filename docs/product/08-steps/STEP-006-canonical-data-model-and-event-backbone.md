@@ -3,7 +3,7 @@ step_id: STEP-006
 title: Canonical data model and event backbone
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-005]
 requirement_ids: [REQ-DATA-007, REQ-DATA-008, REQ-DATA-009, REQ-DATA-010, REQ-SEC-001]
 api_ids: []

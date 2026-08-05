@@ -1,0 +1,25 @@
+# JourneyLab code ownership — STEP-001.03 (ADR-010)
+#
+# Every path must resolve to an owner; CI fails on unowned paths (REQ-PLAT-003).
+# Single accountable owner until the team grows. See ADR-010 for the recorded
+# consequence: a single owner CANNOT satisfy four-eyes approval (REQ-ADMIN-002),
+# which is tracked as a live gap, not silently dropped.
+
+# Catch-all — every path is owned
+*                           @deepeshgupta12
+
+# Documentation system
+/docs/                      @deepeshgupta12
+
+# Contracts — changes here follow CONTRACT_CHANGE_POLICY
+/contracts/                 @deepeshgupta12
+
+# Security, privacy and tenancy boundaries
+/security/                  @deepeshgupta12
+/tests/security/            @deepeshgupta12
+
+# Build, release and knowledge-graph gates
+/.github/                   @deepeshgupta12
+/tests/guards/              @deepeshgupta12
+/infra/                     @deepeshgupta12
+/deploy/                    @deepeshgupta12

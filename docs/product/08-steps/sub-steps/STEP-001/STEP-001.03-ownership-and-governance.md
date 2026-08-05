@@ -2,8 +2,8 @@
 sub_step_id: STEP-001.03
 parent_step: STEP-001
 title: Ownership and contribution governance
-status: BLOCKED
-owners: []
+status: VERIFIED
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-003]
 blast_radius_id: BR-003
 depends_on: [STEP-001.02]
@@ -12,7 +12,7 @@ last_updated: 2026-08-05
 
 # STEP-001.03 — Ownership and contribution governance
 
-> **`BLOCKED` by `BLK-001`.** `CODEOWNERS` requires named owners, and none exist. This sub-step cannot complete until people are assigned — it is the concrete point where the missing-owners blocker stops work.
+> **UNBLOCKED and complete.** `BLK-001` closed by `ADR-010` on 2026-08-05: Deepesh Kumar Gupta (`@deepeshgupta12`) named as owner.
 
 ## 1. Outcome
 Every path in the repository resolves to an owner; CI rejects unowned paths; the vulnerability process and contribution rules — including the commit-attribution rule — are documented.
@@ -82,6 +82,6 @@ Revert governance files. **Note:** removing branch protection is a security regr
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
-| Blocked by | **`BLK-001` — no named owners exist** |
+| Completed | 2026-08-05 |
+| Blocked by | ~~BLK-001~~ — resolved by `ADR-010` |
 | Notes | This sub-step is the first hard stop in the programme. Everything before it can be built by anyone; nothing after it can be signed off by no one |

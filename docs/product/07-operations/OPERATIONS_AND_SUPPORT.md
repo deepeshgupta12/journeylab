@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | SRE + Support Lead (unassigned — `BLK-001`) |
+| Owner | SRE + Support Lead (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — no service is running |
 | Upstream source | Blueprint §18 (deployment, operations, support) |
 | Last reviewed | 2026-08-05 |

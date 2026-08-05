@@ -4,7 +4,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Platform + TPM (unassigned — `BLK-001`) |
+| Owner | Platform + TPM (Deepesh Kumar Gupta) |
 | Status | `READY` — binding from the first code commit |
 | Tool | GitNexus (`ADR-005`) — **verified installed and indexing** on 2026-08-05 |
 | Current capability | **`BLOCKED` for application code** — the index covers Markdown documentation only (`RISK-014`) |

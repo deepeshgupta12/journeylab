@@ -3,7 +3,7 @@ step_id: STEP-015
 title: Collaboration and decision
 status: DEFERRED
 release: Phase 2
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-013, STEP-002]
 requirement_ids: [REQ-COLL-001, REQ-COLL-002, REQ-COLL-003, REQ-COLL-004, REQ-TRIP-006, REQ-SEC-008]
 api_ids: [API-010, API-008]

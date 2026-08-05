@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Product Lead + Product Architect (unassigned — `BLK-001`) |
+| Owner | Product Lead + Product Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — requirements derived from blueprint; none accepted by a named owner |
 | Upstream source | Blueprint §7 (Functional requirements), §8 (Frontend), §9 (Backend), §13 (AI/ML), §14 (Security), §15 (NFR) |
 | Requirement count | **130** across 16 domains |

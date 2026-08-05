@@ -3,7 +3,7 @@ sub_step_id: STEP-003.03
 parent_step: STEP-003
 title: Feedback primitives: dialog, notification, empty, error, skeleton
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-A11Y-001, REQ-A11Y-004]
 blast_radius_id: BR-016
 depends_on: [STEP-003.02]

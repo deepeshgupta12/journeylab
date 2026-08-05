@@ -3,7 +3,7 @@ step_id: STEP-010
 title: Destination evidence assembly
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-006, STEP-009]
 requirement_ids: [REQ-EVID-001, REQ-EVID-002, REQ-EVID-003, REQ-EVID-005, REQ-EVID-006, REQ-AI-003, REQ-AI-004, REQ-AI-009]
 api_ids: [API-004]

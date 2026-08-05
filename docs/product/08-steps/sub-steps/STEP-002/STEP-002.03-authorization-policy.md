@@ -3,7 +3,7 @@ sub_step_id: STEP-002.03
 parent_step: STEP-002
 title: Role and attribute policy definitions
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-SEC-004]
 blast_radius_id: BR-009
 depends_on: [STEP-002.02]

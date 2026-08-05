@@ -3,7 +3,7 @@ step_id: STEP-013
 title: Visual comparison
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-012, STEP-003]
 requirement_ids: [REQ-CONS-009, REQ-EVID-004, REQ-A11Y-002, REQ-A11Y-003, REQ-AI-010]
 api_ids: [API-006, API-007, API-008]

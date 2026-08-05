@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Data Architect (unassigned — `BLK-001`) |
+| Owner | Data Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — specified; **not built.** Implemented in `STEP-026` |
 | Upstream source | Blueprint §20 (domain graph), §13 (GraphRAG) |
 | Last reviewed | 2026-08-05 |

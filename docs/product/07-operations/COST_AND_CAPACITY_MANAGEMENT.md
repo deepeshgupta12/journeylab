@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Engineering + Finance (unassigned — `BLK-001`) |
+| Owner | Engineering + Finance (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — **no cost model, no capacity projection, no target margin** |
 | Blocking | `RISK-003` stop condition is **currently unmeasurable** because the target contribution margin is undefined (`DEC-003`) |
 | Last reviewed | 2026-08-05 |

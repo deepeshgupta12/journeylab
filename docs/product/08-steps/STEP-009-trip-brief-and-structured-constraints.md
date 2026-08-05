@@ -3,7 +3,7 @@ step_id: STEP-009
 title: Trip brief and structured constraints
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-008, STEP-004]
 requirement_ids: [REQ-CONS-001, REQ-CONS-002, REQ-AI-001, REQ-AI-002, REQ-AI-005, REQ-AI-008, REQ-TRIP-004]
 api_ids: [API-003]

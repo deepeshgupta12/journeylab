@@ -3,7 +3,7 @@ step_id: STEP-003
 title: Design system and application shell
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-002]
 requirement_ids: [REQ-A11Y-001, REQ-A11Y-004, REQ-NFR-007, REQ-NFR-013]
 api_ids: []

@@ -3,7 +3,7 @@ sub_step_id: STEP-005.08
 parent_step: STEP-005
 title: Field-specific freshness policy and expiry
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-005, REQ-EVID-005]
 blast_radius_id: BR-037
 depends_on: [STEP-005.07]

@@ -3,7 +3,7 @@ sub_step_id: STEP-004.03
 parent_step: STEP-004
 title: Collaboration, booking, live and feedback operations (API-010…014)
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-005]
 blast_radius_id: BR-024
 depends_on: [STEP-004.02]

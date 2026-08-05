@@ -3,7 +3,7 @@ step_id: STEP-001
 title: Foundation and repository governance
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: []
 requirement_ids: [REQ-PLAT-001, REQ-PLAT-002, REQ-PLAT-003, REQ-PLAT-004]
 api_ids: []

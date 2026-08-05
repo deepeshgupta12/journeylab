@@ -3,7 +3,7 @@ step_id: STEP-011
 title: Candidate generation
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-010]
 requirement_ids: [REQ-CONS-003]
 api_ids: []

@@ -3,7 +3,7 @@ step_id: STEP-004
 title: Contract-first platform APIs
 status: DISCOVERY
 release: Phase 1
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-002]
 requirement_ids: [REQ-PLAT-005, REQ-PLAT-006, REQ-PLAT-007, REQ-PLAT-008]
 api_ids: [API-001, API-002, API-003, API-004, API-005, API-006, API-007, API-008, API-009, API-010, API-011, API-012, API-013, API-014, API-015, API-016, API-017, API-018]

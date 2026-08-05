@@ -3,7 +3,7 @@ sub_step_id: STEP-003.06
 parent_step: STEP-003
 title: Role-aware desktop and mobile navigation
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-A11Y-001, REQ-SEC-004]
 blast_radius_id: BR-019
 depends_on: [STEP-003.05]

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Data Architect (unassigned — `BLK-001`) |
+| Owner | Data Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — target design; no schema exists |
 | Upstream source | Blueprint §12 (data model and lifecycle), §9 (geospatial), §14 (privacy) |
 | Last reviewed | 2026-08-05 |

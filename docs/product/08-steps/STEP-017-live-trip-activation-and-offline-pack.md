@@ -3,7 +3,7 @@ step_id: STEP-017
 title: Live trip activation and offline pack
 status: DEFERRED
 release: Phase 3
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-016]
 requirement_ids: [REQ-LIVE-001, REQ-LIVE-002, REQ-PRIV-008, REQ-NFR-010]
 api_ids: [API-012]

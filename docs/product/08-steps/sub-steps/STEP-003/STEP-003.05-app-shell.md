@@ -3,7 +3,7 @@ sub_step_id: STEP-003.05
 parent_step: STEP-003
 title: Application frame, providers and global error boundary
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-A11Y-001, REQ-NFR-013]
 blast_radius_id: BR-018
 depends_on: [STEP-003.04]

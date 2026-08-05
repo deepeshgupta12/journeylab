@@ -67,6 +67,42 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-001.03 + TS7 — 2026-08-05 — Ownership assignment and TypeScript 7 upgrade
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `ef7af7a` — matched HEAD at pre-change |
+| Decisions applied | `ADR-009`, `ADR-010` |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` — 11 checks incl. new CODEOWNERS guard |
+| R2 contract compatibility | **N/A** | No contracts yet |
+| R3 graph diff as expected | **PASS** | Config, governance and docs; no symbols |
+| R4 untested requirements | **PASS** | Not increased |
+| R5 orphan/unowned nodes | **PASS — GAP NOW CLOSED** | `CODEOWNERS` created; all 178 tracked paths resolve to an owner. This was the known gap carried since STEP-001.01 |
+| R6 closed-bug tests | **PASS** | BUG-001 and BUG-002 guards both pass |
+| R7 tenant isolation | **N/A** | No tenancy until STEP-002.01 |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Check | Failure | Cause | Resolution | Bug ID |
+| --- | --- | --- | --- | --- |
+| R1 (`guard:boundaries`) | **Boundary enforcement silently became a no-op** under TS 7 | dependency-cruiser 18.1.1 supports `typescript <7`; cruised 0 modules and reported "no violations" | Rewrote the guard TypeScript-independently; removed dependency-cruiser | — (tooling defect, not a product bug) |
+| Validation probe | Probe reported success while `tsc` errored | `head` masked the real exit code | Re-probed asserting exit codes explicitly | — |
+
+### Notes
+**R5's long-standing gap is now closed** — this was the check that had been passing
+only because "not increased" is satisfied by "already zero-owned". With `CODEOWNERS`
+in place it becomes a real ratchet.
+
+The boundary-tool failure is the most instructive event so far: a green check that
+verified nothing. It was caught because the meta-test asserts a **specific rule name**,
+not merely a non-zero exit. Both prior false passes in this repository (BUG-001's guard,
+this probe) had the same shape.
+
 ## STEP-001.02 — 2026-08-05 — Formatting, linting, strict TypeScript and module boundaries
 
 | Field | Value |

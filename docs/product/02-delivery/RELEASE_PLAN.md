@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | TPM + Product Architect (unassigned — `BLK-001`) |
+| Owner | TPM + Product Architect (Deepesh Kumar Gupta) |
 | Status | `DISCOVERY` — no release has been cut |
 | Target release | **Phase 1 MVP** — one region, 3–7 day trips, deep-link handoff |
 | Last reviewed | 2026-08-05 |

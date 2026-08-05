@@ -3,7 +3,7 @@ sub_step_id: STEP-001.04
 parent_step: STEP-001
 title: Local dependency stack
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-PLAT-001]
 blast_radius_id: BR-004
 depends_on: [STEP-001.02]

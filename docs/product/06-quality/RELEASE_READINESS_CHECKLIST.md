@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | TPM (unassigned — `BLK-001`) |
+| Owner | TPM (Deepesh Kumar Gupta) |
 | Status | `READY` — checklist binding for every release |
 | Current release readiness | **NOT READY** — see §11 |
 | Last reviewed | 2026-08-05 |

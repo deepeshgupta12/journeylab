@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Owner | Platform (unassigned — `BLK-001`) |
+| Owner | Platform (Deepesh Kumar Gupta) |
 | Status | `READY` — pipeline defined; **code-graph coverage blocked until source exists** |
 | Tool | GitNexus (`ADR-005`) |
 | Verified state | Indexed 2026-08-05 · **~1,860 nodes, ~2,535 edges** · documentation only |

@@ -3,7 +3,7 @@ sub_step_id: STEP-005.07
 parent_step: STEP-005
 title: Canonical place entity resolution and provider identifier graph
 status: NOT_STARTED
-owners: []
+owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-004]
 blast_radius_id: BR-036
 depends_on: [STEP-005.06]
