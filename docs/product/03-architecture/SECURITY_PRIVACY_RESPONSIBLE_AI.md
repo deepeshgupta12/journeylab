@@ -26,7 +26,7 @@ Navigation: [System context](SYSTEM_CONTEXT.md) · [Authorization matrix](../04-
 | SC-DET-02 | Structured output enforced; schema violation fails closed | REQ-AI-002 | TST-AI-002 |
 | SC-TOOL-01 | Read-only tool allowlist; no booking writes in MVP | REQ-AI-005 | TST-AI-005 |
 | SC-CLAIM-01 | No visa/health/legal/safety guarantees; unverified sources never transition a plan | REQ-AI-010, REQ-LIVE-004 | TST-AI-010 |
-| SC-AUDIT-01 | Immutable security and business audit events, stored separately from application logs | REQ-SEC-007 | TST-SEC-007 |
+| SC-AUDIT-01 **✅ IMPLEMENTED (STEP-002.07)** | Immutable security and business audit events, stored separately from application logs. **Append-only enforced by privilege**: `journeylab_app` holds INSERT + SELECT only, so UPDATE/DELETE/TRUNCATE are refused by the database. Redaction applied at emission; a redaction failure blocks the write | REQ-SEC-007 | TST-SEC-007 |
 | SC-REDACT-01 | Secret and PII detection/redaction for logs, telemetry, AI inputs and graph properties | REQ-AI-006, REQ-KG-007 | TST-SEC-007 |
 | SC-SEG-01 | Booking references and travel documents segregated from the planning graph | REQ-SEC-010 | TST-SEC-010 |
 | SC-ABUSE-01 | Expiring invitations, view logs, download controls, location sharing default off | REQ-SEC-008 | TST-SEC-008 |

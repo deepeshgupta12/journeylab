@@ -60,6 +60,58 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-014 — STEP-002.07 — Audit event emission and runtime flag primitives
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-06 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-SEC-007, REQ-PLAT-012 |
+| Blast radius | [BR-017](blast-radius/BR-017-audit-and-flags.md) (**HIGH**) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `d7d71cf` — matched HEAD at pre-change |
+
+### What was built
+Migration 002 (`audit_events`, `feature_flags`) and `services/audit/` — `audit.py`, `redaction.py`, `flags.py`. 29 tests; 335 Python tests total.
+
+This closes the gaps carried since `.03` and `.04`: `provisioning` has been returning `AuditRecord` and `authz` returning `Decision.audit` with nothing to receive them. `impact(AuditRecord)` confirmed it — two consumers, **both tests**.
+
+### Why this approach
+**Append-only is a privilege, not a convention.** The sub-step asks that "no update or delete path exists in code". Code can be changed; a privilege cannot be talked around. `journeylab_app` holds INSERT and SELECT on `audit_events` and nothing else, so `UPDATE`, `DELETE` and `TRUNCATE` all return `permission denied` — verified against the live database, not asserted.
+
+**Redaction at emission, never at query time.** Redacting on read means the raw value was already durably stored and every backup, replica and psql session has it. Redacting at emission means it was never written.
+
+**Redaction failure blocks the write.** There is no `force=True`. This matters more here than anywhere else: the store is append-only, so a leaked secret could not be deleted afterwards.
+
+**`conservative` is a required argument on every flag, with no default.** A default would be a guess about which direction is safe, and it differs per flag — `new_solver_ui` is conservatively `False`, `require_consent` is conservatively `True`. The sub-step named the trap: "a flag service outage that enables a half-built feature is a far worse outcome than one that disables a finished one." A flag whose author has not decided which way is safe cannot be evaluated.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — 335 Python + 41 TypeScript |
+| Shell R7 | **12/12** |
+| Isolation suite | 14 passed, 5 pending |
+| Guard meta-suite | **36/36** |
+| Migration 002 idempotent | Re-applied with 0 errors |
+| Append-only | `UPDATE`/`DELETE`/`TRUNCATE` → `permission denied` |
+
+**Mutation testing — 4/4 killed:** flags failing open on an outage, the redaction sweep removed, an audit write failure swallowed, and a malformed flag value coerced generously.
+
+### Two real defects, found by tests rather than review
+**`PRIMARY KEY (key, organization_id)` made the design impossible.** Primary key columns are implicitly `NOT NULL`, so the NULL-means-global row could never be inserted — the flag tests failed with a not-null violation. Replaced with a surrogate key plus two **partial** unique indexes, which also fixes a subtler problem: `(key, NULL)` is not unique under SQL NULL semantics, so two global rows for one key could have coexisted and made evaluation non-deterministic.
+
+**A tuple containing a private key passed through `redact()` completely untouched.** `_redact_value` understands dict, list and str; a tuple fell through unchanged, and the safety sweep did not traverse tuples either. **The fail-closed branch was unreachable — decorative rather than protective.** The sweep now checks the string form of any type it does not understand, and a test proves it.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Wire emitters into request paths | STEP-004 |
+| Audit volume and write-failure monitoring | STEP-024 |
+| Admin console for flag changes | STEP-021 |
+| Retention policy (needs `DEC-007`) | STEP-027 |
+
+---
+
 ## IMPL-013 — STEP-002.06 — Cross-tenant isolation test suite
 
 | Field | Value |

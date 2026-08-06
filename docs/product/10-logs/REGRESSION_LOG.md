@@ -67,6 +67,38 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-002.07 — 2026-08-06 — Audit event emission and runtime flag primitives
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `d7d71cf` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 335 Python + 41 TypeScript |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004). Migration 002 is additive |
+| R3 graph diff as expected | **PASS** | Migration 002, three new modules, one test module. No existing symbol modified |
+| R4 untested requirements | **PASS** | Decreased — `REQ-SEC-007` and `REQ-PLAT-012` now have executable coverage |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `services/audit/**` |
+| R6 closed-bug tests | **PASS** | BUG-001…015 guards pass |
+| **R7 tenant isolation** | **PASS** | Shell 12/12; isolation suite 14+5. **Both new tables are RLS `ENABLE` + `FORCE`** |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Flag inserts rejected with a not-null violation | `PRIMARY KEY (key, organization_id)` makes both columns implicitly `NOT NULL`, so the NULL-means-global row was impossible | Surrogate key + two partial unique indexes — which also prevents duplicate global rows that `(key, NULL)` would have allowed |
+| A tuple containing a private key survived redaction | `_redact_value` handles dict/list/str only; the safety sweep did not traverse tuples either, so the fail-closed branch was unreachable | Sweep now checks the string form of unhandled types |
+| Test data too short to match the JWT pattern | My sample, not the code | Corrected |
+| ruff N802 on an uppercase test name | Style | Renamed |
+
+### Notes
+Append-only is enforced by **privilege**, not convention: `journeylab_app` holds INSERT and SELECT only, and `UPDATE`/`DELETE`/`TRUNCATE` were each verified to return `permission denied` against the live database.
+
+---
+
 ## STEP-002.06 — 2026-08-06 — Cross-tenant isolation test suite
 
 | Field | Value |
