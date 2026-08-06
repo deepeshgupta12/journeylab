@@ -67,6 +67,38 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-003.02 — 2026-08-06 — Form and input primitives with validation states
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `0e3ea40` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 335 Python + 41 web + **107 UI** |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | New `packages/ui/src/form/`; guard + dev-dependency change for BUG-016 |
+| R4 untested requirements | **PASS** | Decreased — `REQ-A11Y-001` now has axe coverage on every primitive |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `packages/ui/**` |
+| R6 closed-bug tests | **PASS** | BUG-001…015 guards pass |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched — presentation primitives hold no data |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `verify` failed on "workflow YAML does not parse" | The guard fetched pyyaml at run time via `uv run --with`; a transient network failure was blamed on the workflows | `BUG-016` — pyyaml pinned as a locked dev dependency; the unavailable branch now states it is not a workflow problem |
+| Typecheck rejected the prop interfaces | `CommonProps` marks disabled/readOnly/required readonly; the native attribute types do not, so TypeScript refused the merge | Native keys omitted so `CommonProps` owns them — the right complaint, since two sources for one prop is how disabled and readOnly get conflated |
+| Biome rejected `aria-required` twice | `input[type=date]` has no ARIA role; a fieldset maps to `role="group"`, which does not support it either | Switched to the **native** `required` attribute, which maps to the same accessibility property |
+| A mutant appeared to survive | My harness replaced the first textual occurrence, which was inside a docstring rather than the JSX | Re-run against the attribute — two tests failed as they should |
+
+### Notes
+axe passing on the first run was treated as suspicious rather than reassuring. Before trusting it, it was proven to fail on an unlabelled input and an image with no alt; both proofs are now permanent tests, because "zero violations" is otherwise indistinguishable from axe not running.
+
+---
+
 ## STEP-003.01 — 2026-08-06 — Design tokens including high-contrast and reduced-motion
 
 | Field | Value |

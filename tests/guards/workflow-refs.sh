@@ -20,7 +20,15 @@ fail=0
 # a misleading error blaming the workflows for a toolchain gap. Distinguish the two.
 if ! command -v uv >/dev/null 2>&1; then
   echo "  skip YAML parse check — uv not available on this host (real CI installs it)"
-elif ! uv run --quiet --with pyyaml python -c "
+elif ! uv run --quiet python -c "import yaml" 2>/dev/null; then
+  # BUG-016: this previously used `uv run --with pyyaml`, which FETCHES the package
+  # at guard time. A transient network failure was then reported as "workflow YAML
+  # does not parse" — blaming the workflows for a download problem, and making the
+  # gate flaky. A flaky gate is worse than a failing one: it teaches people to
+  # re-run rather than read. pyyaml is now a locked dev dependency, so this branch
+  # means a genuinely broken environment, not a bad workflow.
+  echo "  skip YAML parse check — pyyaml unavailable (run: uv sync). NOT a workflow problem."
+elif ! uv run --quiet python -c "
 import yaml,glob,sys
 bad=0
 for f in sorted(glob.glob('$WF/*.yml')):

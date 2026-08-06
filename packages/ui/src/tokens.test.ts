@@ -12,14 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { renderCss } from '../tools/gen-tokens.ts';
-import {
-  AA_LARGE_TEXT_AND_UI,
-  AA_NORMAL_TEXT,
-  AAA_NORMAL_TEXT,
-  contrastRatio,
-  parseHex,
-  relativeLuminance,
-} from './contrast.ts';
+import { AAA_NORMAL_TEXT, contrastRatio, parseHex, relativeLuminance } from './contrast.ts';
 import {
   contrastPairs,
   ELEVATION,

@@ -60,6 +60,70 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-016 — STEP-003.02 — Form and input primitives with validation states
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-06 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-A11Y-001 |
+| Blast radius | [BR-019](blast-radius/BR-019-form-primitives.md) (MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `0e3ea40` — matched HEAD at pre-change |
+
+### What was built
+`packages/ui/src/form/` — the repository's first components. 39 new tests (107 in the package).
+
+| File | Role |
+| --- | --- |
+| `field.tsx` | Label, description and error association; the polite live region |
+| `inputs.tsx` | TextInput, NumberInput, DateInput, Select, Checkbox, RadioGroup |
+| `locale-number.ts` | Separator-aware parsing that refuses ambiguity |
+| `zoned-date.ts` | Calendar dates and explicit-zone conversion |
+
+### Why this approach
+**Association is centralised so it cannot be forgotten.** Getting label, description and error wiring right once is easy; getting it right on the fourteenth form is not. Every primitive routes through `Field`, so a component author cannot ship an input whose error is invisible to a screen reader.
+
+**Errors are polite, and focus never moves.** `aria-live="polite"`, not `role="alert"` — assertive interrupts the user mid-sentence, which for someone still typing means being cut off about a field they have not finished. And the region is rendered *always*, not inserted when an error appears: a live region created at the moment it gains content is frequently never announced, because the screen reader must already be observing the node.
+
+**`Number.parseFloat` is wrong for user input.** `parseFloat("1.234,56")` returns **1.234** — off by three orders of magnitude, silently. Separators come from `Intl.NumberFormat` per locale, and genuinely ambiguous input like `"1,23"` is **refused** rather than guessed, because guessing is wrong half the time.
+
+**`type="text"` with `inputMode="decimal"`, not `type="number"`.** A native number input silently discards characters the browser dislikes, so a German user typing `1.234,56` can lose part of what they typed with no feedback.
+
+**Dates carry no implicit zone.** `DateInput` hands back a `CalendarDate`, never a `Date`. A `Date` is an instant and a date input's value is not one; attaching the browser's zone is exactly the bug the sub-step warns "becomes an infeasible itinerary in STEP-012". `startOfDayUtc` requires an IANA zone with no default, and probes the offset rather than assuming it, so DST boundaries do not drift an hour.
+
+**Disabled and read-only are kept distinct.** `disabled` removes the control from the tab order, excludes it from submission, and in several screen readers makes it unreadable — the user cannot discover what the field was. `readOnly` keeps it focusable and readable. "You cannot change this right now, but here is its value" is almost always read-only.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — 335 Python + 41 web + 107 UI |
+| axe, WCAG 2.2 AA tags | Zero violations on all six primitives |
+| Guard meta-suite | 36/36 |
+
+**Mutation testing — 5/5 killed:** live region made assertive, `aria-describedby` dropping the error, label disassociated, read-only implemented as disabled, and `NumberInput` reverted to `type="number"`.
+
+### Biome caught two standards errors I had written
+`aria-required` on `input[type=date]` — that input type has **no ARIA role**, so the attribute is unsupported on it. Moving it to a `<fieldset>` for the radio group was no better: a fieldset maps to `role="group"`, which does not support `aria-required` either, and forcing `role="radiogroup"` onto a non-interactive element trades one violation for another.
+
+The correct answer in both cases was to stop reaching for ARIA. The native `required` attribute already maps to the same accessibility property, and per the HTML spec `required` on one radio makes its whole same-named group required. **Reaching for ARIA when HTML already says it is how elements end up over-annotated and less accessible, not more.**
+
+### Surprises
+**A mutant appeared to survive, and my harness had mutated a comment.** Flipping `aria-live="polite"` to `assertive` failed nothing — because the first textual occurrence of that string in `field.tsx` is inside the module docstring, not the JSX. Re-run against the actual attribute, two tests failed as they should.
+
+Third time a mutation harness has misled me: once through a `ruff format` reflow, once through an apostrophe terminating a quoted block, now through a docstring. **A mutation that reports "survived" needs its own verification that it applied to code.**
+
+**axe passing first time was itself suspicious**, so before trusting it I proved it fails on an unlabelled input and an image with no alt. Those two proofs are now permanent tests — without them, "zero violations" is indistinguishable from axe not running.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Resolve ICU message loading vs server components | Before STEP-003.07 |
+| Real-browser verification (jsdom is not a browser) | STEP-003.08 |
+| Assistive-technology testing beyond axe | STEP-003.08 |
+
+---
+
 ## IMPL-015 — STEP-003.01 — Design tokens including high-contrast and reduced-motion
 
 | Field | Value |

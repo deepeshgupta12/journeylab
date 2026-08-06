@@ -39,6 +39,46 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-016 — Flaky workflow guard blamed the workflows for a failed download
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — intermittent false failure of `pnpm verify`; no incorrect code shipped |
+| Found during | STEP-003.02 regression run |
+| Date found | 2026-08-06 |
+| Affected requirements | REQ-PLAT-001 |
+
+### Symptom
+`pnpm verify` failed with:
+```
+  FAIL: workflow YAML does not parse
+FAIL: 1 broken workflow reference(s).
+```
+The workflows were valid. Running the same guard again immediately afterwards passed, three times in a row, as did invoking it through `pnpm guard:workflows`.
+
+### Root cause
+The guard validated YAML with `uv run --quiet --with pyyaml python -c ...`. `--with` **fetches the package at guard time**, so a transient network failure made the command exit non-zero — and the guard attributed that to the workflows.
+
+This is `BUG-008` one level deeper. That fix taught the guard to distinguish "uv is missing" from "YAML is invalid"; it did not anticipate a third state, "uv is present but its dependency could not be downloaded".
+
+### Why existing tests did not catch it
+The meta-suite seeds a *broken workflow* and asserts the guard fails — which it does, for the right reason, in a healthy environment. Nothing simulated a dependency fetch failing, and nothing could: the fetch only happens when the package is absent from the cache.
+
+### The worse problem: it was flaky, not merely wrong
+**A flaky gate is worse than a failing one.** A failure that disappears on re-run teaches people that re-running is the fix, and the next real failure gets the same treatment. That is how a gate stops being a gate.
+
+### Fix
+`pyyaml` is now a **locked dev dependency** (`uv add --dev pyyaml`), so the guard imports it from the synced environment with no network access at all. The unavailable branch now says so explicitly and states it is **not** a workflow problem.
+
+### Verification
+Guard passes; seeding malformed YAML still produces `INVALID YAML … while parsing a flow sequence` and exit 1; restoring the file returns exit 0.
+
+### Prevention
+- **A guard must not perform a network fetch.** Anything it needs belongs in the locked environment, or the guard reports the network's health rather than the code's.
+- When distinguishing failure modes, enumerate the states rather than the two you have seen. `BUG-008` split one state into two and stopped there; the third was already reachable.
+
+---
+
 ## BUG-015 — `useNodeVersion` looked applied and was not; my verification was contaminated
 
 | Field | Value |

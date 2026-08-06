@@ -11,8 +11,10 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts", "tools/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tools/**/*.ts", "vitest.config.ts"],
   "exclude": ["node_modules"]
 }
