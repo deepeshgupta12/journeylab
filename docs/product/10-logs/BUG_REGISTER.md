@@ -39,6 +39,44 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-015 — `useNodeVersion` looked applied and was not; my verification was contaminated
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — no CI failure, but a false claim was committed as "VERIFIED" |
+| Found during | Owner ran `pnpm verify` and the engine warning still reported v25.9.0 |
+| Date found | 2026-08-06 |
+| Affected requirements | REQ-PLAT-001 |
+
+### Symptom
+`pnpm-workspace.yaml` set `useNodeVersion: 24.19.0` to stop local and CI running different Node majors. Every `pnpm` invocation still printed:
+
+```
+[WARN] Unsupported engine: wanted: {"node":">=24 <25"} (current: {"node":"v25.9.0"})
+```
+
+### Root cause — two independent failures
+**1. The setting does nothing here.** pnpm 11 *recognises* the key — `pnpm config get useNodeVersion` returns `24.19.0` and it appears in the resolved config — but does not switch the runtime. In a shell with Node 25 on PATH, `pnpm exec node --version` still reported `v25.9.0`.
+
+**2. My verification could not have detected that.** I tested with `export PATH="/opt/homebrew/opt/node@24/bin:$PATH"` already in the shell, so `pnpm exec node --version` reported 24 **because of the PATH, not because of the setting**. I then wrote "VERIFIED honoured" into a commit message.
+
+The controlled test is to run with the machine's default PATH. Doing that showed 25 immediately.
+
+### Why existing tests did not catch it
+Nothing asserted the running Node matched `.nvmrc`. The engine warning was visible in every command's output and read as cosmetic noise.
+
+### Fix
+The setting is **removed** — a recognised-but-ineffective key is exactly the "looks configured, isn't" trap of `BUG-013`, and leaving it in place would mislead the next reader.
+
+Replaced with enforcement: `tests/guards/node-version.sh` compares the running Node major against `.nvmrc` and fails with the exact command to fix it. Wired into `verify` as the **first** check, and meta-tested by setting `.nvmrc` to 22 and asserting failure. Meta-suite 33 → 36.
+
+### Prevention
+- **Never verify a setting from a shell you have already tuned.** Reproduce the default environment; contaminated verification is worse than none, because it produces a confident false claim.
+- A configuration key being *recognised* says nothing about it being *effective* — same lesson as `BUG-013`, arrived at from the opposite direction.
+- Prefer a guard that fails loudly over a setting that silently might work.
+
+---
+
 ## BUG-014 — 9.2 MB tool database committed; artifact guard was a denylist
 
 | Field | Value |

@@ -126,6 +126,14 @@ cp /tmp/META_IMPL.bak docs/product/10-logs/IMPLEMENTATION_LOG.md; rm -f /tmp/MET
 assert_guard "substep-docs clean again" tests/guards/substep-docs.sh 0
 
 echo ""
+echo "=== Node runtime must match .nvmrc ==="
+cp .nvmrc /tmp/META_NVMRC.bak
+echo "22" > .nvmrc
+assert_guard "node-version catches a local/CI Node split" tests/guards/node-version.sh 1 "but .nvmrc and CI use"
+cp /tmp/META_NVMRC.bak .nvmrc; rm -f /tmp/META_NVMRC.bak
+assert_guard "node-version clean again" tests/guards/node-version.sh 0
+
+echo ""
 echo "=== private key material must never be tracked ==="
 printf -- "-----BEGIN PRIVATE KEY-----\nseed\n-----END PRIVATE KEY-----\n" > META_SEED_key.pem
 CLEANUP+=(META_SEED_key.pem)
