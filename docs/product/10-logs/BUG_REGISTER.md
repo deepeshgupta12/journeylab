@@ -39,6 +39,48 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-012 — Generated matrix committed in a lint-failing state; CI red
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — CI red on `main`; the merge gate could not run |
+| Found during | Third real CI run, reported by the repository owner |
+| Date found | 2026-08-06 |
+| Affected requirements | REQ-PLAT-001, REQ-SEC-004 |
+
+### Symptom
+`pnpm verify` failed on `ubuntu-latest` at `uv run ruff check .`:
+```
+I001 [*] Import block is un-sorted or un-formatted
+  --> apps/api/src/authz/matrix.py:9:1
+```
+Every other check passed. The file is generated, so nobody had hand-edited it.
+
+### Root cause — two layers
+**1. The generator's output was not lint-clean.** `tools/gen_authz_matrix.py` emitted a docstring followed by imports in a layout `ruff check` rejects under I001. Nothing normalised it.
+
+**2. I verified, then modified, then committed.** `pnpm verify` passed while `matrix.py` was in a lint-clean state (I had run `ruff check --fix` on it earlier by hand). *After* that, I regenerated the file as part of a determinism check and ran only `ruff format` — not `ruff check`. **Format and lint are different tools**: `ruff format` does not sort imports, because import order is a lint rule, not a formatting one. The regenerated, lint-dirty file was then committed.
+
+The verification was real. It just no longer described the tree I committed.
+
+### Why existing tests did not catch it
+`pnpm verify` would have caught it — it is exactly what CI ran. It was not re-run after the last file modification. No guard enforces "verify must be the final action before commit", and the sub-step protocol states it as sequence rather than as something checked.
+
+This is BUG-003's shape again: there, a log script failed and `git commit` ran anyway in the same shell invocation. Here, a file changed after its verification. **Both are ordering failures in the commit sequence, not defects in any individual check.**
+
+### Fix
+`tools/gen_authz_matrix.py` now runs `uv run ruff check --fix` and `uv run ruff format` on its own output before finishing, so generated code is canonical and CI-clean by construction. A comment records that format alone is insufficient and why.
+
+### Verification
+Two consecutive regenerations produce a byte-identical, lint-clean, format-clean file. `pnpm verify` green with nothing touched afterwards.
+
+### Prevention
+- **A generator must emit code that passes the same checks as hand-written code.** Otherwise every regeneration is a coin flip against CI.
+- `ruff format` is not `ruff check`. Passing one says nothing about the other.
+- Re-run `pnpm verify` as the **last** action before `git commit`, after any regeneration, hash check or cleanup. A verification describes a tree, not a moment.
+
+---
+
 ## BUG-011 — `pnpm test` was a stub, so no Python test ever ran in CI
 
 | Field | Value |

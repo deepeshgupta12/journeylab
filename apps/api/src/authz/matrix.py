@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from .roles import Operation, Role, Rule
 
-
 OPERATIONS: dict[Operation, str] = {
     Operation.CREATE_TRIP: "API-001",
     Operation.READ_TRIP: "API-002",

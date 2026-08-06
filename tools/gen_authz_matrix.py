@@ -9,6 +9,7 @@ tests/api/test_authorization_matrix_sync.py fails CI if the two disagree.
 from __future__ import annotations
 
 import pathlib
+import subprocess
 
 from authz_matrix_source import REPO, parse_matrix
 
@@ -45,6 +46,16 @@ def main() -> None:
 
     out = pathlib.Path(REPO / "apps/api/src/authz/matrix.py")
     out.write_text("\n".join(lines))
+
+    # Normalise with the same tools CI runs. Without this the generated file can be
+    # valid Python that `ruff check` rejects, and `pnpm verify` then fails on a file
+    # nobody hand-edited. Format alone is NOT enough — import sorting is a lint rule
+    # (I001), not a formatting one, which is exactly how this reached CI once.
+    for cmd in (
+        ["uv", "run", "ruff", "check", "--fix", "--quiet", str(out)],
+        ["uv", "run", "ruff", "format", "--quiet", str(out)],
+    ):
+        subprocess.run(cmd, cwd=REPO, check=True, capture_output=True)  # noqa: S603
     print(
         f"wrote {out.relative_to(REPO)}: {len(operations)} operations x {len(roles)} roles "
         f"= {len(table)} cells"
