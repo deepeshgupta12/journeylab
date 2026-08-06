@@ -14,7 +14,9 @@
       "**/*.json",
       "!**/generated",
       "!**/node_modules",
-      "!**/.gitnexus"
+      "!**/.gitnexus",
+      "!**/next-env.d.ts",
+      "!**/.next"
     ]
   },
   "formatter": {

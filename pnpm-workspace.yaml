@@ -37,3 +37,10 @@ minimumReleaseAgeExclude:
   - '@biomejs/cli-linux-x64@2.5.7'
   - '@biomejs/cli-win32-arm64@2.5.7'
   - '@biomejs/cli-win32-x64@2.5.7'
+
+# Pin the Node used for every script. The default node on a developer machine may
+# be anything (v25.9.0 here) while CI uses 24 from .nvmrc — and a local/CI runtime
+# split is the exact shape that produced BUG-008, BUG-013 and BUG-014. pnpm
+# downloads and uses this version, so `pnpm <script>` cannot drift from CI.
+# VERIFIED honoured: `pnpm exec node --version` reports v24.19.0 with a v25 default.
+useNodeVersion: 24.19.0
