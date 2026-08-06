@@ -60,6 +60,80 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-012 — STEP-002.05 — Browser session, token refresh and guest sessions
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-06 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-SEC-003 (**partial** — see below), REQ-PRIV-001 |
+| Blast radius | [BR-014](blast-radius/BR-014-browser-session.md) (**HIGH**) |
+| Decisions closed | **`DEC-004` → Auth0** (`ADR-013`); guest lifetime 7 days (`ADR-014`) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `c58be3b` — matched HEAD at pre-change |
+
+### What was built
+The repository's **first TypeScript**: a minimal `apps/web` Next.js 16.2 package containing auth and nothing else — no design system, no layout, no pages. `STEP-003` builds the shell on top.
+
+| Module | Responsibility |
+| --- | --- |
+| `auth/cookies.ts` | `__Host-` prefixed, httpOnly, Secure cookie policy |
+| `auth/csrf.ts` | Double-submit token, deny-by-default on every non-safe method |
+| `auth/guest.ts` | 7-day opaque bearer capability, hashed at rest, expiry enforced server-side |
+| `auth/refresh.ts` | Single-flight refresh, per session key |
+| `auth/oidc.ts` | The **only** file that knows about Auth0 |
+| `auth/session.ts` | Composes the above; the file the sub-step names |
+
+41 TypeScript tests. `pnpm test` now runs both suites.
+
+### Why this approach
+**The guarantee is the absence of a capability.** There is no function anywhere in this package that writes a token to `localStorage` or a JS-readable cookie. `tokenCookie()` throws if the name lacks the `__Host-` prefix and forces `httpOnly`. A developer in a hurry has nothing convenient to reach for, which is stronger than a rule asking them not to.
+
+**Single-flight refresh is required by Auth0's rotation, not a performance tweak.** Rotation invalidates the previous refresh token the moment one is redeemed. Two concurrent refreshes therefore present a just-revoked token, Auth0 reads that as replay, and it can revoke the whole family — signing the user out. Without coalescing, concurrency logs users out.
+
+**SameSite=Lax, not Strict.** A Strict session cookie is withheld on the top-level navigation back from the identity provider, so the user lands signed out immediately after signing in. Lax still blocks cross-site subrequests, and CSRF is covered independently by the double-submit token rather than resting on SameSite alone.
+
+**Guest expiry is checked against the stored record, not the cookie.** A cookie `Max-Age` is a client-side hint an attacker replaying a captured token simply ignores.
+
+### What is NOT delivered
+**`REQ-SEC-003` is partial.** Two acceptance criteria are unmet:
+- **Nothing has run against a live Auth0 tenant.** There is no account and no credentials in this repository. The flows are exercised against a spec-compliant OIDC shape; passkey enrolment, tenant rate limits and rotation under genuine concurrency are **unproven**.
+- **"Auth flows keyboard and screen-reader complete" cannot be met** — there is no UI to test. Binds at STEP-003.
+
+Guest session **storage** does not exist either: `validateGuestSession` takes the record as an argument and denies when it is `undefined`, so the logic is complete and fails closed, but nothing persists it yet.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** |
+| Python tests | 292 passed |
+| TypeScript tests | **41 passed** |
+| R7 tenant isolation | **12/12** |
+| Guard meta-suite | **25/25** |
+
+**Mutation testing — 7/7 killed:** token cookies made JS-readable, single-flight removed, IdP outage failing open, guest expiry ignored, CSRF allowing a missing header, PKCE downgraded to `plain`, and the OIDC `state` check skipped when the expected value is absent.
+
+### Two guards stopped being vacuous
+Since STEP-001, `typecheck.sh` and `module-boundaries.sh` had reported `PASS (vacuous): 0 TypeScript files`. This sub-step ended that, and `typecheck` immediately earned its keep by catching a real defect: `apps/web/package.json` had no `"type": "module"`, so TypeScript treated every file as CommonJS under `verbatimModuleSyntax`.
+
+It then failed for a **wrong** reason — it ran `tsc -p tsconfig.base.json`, typechecking `apps/web` with the root's module settings instead of the package's own, producing errors that described a configuration mismatch rather than a defect. Rewritten to typecheck each package with its own config via `pnpm -r typecheck`, and — so that this does not become a new way to skip checking — it now **fails if a package contains TypeScript but declares no typecheck script**.
+
+### Surprises
+**`vi.fn<[Args], Return>()` is the vitest 2 signature**; v3 takes a function type. Caught by the typecheck guard on its first real run, which is a fair advertisement for it.
+
+**pnpm 11 blocks install scripts by default.** `esbuild` and `sharp` needed explicit allowlisting. Rather than a blanket approval, `pnpm-workspace.yaml` now carries an `onlyBuiltDependencies` list where each entry has a stated reason — an install script is arbitrary code execution at dependency-install time.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Verify against a real Auth0 tenant; enrol a passkey | Before STEP-004 ships auth |
+| Accessible sign-in UI (WCAG 2.2 AA) | STEP-003 |
+| Guest session storage table | STEP-002.07 |
+| Immediate revocation of an already-issued access token | STEP-002.07 |
+| Route handlers and middleware that actually set these cookies | STEP-004 |
+
+---
+
 ## IMPL-011 — STEP-002.04 — User, organization, invitation and service-account provisioning
 
 | Field | Value |

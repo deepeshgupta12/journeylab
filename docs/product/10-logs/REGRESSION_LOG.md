@@ -67,6 +67,40 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-002.05 — 2026-08-06 — Browser session, token refresh and guest sessions
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `c58be3b` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 292 Python + **41 TypeScript**; `pnpm test` now runs both |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | New `apps/web` package, rewritten typecheck guard, workspace config. No existing symbol modified |
+| R4 untested requirements | **PASS** | `REQ-PRIV-001` now tested. **`REQ-SEC-003` counted as still partial** — unverified against a live Auth0 tenant, and the accessibility criterion has no UI to test |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `apps/web/**` |
+| R6 closed-bug tests | **PASS** | BUG-001…012 guards pass |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched by this sub-step |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `typecheck.sh` produced a wall of TS1295/TS2835 | It ran one root config over every package; `apps/web` needs its own module settings | Guard rewritten for per-package configs, and it now fails if a TypeScript package declares no typecheck script |
+| Every file treated as CommonJS | `apps/web/package.json` had no `"type": "module"` | Added. **Found by the typecheck guard on its first real run** |
+| `vi.fn<[string], Promise<X>>()` rejected | vitest 3 changed the generic to a function type | Updated |
+| `pnpm install` refused to build | pnpm 11 blocks install scripts by default | `onlyBuiltDependencies` allowlist with a stated reason per entry, not a blanket approval |
+
+### Notes
+Two guards stopped reporting vacuous passes for the first time since STEP-001 — `typecheck.sh` and `module-boundaries.sh`. The latter now checks 7 real files.
+
+R4 does **not** count `REQ-SEC-003` as satisfied. The session mechanics are implemented and mutation-tested, but "sign-in, refresh and sign-out work" has been proven against a conforming OIDC provider, **not** against Auth0, and the accessibility criterion cannot be met until a UI exists.
+
+---
+
 ## STEP-002.04 — 2026-08-06 — Identity provisioning
 
 | Field | Value |

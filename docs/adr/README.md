@@ -32,6 +32,8 @@ decision log.
 | [ADR-010](ADR-010-repository-ownership.md) | Repository ownership assigned to a single accountable owner | Accepted |
 | [ADR-011](ADR-011-psycopg3-as-the-postgres-driver.md) | psycopg 3 is the PostgreSQL driver; no ORM adopted yet | Accepted |
 | [ADR-012](ADR-012-authorization-policy-in-python.md) | Authorization policy is Python, co-located with enforcement | Accepted |
+| [ADR-013](ADR-013-auth0-as-identity-provider.md) | Auth0 is the identity provider (DEC-004 resolved) | Accepted |
+| [ADR-014](ADR-014-guest-session-lifetime.md) | A guest session lasts 7 days | Accepted |
 
 ## Rules
 

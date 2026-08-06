@@ -12,6 +12,18 @@ packages:
   - "apps/*" # web (Next.js) and api (FastAPI) deployable surfaces
   - "packages/*" # ui, contracts, authz, analytics, observability, security
   - "services/*" # domain, data, retrieval, AI, ML and workflow services
+allowBuilds:
+  esbuild: set this to true or false
+  sharp: set this to true or false
+# Packages permitted to run install scripts. pnpm 11 blocks these by default —
+# an install script is arbitrary code execution at dependency-install time, so the
+# allowlist is explicit and each entry needs a reason (STEP-002.05).
+#   esbuild — vitest's bundler; ships a platform binary that must be linked
+#   sharp   — Next.js image optimisation; native libvips bindings
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+
 minimumReleaseAgeExclude:
   - '@biomejs/biome@2.5.7'
   - '@biomejs/cli-darwin-arm64@2.5.7'

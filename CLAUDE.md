@@ -250,7 +250,7 @@ These are product promises, not preferences. Breaking one is a defect regardless
 | ~~BLK-001~~ | **CLOSED** — Deepesh Kumar Gupta owns all roles (`ADR-010`) | **New gap:** four-eyes approval unsatisfiable with one owner |
 | ~~BLK-002~~ | **PARTIALLY CLOSED** (STEP-002.02) — application code now exists: `apps/api/src/auth/`, 6 modules, 29 tests | Contracts remain `PROPOSED` (STEP-004). Graph coverage of Python is **unconfirmed** — see `RISK-014` |
 | `DEC-002` | Destination region undecided | Blocks `STEP-005`/`STEP-010` — critical path |
-| `DEC-004` | Identity provider undecided | Binds at `STEP-002.04`. **Not** blocking .01–.02: `auth/claims.py` defines a verifier *port*, so the vendor plugs in without touching the boundary |
+| ~~`DEC-004`~~ | **CLOSED 2026-08-06 — Auth0** (`ADR-013`). Deferred behind a verifier port through .01–.04; resolved at .05 where OIDC sign-in had to actually run | **Unverified against a live tenant** — no Auth0 account exists. Passkey enrolment and rotation-under-concurrency are unproven (`BR-014` §9) |
 | `DEC-007` | Cloud provider / region / residency | Blocks `STEP-027` |
 | `RISK-001` | Provider licence viability unproven (exposure 20) | Highest delivery risk |
 | ~~`RISK-014`~~ | **DOWNGRADED** (STEP-002.02) — the graph indexes Python: 8/8 files, 13 functions, 5 classes under `apps/api`. `KG-Q-014` ran for real and reproduced the manual auth trace | Pre-change checks are **runnable from `STEP-002.03`**. A `BLOCKED` status from here on is a real gap, not a vacuous one |

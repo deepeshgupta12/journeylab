@@ -1,0 +1,25 @@
+{
+  "name": "@journeylab/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "JourneyLab web surface \u2014 STEP-002.05 scaffolds auth only; the shell is STEP-003",
+  "scripts": {
+    "dev": "next dev --port 5709",
+    "build": "next build",
+    "start": "next start --port 5709",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "16.2.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "typescript": "7.0.2",
+    "vitest": "^3.2.0"
+  }
+}

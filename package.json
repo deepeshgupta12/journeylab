@@ -17,7 +17,7 @@
     "lint": "biome check .",
     "format:check": "biome format .",
     "typecheck": "bash tests/guards/typecheck.sh",
-    "test": "uv run pytest",
+    "test": "uv run pytest && pnpm -r --if-present test",
     "dev": "docker compose -f docker-compose.dev.yml up -d --wait",
     "py:sync": "uv sync",
     "py:lint": "uv run ruff check .",

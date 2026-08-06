@@ -117,6 +117,22 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 - **Alternatives rejected:** TypeScript as specified (cannot enforce server-side); TS behind RPC (network dependency inside authorization); both hand-maintained (guaranteed silent divergence).
 - **Review trigger:** STEP-003 needs presentation-level hints, or a second backend language appears.
 
+### [ADR-013](../../adr/ADR-013-auth0-as-identity-provider.md) — Auth0 is the identity provider (DEC-004 resolved)
+- **Date:** 2026-08-06 · **Owner:** Deepesh Kumar Gupta · **Status:** Accepted
+- **Context:** `DEC-004` was deferred through `.01`, `.02` and `.04` behind a verifier port. `STEP-002.05` is where deferral stops working: `REQ-SEC-003` requires OIDC with passkeys and the acceptance criteria are that sign-in, refresh and sign-out actually work.
+- **Decision:** **Auth0**.
+- **Consequences:** Cloud-neutral, so `DEC-007` stays open; mature passkey support; standards OIDC keeps the adapter thin; Organizations maps to `STEP-028`. **Rotation makes single-flight refresh mandatory** — concurrent refreshes would look like replay and can revoke the token family. **Cost:** pricing rises steeply with MAU. **Not verified against a live tenant** — no account exists.
+- **Alternatives rejected:** Clerk (prebuilt UI conflicts with our WCAG 2.2 AA design system); Cognito (would pre-empt `DEC-007`, weakest passkeys); WorkOS (heavier than Phase 1 needs); Keycloak (single owner cannot operate an identity service).
+- **Review trigger:** MAU approaches the paid tier; `DEC-007` resolves; passkeys prove inadequate.
+
+### [ADR-014](../../adr/ADR-014-guest-session-lifetime.md) — A guest session lasts 7 days
+- **Date:** 2026-08-06 · **Owner:** Deepesh Kumar Gupta · **Status:** Accepted
+- **Context:** `REQ-PRIV-001` guarantees planning without an email, so a guest token is a bearer capability with **no recovery and no revocation channel**. Expiry is the only control bounding both loss and leak.
+- **Decision:** **7 days**, enforced server-side, warned in the final 24 hours.
+- **Consequences:** Covers the 3–7 day MVP trip length; a leaked link goes stale within a week. **A guest returning on day 8 has lost their trip permanently** — the warning is a security control, not copy. Expiry is checked against the stored record, not cookie `Max-Age`; the token is stored hashed.
+- **Alternatives rejected:** 24 hours (makes guest mode close to unusable); 30 days (a month-long bearer capability with no revocation path).
+- **Review trigger:** Guests commonly expire before converting, or a recovery mechanism is introduced.
+
 ---
 
 ## 2. Open decisions
@@ -125,7 +141,7 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 | --- | --- | --- | --- | --- | --- |
 | DEC-002 | Which destination region is the Phase 1 pack | Not yet enumerated; selection criteria must include data licensability (`ASM-011`), transit data quality, accessibility data (`ASM-020`) and crowd-signal privacy (`ASM-021`) | STEP-005, STEP-010, all evaluation corpora, Phase 0 exit | Product Lead | Before Phase 1 start |
 | DEC-003 | Business model: affiliate-only, subscription, or hybrid | (a) affiliate-only; (b) freemium with paid comparison depth; (c) advisor-licensing-first | Whether a billing step `STEP-029` exists; [SUCCESS_METRICS](../01-product/SUCCESS_METRICS.md) `KPI-007` targets | Product Lead + Commercial | Before Phase 1 exit |
-| DEC-004 | Identity provider | Managed OIDC vendor vs. self-hosted | STEP-002 | Security Architect | Before STEP-002 |
+| ~~DEC-004~~ | ~~Identity provider~~ | **CLOSED 2026-08-06 — Auth0** (`ADR-013`) | — | Security Architect | Resolved at STEP-002.05 |
 | DEC-005 | Numeric KPI thresholds | Requires Phase 0/1 baselines; must not be asserted in advance | Release gates, [RELEASE_READINESS_CHECKLIST](../06-quality/RELEASE_READINESS_CHECKLIST.md) | Product Lead | Before Phase 1 exit |
 | DEC-006 | KPI review cadence and decision forum | Weekly delivery review vs. monthly product review | Governance | TPM | Before Phase 1 |
 | DEC-007 | Cloud provider, region, residency posture | Undetermined; `ASM-003` assumes no residency constraint | [DEPLOYMENT_ARCHITECTURE](../03-architecture/DEPLOYMENT_ARCHITECTURE.md), STEP-027 | Product Architect | Before STEP-027 |
