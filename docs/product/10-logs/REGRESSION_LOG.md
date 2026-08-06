@@ -67,6 +67,37 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-002.04 — 2026-08-06 — Identity provisioning
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `19a6037` at pre-change; HEAD advanced to `972b93f` mid-sub-step (BUG-012) |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify`; 292 tests (was 276) |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | One new service module, one test module, pyproject paths. No existing symbol modified |
+| R4 untested requirements | **PASS** | `REQ-SEC-003` now tested. **`REQ-TRIP-005` remains untested in substance** — no trips exist; counted as still-open, not as satisfied |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `services/**` |
+| R6 closed-bug tests | **PASS** | BUG-001…012 guards pass |
+| **R7 tenant isolation** | **PASS — 12/12** | Plus a new test asserting provisioning's owner privilege did not leak: `journeylab_app` still `NOBYPASSRLS`, FORCE RLS intact on all 3 tables |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| CI red mid-sub-step | Generated `matrix.py` committed lint-dirty; I verified, then regenerated, then committed | `BUG-012` — generator now self-formats. Fixed and pushed before continuing |
+| 8 provisioning tests failed | Fixtures used raw INSERTs that violated `users_identifiable_unless_guest` | Fixtures rebuilt on `provision_user`, so they cannot drift from the schema |
+| A claimed schema gap did not exist | I reported `idp_subject` had no unique index; my own `head -14` had truncated the index list | Retracted. The unique index exists and the race test disproved the claim |
+
+### Notes
+R4 deliberately does **not** count `REQ-TRIP-005` as satisfied. The migration guarantee is implemented and replay-tested, but it has no trips to apply to until STEP-007. Marking it green here would make the ratchet report progress that does not exist.
+
+---
+
 ## STEP-002.03 — 2026-08-06 — Role and attribute policy definitions
 
 | Field | Value |

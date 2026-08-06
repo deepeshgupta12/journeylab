@@ -55,11 +55,11 @@ exclude = ["^\\.gitnexus/", "^docs/"]
 # STEP-002.02: src layout. The sub-step file names the path apps/api/src/auth/,
 # so the package is `auth` rather than a namespaced one. Kept literal to match the
 # documentation; revisit if a second service ever wants the same top-level name.
-mypy_path = "apps/api/src:tools"
+mypy_path = "apps/api/src:services/identity/src:tools"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["apps/api/src", "tools"]
+pythonpath = ["apps/api/src", "services/identity/src", "tools"]
 asyncio_mode = "strict"
 addopts = "-q --strict-markers --strict-config"
 markers = [

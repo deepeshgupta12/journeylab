@@ -60,6 +60,76 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-011 — STEP-002.04 — User, organization, invitation and service-account provisioning
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-06 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-SEC-003 (satisfied), REQ-TRIP-005 (**partially** — see below) |
+| Blast radius | [BR-013](blast-radius/BR-013-identity-provisioning.md) (**HIGH**) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `19a6037` at pre-change; HEAD moved to `972b93f` mid-sub-step (BUG-012 fix) |
+
+### What was built
+`services/identity/src/provisioning.py` — the first module under `services/`, establishing the layering between domain services and the `apps/api` boundary.
+
+| Function | Guarantee |
+| --- | --- |
+| `provision_user` | Idempotent by IdP subject, arbitrated by the database |
+| `create_guest_user` | Anonymous user with no `idp_subject` |
+| `create_organization` | Organization + owner membership in one call |
+| `grant_membership` / `revoke_membership` | Grant, reinstate, revoke — evidence retained |
+| `active_role_keys` | The single place "is this membership live?" is decided |
+| `register_service_identity` / `revoke_service_identity` | Workload identity, no credential parameter |
+| `migrate_guest_to_account` | Replay-safe, with before/after counts |
+
+16 integration tests against the real database (292 total).
+
+### Why this approach
+**Idempotency belongs to the database, not the application.** `provision_user` uses `INSERT … ON CONFLICT (idp_subject) DO UPDATE … RETURNING id, (xmax = 0)`. Check-then-insert loses the race between two concurrent first logins; `ON CONFLICT` lets the database arbitrate so the loser receives the winner's row instead of a second identity. A test runs two real concurrent connections and asserts one row and one id.
+
+**`xmax = 0`** distinguishes an inserted row from an updated one, so the caller can tell first login from every later login without a second query.
+
+**Revocation stamps `revoked_at`; it never deletes.** Deleting erases the evidence that access was once held, which is what an investigation needs. A test asserts the row survives revocation.
+
+**No parameter can carry a secret.** REQ-SEC-003 forbids static long-lived keys. `register_service_identity` has nowhere to put one — a stronger guarantee than a policy asking people not to. Asserted by introspecting the function signature, so adding such a parameter breaks a test.
+
+**Nothing here knows the identity provider.** `DEC-004` is open and §5 requires provider code to stay behind an interface. This module's only knowledge of the IdP is the opaque `idp_subject` string that `auth.claims.TokenVerifier` already produces.
+
+### What this sub-step does NOT deliver
+**`REQ-TRIP-005` is not satisfied.** It requires guest→account migration to yield exactly one copy of each trip. **There is no `trips` table** — trips arrive at STEP-007. What migrates today is memberships. The idempotency contract, the replay tests and the before/after reporting are built now so STEP-007 extends the same transaction rather than inventing the guarantee later, but the requirement must not be marked complete on this basis.
+
+**Migration has no feature flag or dry-run**, which §11 requires. No flag system exists until STEP-024. `MigrationReport` provides the counts a dry-run would need; the flag does not exist. Stated, not glossed.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — 18 Python files typechecked |
+| Test suite | **292 passed** (was 276) |
+| R7 tenant isolation | **12/12** |
+| Guard meta-suite | **25/25** |
+| mypy strict / ruff | Clean |
+
+**Mutation testing — 7/7 killed:** removing `ON CONFLICT` (2 tests), migration losing `DO NOTHING`, migration not revoking source rows, revoke switching to `DELETE`, `active_role_keys` ignoring `expires_at`, ignoring `revoked_at`, and `create_organization` skipping the owner membership.
+
+### Surprises and what they cost
+**I claimed a schema gap that did not exist.** I reported that `users.idp_subject` had no unique constraint and demonstrated a "race" producing duplicate users. Both were wrong: `users_idp_subject_key` exists, and my `\d users` output had been truncated by `head -14`, cutting off the index list. The race demonstration then *disproved* my own claim — the second insert was rejected — which is how it was caught. Cost: one wrong conclusion stated confidently before it was checked.
+
+**The schema was stricter than I assumed, again.** Migration 001 carries `users_identifiable_unless_guest` — a non-guest must have an `idp_subject` or an email. My hand-rolled test fixtures violated it. Fixed by building fixtures through `provision_user` instead of raw INSERTs, so a fixture cannot drift from the schema's own rules.
+
+**`create_organization` cannot use a server-generated id.** The RLS policy is `WITH CHECK (id = app_current_org())`, so an organization may only be inserted when the transaction's tenant context already equals its id — the id must therefore exist before the INSERT. A server-generated default could not satisfy its own policy. Surprising enough to warrant a comment in the code.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Trip re-parenting — the actual REQ-TRIP-005 | STEP-007 |
+| Feature flag + dry-run for migration | STEP-024 |
+| Persist `AuditRecord` | STEP-002.07 |
+| Revocation ending live sessions | STEP-002.05 |
+
+---
+
 ## IMPL-010 — STEP-002.03 — Role and attribute policy definitions
 
 | Field | Value |
