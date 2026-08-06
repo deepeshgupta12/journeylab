@@ -7,7 +7,7 @@
 - **Date:** 2026-08-05 · **Owner:** Repository owner (user directive) · **Status:** Accepted
 - **Context:** Default tooling appends a `Co-Authored-By: Claude` trailer to commits.
 - **Decision:** Commit messages and pull-request descriptions in this repository must **not** contain AI co-authorship trailers or attribution.
-- **Consequences:** Contributors and agents must strip the trailer. The baseline commit was amended to comply (`73766ca`). This rule is restated in `CLAUDE.md`, [CONTRACT_CHANGE_POLICY](../04-contracts/CONTRACT_CHANGE_POLICY.md) and [CHANGE_IMPACT_PROTOCOL](../05-knowledge-graph/CHANGE_IMPACT_PROTOCOL.md).
+- **Consequences:** Contributors and agents must strip the trailer. The baseline commit was amended to comply (`73766ca`). This rule is restated in `CLAUDE.md`, [CONTRACT_CHANGE_POLICY](../product/04-contracts/CONTRACT_CHANGE_POLICY.md) and [CHANGE_IMPACT_PROTOCOL](../product/05-knowledge-graph/CHANGE_IMPACT_PROTOCOL.md).
 - **Alternatives rejected:** Leaving the default trailer (contradicts an explicit repository-owner directive).
 
 ---

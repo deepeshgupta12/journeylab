@@ -30,6 +30,7 @@ decision log.
 | [ADR-008](ADR-008-just-ahead-of-need-sub-steps.md) | Sub-step files are written just-ahead-of-need | Accepted |
 | [ADR-009](ADR-009-typescript-7.md) | TypeScript 7.0.2 supersedes the documented 6.0 baseline | Accepted |
 | [ADR-010](ADR-010-repository-ownership.md) | Repository ownership assigned to a single accountable owner | Accepted |
+| [ADR-011](ADR-011-psycopg3-as-the-postgres-driver.md) | psycopg 3 is the PostgreSQL driver; no ORM adopted yet | Accepted |
 
 ## Rules
 

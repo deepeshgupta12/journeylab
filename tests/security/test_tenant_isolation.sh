@@ -36,11 +36,25 @@ fi
 # BUG-007: PRECONDITION GATE. Without this, a missing table makes every write
 # assertion "pass" because the query ERRORS rather than being denied by policy.
 # A security suite that passes when the schema is absent is worse than none.
+# BUG-009: an unreachable database and a missing schema are DIFFERENT faults, and
+# the first version conflated them — it swallowed stderr and fell back to "5 tables
+# missing" whenever the query returned nothing. During the Postgres first-boot
+# restart it printed "expected table(s) missing" while all five tables existed.
+# Fail-closed was right; the diagnosis sent the reader hunting the wrong problem.
+if ! $PGC -tAc "SELECT 1;" >/dev/null 2>/tmp/jl_conn.err; then
+  echo ""
+  echo "ERROR: cannot reach the database — this is NOT a schema problem."
+  echo "       $(head -1 /tmp/jl_conn.err)"
+  echo "       If the stack just started, the server may still be restarting after"
+  echo "       first-boot init (see BUG-009). Refusing to run: R7 is UNEVALUATED."
+  exit 1
+fi
+
 missing=$($PGC -tAc "SELECT 5 - count(*) FROM pg_tables WHERE schemaname='public'
                      AND tablename IN ('organizations','users','roles','memberships','service_identities');" 2>/dev/null | tr -d ' ')
 if [ "${missing:-5}" != "0" ]; then
   echo ""
-  echo "ERROR: $missing expected table(s) missing — the schema is not in place."
+  echo "ERROR: ${missing:-all 5} expected table(s) missing — the schema is not in place."
   echo "       Refusing to run isolation assertions: they would report false passes."
   exit 1
 fi

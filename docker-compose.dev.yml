@@ -34,7 +34,14 @@ services:
       - journeylab_pgdata:/var/lib/postgresql
       - ./infra/local/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-journeylab} -d ${POSTGRES_DB:-journeylab}"]
+      # BUG-009: must be a TCP check, NOT the default Unix-socket one.
+      # The official entrypoint runs a TEMPORARY server during first-boot init with
+      # listen_addresses='' — socket-only. A socket pg_isready therefore reports
+      # "healthy" against a server that is about to be shut down and restarted, so
+      # `up --wait` returns early and clients get their connection torn out from
+      # under them. Proven: socket=UP/tcp=down at t=1250ms, socket=down/tcp=UP at
+      # t=2000ms. -h 127.0.0.1 cannot pass until the real server is listening.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-journeylab} -d ${POSTGRES_DB:-journeylab}"]
       interval: 5s
       timeout: 5s
       retries: 20

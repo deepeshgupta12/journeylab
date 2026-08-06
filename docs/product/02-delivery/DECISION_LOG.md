@@ -101,6 +101,14 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 - **Alternatives rejected:** Leaving ownership unassigned (blocks all progress); inventing placeholder owners (fabricates accountability that does not exist).
 - **Review trigger:** A second contributor joins, or `STEP-021` reaches implementation.
 
+### [ADR-011](../../adr/ADR-011-psycopg3-as-the-postgres-driver.md) — psycopg 3 is the PostgreSQL driver; no ORM is adopted yet
+- **Date:** 2026-08-06 · **Owner:** Deepesh Kumar Gupta · **Status:** Accepted
+- **Context:** `STEP-002.02` must bind tenant context to a transaction so the `STEP-002.01` RLS policies apply. `TECHNICAL_ARCHITECTURE` confirms Python 3.14 + FastAPI but records **no driver or ORM decision**, so this could not be taken silently as an implementation detail.
+- **Decision:** **psycopg 3** (`psycopg[binary,pool]`); **no ORM adopted yet**.
+- **Consequences:** Native async matching FastAPI; server-side parameter binding, which is what keeps the tenant binding injection-safe (`SET LOCAL` accepts no bind parameter — verified as a syntax error on PostgreSQL 18.4 — so `set_config(…, %s, true)` is used instead); `psycopg_pool` available for `STEP-004`. **Cost:** hand-written SQL and hand-authored migrations until an ORM is chosen.
+- **Alternatives rejected:** asyncpg (non-DB-API parameter handling, no sync path); SQLAlchemy now (decides data-access strategy as a side effect of a security task); psycopg 2 (no native async).
+- **Review trigger:** Before `STEP-006`, or when a second service needs the same data access.
+
 ---
 
 ## 2. Open decisions

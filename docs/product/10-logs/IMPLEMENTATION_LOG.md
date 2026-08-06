@@ -60,6 +60,107 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-009 — STEP-002.02 — Tenant and actor context resolution at the API boundary
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-06 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-SEC-001, REQ-SEC-004 |
+| Blast radius | [BR-011](blast-radius/BR-011-tenant-context-at-the-api-boundary.md) (**HIGH**) |
+| Commit | see git log for this entry |
+| Graph indexed commit | re-indexed post-commit — matched HEAD? yes |
+
+### What was built
+The repository's first application code: `apps/api/src/auth/`, six modules.
+
+| Module | Responsibility |
+| --- | --- |
+| `claims.py` | `TokenClaims` (frozen) and the `TokenVerifier` **port** — `DEC-004` stays unbound |
+| `context.py` | `RequestContext`, and explicit propagation across async/process boundaries |
+| `dependencies.py` | The FastAPI dependency; reads only the `Authorization` header |
+| `db.py` | Binds tenant to the transaction via `set_config(…, true)` |
+| `errors.py` | One opaque denial shared by "forbidden" and "not found" |
+| `events.py` | Stamps `tenant_id`/`actor_id` onto an event envelope |
+
+29 tests in `tests/api/`, covering token-only resolution, ignored client hints, byte-identical denial, fail-closed job payloads, absence of ambient context, and — with the local stack up — real RLS enforcement through `bind_tenant`.
+
+### Why this approach
+**No ambient context.** There is deliberately no `get_current_context()`, no `ContextVar`, no thread-local. The sub-step named ambient state crossing an async boundary as the classic leak, so context is a value that must be passed, and the type checker enforces it at every call site. The ergonomic cost is real and accepted: ambient state is convenient precisely because it crosses boundaries you did not think about, which is the same property that makes it leak between tenants. A test asserts the ambient accessor has not been reintroduced.
+
+**A verifier port, not a vendor.** `DEC-004` is open and binds at `STEP-002.04`. Hard-coding an OIDC library here would have decided it silently.
+
+**`set_config` rather than `SET LOCAL`.** `SET LOCAL app.current_org = $1` is a syntax error — SET takes no bind parameters — so the obvious implementation formats a UUID into SQL on the tenancy boundary. `set_config('app.current_org', %s, true)` keeps it a bind parameter at the same transaction scope. Verified directly against PostgreSQL 18.4. Cost: one round trip per transaction.
+
+**404 for both denial and absence.** A distinguishable 403 is an existence oracle across tenants. `opaque_denial()` takes no `reason` argument, because an optional detail parameter is exactly how indistinguishability erodes.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — and now actually runs the tests (`BUG-011`) |
+| `tests/api/` | **29 passed** |
+| R7 tenant isolation | **12/12** |
+| Guard meta-suite | **25/25** |
+| mypy strict / ruff | Clean on 8 files |
+
+**Mutation testing — five security properties, each broken on purpose:**
+
+| Mutant | Result |
+| --- | --- |
+| Trust `X-Tenant-Id` header | killed (2 tests) |
+| Denial becomes 403 | killed (6 tests) |
+| Denial body states a reason | killed (1 test) |
+| `set_config(…, false)` — session-wide | **SURVIVED** → test added → now killed |
+| Job payload defaults instead of raising | killed (2 tests) |
+
+### Surprises and what they cost
+**The surviving mutant was the most valuable result.** Making the binding session-wide instead of transaction-scoped — the pooled-connection leak — passed all 28 tests. R7 proves that property in raw SQL; nothing proved it for `bind_tenant`, which is the function application code actually calls. **A property proven at one layer is not proven at the layer above it.**
+
+**A `422` that looked like a passing suite.** Switching to `Annotated[RequestContext, Depends(dependency)]` to satisfy ruff's B008 broke every route. With `from __future__ import annotations`, the annotation is a string that FastAPI resolves against **module** globals, but `dependency` is a local of the test's app factory; resolution fails and FastAPI silently reinterprets the parameter as a request field. This is a live hazard for `STEP-004` and is flagged in the test file.
+
+**My own verification command hid it.** I checked with `pytest -q | grep -E '^\.|passed|failed' | tail -3`; the `^\.` matched the `.venv/…` warning path, so `tail -3` printed that instead of the result. The failure was visible and I filtered it out. Same family as the bugs this project keeps finding: the check was correct about the wrong thing.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Enforce that jobs/activities carry context | STEP-006 |
+| Outbox refuses an unstamped envelope | STEP-006 |
+| Alerting on auth denials (`ALRT-SEC-001`) | STEP-024 |
+| Confirm the graph indexes Python at all | post-commit re-index |
+
+---
+
+## IMPL-008 — STEP-002.01 — Postgres readiness race fix (BUG-009)
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-06 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-SEC-001, REQ-PLAT-001 |
+| Blast radius | [BR-010](blast-radius/BR-010-postgres-readiness-race.md) (MEDIUM–HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | re-indexed post-commit — matched HEAD? yes |
+
+### What was built
+Two fixes, from re-verifying `STEP-002.01` against a **clean** database rather than trusting its recorded 12/12:
+
+1. `docker-compose.dev.yml` — the Postgres healthcheck is now `pg_isready -h 127.0.0.1`. The entrypoint's first-boot temporary server listens on the Unix socket only, so a socket check went green against a server that was about to be shut down.
+2. `tests/security/test_tenant_isolation.sh` — a connectivity probe now runs before the schema probe, so "cannot reach the database" is no longer reported as "tables missing".
+
+### Why this approach
+Adding a sleep or a retry loop would have hidden the race rather than removed it, and would have left every future service with the same faulty readiness signal. Checking the transport clients actually use makes the healthcheck structurally unable to pass early.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| Three `down -v` → `up --wait` → R7 cold cycles | **12/12 each**; `--wait` now takes 6s |
+| Race measured directly | socket=UP/tcp=down at 1250ms; socket=down/tcp=UP at 2000ms |
+
+### Surprises
+`STEP-002.01` was **not** wrong — but its 12/12 had only ever been observed against an already-running, already-seeded database. The result was true and was not evidence of what it appeared to prove. Steady-state verification cannot observe a startup race.
+
+---
+
 ## IMPL-007 — STEP-002.01 — Identity schema and row-level security
 
 | Field | Value |

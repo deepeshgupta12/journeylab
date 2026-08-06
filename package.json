@@ -17,7 +17,7 @@
     "lint": "biome check .",
     "format:check": "biome format .",
     "typecheck": "bash tests/guards/typecheck.sh",
-    "test": "echo \"[STEP-001.02] tests not yet configured\" && exit 0",
+    "test": "uv run pytest",
     "dev": "docker compose -f docker-compose.dev.yml up -d --wait",
     "py:sync": "uv sync",
     "py:lint": "uv run ruff check .",

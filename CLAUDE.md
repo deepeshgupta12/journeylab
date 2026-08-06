@@ -248,12 +248,12 @@ These are product promises, not preferences. Breaking one is a defect regardless
 | ID | Blocker | Effect |
 | --- | --- | --- |
 | ~~BLK-001~~ | **CLOSED** — Deepesh Kumar Gupta owns all roles (`ADR-010`) | **New gap:** four-eyes approval unsatisfiable with one owner |
-| **BLK-002** | No application code exists | Contracts `PROPOSED`; graph gates not evaluable |
+| ~~BLK-002~~ | **PARTIALLY CLOSED** (STEP-002.02) — application code now exists: `apps/api/src/auth/`, 6 modules, 29 tests | Contracts remain `PROPOSED` (STEP-004). Graph coverage of Python is **unconfirmed** — see `RISK-014` |
 | `DEC-002` | Destination region undecided | Blocks `STEP-005`/`STEP-010` — critical path |
-| `DEC-004` | Identity provider undecided | Blocks `STEP-002` → 12-step fan-in |
+| `DEC-004` | Identity provider undecided | Binds at `STEP-002.04`. **Not** blocking .01–.02: `auth/claims.py` defines a verifier *port*, so the vendor plugs in without touching the boundary |
 | `DEC-007` | Cloud provider / region / residency | Blocks `STEP-027` |
 | `RISK-001` | Provider licence viability unproven (exposure 20) | Highest delivery risk |
-| `RISK-014` | Graph covers documentation only | Pre-change checks `BLOCKED` for code |
+| `RISK-014` | Graph covered documentation only | Pre-change checks `BLOCKED` for code. Application code now exists — **whether the extractor indexes Python is being verified at the STEP-002.02 re-index** |
 
 ---
 

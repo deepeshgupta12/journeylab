@@ -2,12 +2,12 @@
 sub_step_id: STEP-002.02
 parent_step: STEP-002
 title: Tenant and actor context resolution at the API boundary
-status: NOT_STARTED
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-SEC-001, REQ-SEC-004]
-blast_radius_id: BR-008
+blast_radius_id: BR-011
 depends_on: [STEP-002.01]
-last_updated: 2026-08-05
+last_updated: 2026-08-06
 ---
 
 # STEP-002.02 — Tenant and actor context resolution at the API boundary
@@ -32,16 +32,16 @@ Every request resolves actor and tenant **from the token alone**, propagates tha
 | Queries run | KG-Q-015; **KG-Q-014 mandatory** (auth data flow) |
 | Direct dependents | Every future endpoint and worker |
 | Unknown / low-confidence areas | Context propagation into async workers and Temporal activities — must be explicit, not ambient |
-| Blast radius | BR-008 — **HIGH**: security boundary |
+| Blast radius | [BR-011](../../../10-logs/blast-radius/BR-011-tenant-context-at-the-api-boundary.md) — **HIGH**: security boundary |
 | Approval required? | **Yes** — Security Architect |
 
 ## 5. Implementation plan
-- [ ] `apps/api/src/auth/dependencies.py` — resolve actor and tenant from the validated token
-- [ ] **Reject any tenant hint from header, query or body** — token is the only source
-- [ ] Bind tenant to the DB session via `SET LOCAL` inside the request transaction
-- [ ] Propagate context explicitly into background jobs and workflow activities
-- [ ] Stamp `tenant_id` on every emitted event envelope
-- [ ] Fail closed with `403` (identical body shape to `404`) when context is absent
+- [x] `apps/api/src/auth/dependencies.py` — resolve actor and tenant from the validated token
+- [x] **Reject any tenant hint from header, query or body** — token is the only source
+- [x] Bind tenant to the DB session via `SET LOCAL` inside the request transaction
+- [x] Propagate context explicitly into background jobs and workflow activities — the *primitive* (`to_job_payload`/`from_job_payload`); **no enforcement** until workers exist (STEP-006)
+- [x] Stamp `tenant_id` on every emitted event envelope — `stamp_envelope`; **no outbox exists to enforce it** (STEP-006, `DEC-009` open)
+- [x] Fail closed when context is absent — implemented as **`404` for both cases**, not `403`. A distinguishable 403 is still an existence oracle; `errors.py` records the reasoning
 
 ## 6. Contracts and schema changes
 None — consumes the auth envelope declared in `STEP-004`.
@@ -58,27 +58,32 @@ None — consumes the auth envelope declared in `STEP-004`.
 Correlation ID is tenant-safe and non-reversible. Auth failures counted; no PII in telemetry.
 
 ## 9. Documentation to update
-- [ ] Sub-step record · logs · `BR-008` · parent §21 · tracker
+- [x] Sub-step record · `IMPL-009` · `BUG-009/010/011` · `BR-011` · `ADR-011` · regression entry · tracker
 
 ## 10. Regression cross-check (R1–R7)
 | Check | Result | Detail |
 | --- | --- | --- |
-| R1 | | STEP-001 + STEP-002.01 |
-| R7 tenant isolation | | **Must still pass** — this sub-step is where it can silently break |
-| R2–R6 | | As applicable |
+| R1 | **PASS** | `pnpm verify`; tests now actually execute (`BUG-011`) |
+| R7 tenant isolation | **PASS — 12/12** | Plus a new application-layer pooled-leak test that R7 did not cover |
+| R2–R6 | **PASS / N/A** | R2 N/A (no contracts); R6 surfaced a BUG-004 recurrence (`BUG-010`). See [REGRESSION_LOG](../../../10-logs/REGRESSION_LOG.md) |
 
 ## 11. Rollback
 Revert the dependency; endpoints do not yet exist, so blast radius is contained. After endpoints exist, this becomes forward-only.
 
 ## 12. Acceptance criteria
-- [ ] Actor and tenant derive from the token only
-- [ ] Client-supplied tenant hints are ignored
-- [ ] Context reaches DB sessions, jobs and event envelopes
-- [ ] Missing context fails closed
-- [ ] `403`/`404` indistinguishable
+- [x] Actor and tenant derive from the token only
+- [x] Client-supplied tenant hints are ignored — mutation-tested
+- [x] Context reaches DB sessions (verified against live RLS); jobs and envelopes have the primitive but **no enforcing consumer yet**
+- [x] Missing context fails closed — six rejection cases
+- [x] Denial and absence indistinguishable — asserted on status, body bytes and headers
 
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
-| Notes / surprises | Ambient context (thread-locals, contextvars) crossing an async boundary is the classic leak — propagation must be explicit and tested |
+| Completed | 2026-08-06 |
+| Implementation | [IMPL-009](../../../10-logs/IMPLEMENTATION_LOG.md) |
+| Tests | 29 in `tests/api/`; 5/5 mutants killed |
+| Bugs found | `BUG-009` (Postgres readiness race), `BUG-010` (BUG-004 recurrence in 3 guards), `BUG-011` (`pnpm test` was a stub) |
+| Decision recorded | [ADR-011](../../../../adr/ADR-011-psycopg3-as-the-postgres-driver.md) — psycopg 3, no ORM yet |
+| Notes / surprises | The predicted leak was designed out: there is no ambient accessor at all, and a test asserts none is reintroduced. The **unpredicted** one was worse — a mutant making the DB binding session-wide instead of transaction-scoped passed all 28 tests, because R7 proved that property in SQL and nothing proved it for `bind_tenant`. Also: `Annotated[..., Depends(local)]` under PEP 563 silently returns `422` — a live hazard for STEP-004 |
+| Carried gaps | Job/event enforcement (STEP-006); auth-denial alerting (STEP-024); four-eyes approval unsatisfiable with one owner (`ADR-010`) |

@@ -67,6 +67,39 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-002.02 — 2026-08-06 — Tenant and actor context resolution at the API boundary
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `f544d38` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` — and for the first time it actually executes tests (`BUG-011`) |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | Six new auth modules, one test module, three guard fixes, compose healthcheck, docs. No unexpected scope |
+| R4 untested requirements | **PASS** | Decreased — `REQ-SEC-004` now has executable tests for the first time |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `apps/api/**` and `tests/api/**` |
+| R6 closed-bug tests | **PASS** | BUG-001…008 guards pass. **BUG-004 found to have recurred** in three guards (`BUG-010`) — fixed, and this check is why it surfaced |
+| **R7 tenant isolation** | **PASS — 12/12** | Plus a new application-layer pooled-leak test that R7 did not cover |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| R7 failed from a cold database | Postgres healthcheck went green against the first-boot temporary server | `BUG-009` — TCP healthcheck; verified over three cold boots |
+| `py-typecheck` reported "0 Python files" with 7 present | `git ls-files` is tracked-only — BUG-004 recurrence | `BUG-010` — three guards fixed to union tracked + untracked |
+| `pnpm test` executed nothing | Placeholder script from STEP-001.02 | `BUG-011` — now `uv run pytest` |
+| Every API test returned `422` | PEP 563 + `Annotated[..., Depends(local)]` — FastAPI resolves the annotation in module globals | Removed `from __future__ import annotations` from the test module; hazard recorded for STEP-004 |
+| One mutant survived the suite | `set_config(…, false)` made binding session-wide; no test covered `bind_tenant`'s transaction scope | Pooled-leak test added; mutant now killed |
+
+### Notes
+Mutation testing was run as part of this cross-check rather than trusting a green suite: five security properties were each broken deliberately, and the one that survived exposed a genuine gap. A suite that has never been shown to fail is a claim, not evidence.
+
+---
+
 ## STEP-002.01 — 2026-08-05 — Identity schema and row-level security
 
 | Field | Value |

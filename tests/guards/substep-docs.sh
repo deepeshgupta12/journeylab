@@ -20,7 +20,13 @@ BRDIR="docs/product/10-logs/blast-radius"
 missing=0
 checked=0
 
-for f in $(git ls-files 'docs/product/08-steps/sub-steps/**/*.md' 2>/dev/null); do
+# BUG-004 (recurrence, found at STEP-002.02): `git ls-files` lists TRACKED files
+# only, so files added in the current commit are invisible and the guard reports a
+# vacuous pass on its own first run. The BUG-004 fix was applied to some guards but
+# not this one. Always union tracked + untracked-not-ignored.
+for f in $( { git ls-files 'docs/product/08-steps/sub-steps/**/*.md'; \
+               git ls-files --others --exclude-standard 'docs/product/08-steps/sub-steps/**/*.md'; } \
+             2>/dev/null | sort -u); do
   grep -q '^status: VERIFIED' "$f" 2>/dev/null || continue
   id=$(grep -m1 '^sub_step_id:' "$f" | awk '{print $2}')
   [ -n "$id" ] || continue

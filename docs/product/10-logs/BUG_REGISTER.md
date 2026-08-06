@@ -39,6 +39,130 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-011 — `pnpm test` was a stub, so no Python test ever ran in CI
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — the verify gate reported success without executing any test |
+| Found during | STEP-002.02, running `pnpm verify` after adding the first Python code |
+| Date found | 2026-08-06 |
+| Affected requirements | REQ-PLAT-001, REQ-SEC-001, REQ-SEC-004 |
+
+### Symptom
+The last line of `pnpm verify` was:
+```
+$ echo "[STEP-001.02] tests not yet configured" && exit 0
+[STEP-001.02] tests not yet configured
+```
+`verify` exited 0. The 29 security tests written in this sub-step would not have run in CI.
+
+### Root cause
+`package.json` carried a placeholder `"test"` script from STEP-001.02, when no test framework existed. Nothing forced it to be revisited once tests appeared — the placeholder exits 0, so it never complained.
+
+### Why existing tests did not catch it
+No guard asserted that `pnpm test` actually executes anything. Every guard checked the *content* of the repository; none checked that the verify chain does real work. A stub that exits 0 is indistinguishable from a passing suite unless something looks.
+
+### Fix
+`"test": "uv run pytest"`. CI already runs `uv sync --frozen` before `pnpm verify`, so no workflow change was needed.
+
+### Prevention
+This is the third member of a family now: BUG-001's self-truncating guard, the dependency-cruiser cruising 0 modules, and this. **A check that reports success without doing work.** The standing rule from STEP-001 — assert the check can fail — applies to the *verify chain itself*, not only to individual guards.
+
+---
+
+## BUG-010 — BUG-004 recurred: three guards still checked only tracked files
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — `py-typecheck` reported a vacuous pass on the repository's first Python code |
+| Found during | STEP-002.02, running `pnpm verify` before commit |
+| Date found | 2026-08-06 |
+| Affected requirements | REQ-PLAT-001 |
+
+### Symptom
+With seven new Python files in the working tree:
+```
+$ bash tests/guards/py-typecheck.sh
+PASS (vacuous): 0 Python files. Real typecheck begins with STEP-002.
+```
+The guard announced that Python typechecking begins at STEP-002 while standing inside STEP-002 with the files in front of it.
+
+### Root cause
+`git ls-files` lists **tracked** files only. New files are untracked until first commit, so the guard counted zero and took its vacuous-pass branch.
+
+This is exactly BUG-004. That fix was applied to `no-stray-markup.sh` and `no-tracked-artifacts.sh` but **not** to every guard. An audit of all guards found the same defect in three:
+
+| Guard | Consequence |
+| --- | --- |
+| `py-typecheck.sh` | Vacuous pass; mypy never ran on new code |
+| `typecheck.sh` | Same shape, would trigger when TypeScript arrives |
+| `substep-docs.sh` | A newly added sub-step file would not be validated on the commit that adds it |
+
+`codeowners-coverage.sh` also uses `git ls-files`, but only to print a count described as "tracked paths", and its catch-all rule covers untracked paths. Left as-is deliberately.
+
+### Why existing tests did not catch it
+The meta-suite seeds violations as **untracked** files, which is why it caught BUG-004 for the markup guard. But `py-typecheck` and `typecheck` had **no meta-test at all** — they were treated as trivial wrappers. A guard whose entire behaviour is a conditional is not trivial: the condition is the guard.
+
+### Fix
+All three now union tracked and untracked-not-ignored paths, with a comment naming BUG-004 so the next person does not re-simplify it.
+
+### Prevention
+When a bug is fixed in one instance of a repeated pattern, **grep for the pattern across the repository** and fix or explicitly exempt every instance. Recording BUG-004 as fixed while three copies survived is what made this recurrence possible.
+
+---
+
+## BUG-009 — Postgres reported healthy during first-boot init, and R7 misdiagnosed the result
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — intermittent false failure of the R7 security gate; a real one would be indistinguishable |
+| Found during | STEP-002.02 pre-work: verifying STEP-002.01 against a **clean** database |
+| Date found | 2026-08-06 |
+| Affected requirements | REQ-SEC-001, REQ-PLAT-001 |
+
+### Symptom
+Running the isolation suite immediately after `docker compose up -d --wait` on fresh volumes:
+```
+=== applying migration 001 ===
+  migration applied
+
+ERROR:  expected table(s) missing — the schema is not in place.
+```
+All five tables existed. Re-running the identical command passed 12/12.
+
+### Root cause — two distinct defects
+**1. The healthcheck could pass against a server that was about to be destroyed.**
+The official Postgres entrypoint starts a *temporary* server during first-boot initialisation with `listen_addresses=''` — Unix socket only. `pg_isready -U journeylab` uses that socket, so it reported ready against the throwaway server. Compose marked the service healthy and `--wait` returned; ~3s later the server shut down and restarted for real.
+
+Measured directly by polling both transports during boot:
+
+| t | socket | tcp |
+| --- | --- | --- |
+| 1250ms | **UP** | down |
+| 1750ms | **UP** | down |
+| 2000ms | down | **UP** |
+
+The container log confirms the sequence: `ready to accept connections` → `shutting down` → `PostgreSQL init process complete` → `ready to accept connections`.
+
+**2. The R7 precondition gate blamed the wrong cause.**
+The gate ran a table-count query with `2>/dev/null` and defaulted to "5 missing" whenever the result was empty. A connection failure and an absent schema produced the same message. It failed closed — correct — but sent the reader hunting a migration bug that did not exist.
+
+### Why existing tests did not catch it
+STEP-002.01 was verified against a database that was **already running and already seeded**. The suite was never once executed against a cold stack, so the only window in which the bug exists was never entered. The 12/12 result was true and not evidence of what it appeared to prove.
+
+### Fix
+1. `docker-compose.dev.yml`: healthcheck is now `pg_isready -h 127.0.0.1 …`. TCP is unavailable during init, so the check cannot pass early.
+2. `tests/security/test_tenant_isolation.sh`: an explicit connectivity probe runs first and reports "cannot reach the database — this is NOT a schema problem", keeping the schema check for genuinely missing tables.
+
+### Verification
+Three consecutive `down -v` → `up --wait` → R7 cycles: 12/12 each, `--wait` now taking 6s instead of returning early.
+
+### Prevention
+- A service is not ready because a healthcheck says so; it is ready when the check exercises **the transport clients actually use**.
+- Verify a gate from the cold state at least once. Steady-state verification cannot observe startup races.
+
+---
+
 ## BUG-008 — Guards encoded macOS-specific assumptions and failed in CI
 
 | Field | Value |

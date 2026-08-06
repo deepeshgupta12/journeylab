@@ -7,7 +7,7 @@
 - **Date:** 2026-08-05 · **Owner:** Documentation lead · **Status:** Accepted
 - **Context:** No application code exists. Work must be specifiable and reviewable before implementation.
 - **Decision:** `docs/product/` is the operational source of truth for scope, contracts, architecture and delivery status. Markdown explains contracts; when machine-readable contracts exist (`contracts/openapi.yaml`), those become authoritative for schemas and Markdown must link rather than duplicate.
-- **Consequences:** Documentation drift becomes a release blocker (`REQ-PLAT-009`). Every contract in [API_CONTRACTS](../04-contracts/API_CONTRACTS.md) is marked `PROPOSED` until a schema file exists.
+- **Consequences:** Documentation drift becomes a release blocker (`REQ-PLAT-009`). Every contract in [API_CONTRACTS](../product/04-contracts/API_CONTRACTS.md) is marked `PROPOSED` until a schema file exists.
 - **Alternatives rejected:** Code-first with documentation after (loses the pre-change impact discipline required by `REQ-KG-008`).
 
 ---
