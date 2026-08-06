@@ -1,0 +1,159 @@
+/* GENERATED from src/tokens.ts — do not edit by hand.
+ * Rebuild: pnpm --filter @journeylab/ui tokens:build
+ * STEP-003.01 · REQ-A11Y-004, REQ-NFR-013
+ *
+ * Contrast ratios for every declared pairing are computed and asserted in
+ * src/tokens.test.ts, so these values cannot drift below WCAG 2.2 AA silently.
+ */
+
+:root {
+  --surface-base: #ffffff;
+  --surface-raised: #f6f7f9;
+  --surface-sunken: #eceef2;
+  --text-primary: #14181f;
+  --text-secondary: #4a5260;
+  --border-default: #767d8a;
+  --border-strong: #4a5260;
+  --action-primary: #0b5cd5;
+  --action-primary-text: #ffffff;
+  --focus-ring: #0b5cd5;
+  --status-success: #0f6b3d;
+  --status-warning: #7a4a00;
+  --status-error: #b3261e;
+  --status-info: #0b5cd5;
+
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.375rem;
+  --font-size-2xl: 1.75rem;
+  --font-size-3xl: 2.25rem;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgb(0 0 0 / 0.08);
+  --elevation-2: 0 2px 8px rgb(0 0 0 / 0.10);
+  --elevation-3: 0 8px 24px rgb(0 0 0 / 0.14);
+
+  --motion-duration-instant: 0ms;
+  --motion-duration-fast: 120ms;
+  --motion-duration-normal: 200ms;
+  --motion-duration-slow: 320ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-decelerate: cubic-bezier(0, 0, 0, 1);
+}
+
+/* Dark theme. Applied by user preference, or forced with [data-theme="dark"]. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-base: #101419;
+    --surface-raised: #181d24;
+    --surface-sunken: #0a0d11;
+    --text-primary: #f2f4f7;
+    --text-secondary: #b9c0cc;
+    --border-default: #79818f;
+    --border-strong: #b9c0cc;
+    --action-primary: #7fb2ff;
+    --action-primary-text: #101419;
+    --focus-ring: #7fb2ff;
+    --status-success: #5cc98e;
+    --status-warning: #e0a33a;
+    --status-error: #ff9d94;
+    --status-info: #7fb2ff;
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface-base: #101419;
+  --surface-raised: #181d24;
+  --surface-sunken: #0a0d11;
+  --text-primary: #f2f4f7;
+  --text-secondary: #b9c0cc;
+  --border-default: #79818f;
+  --border-strong: #b9c0cc;
+  --action-primary: #7fb2ff;
+  --action-primary-text: #101419;
+  --focus-ring: #7fb2ff;
+  --status-success: #5cc98e;
+  --status-warning: #e0a33a;
+  --status-error: #ff9d94;
+  --status-info: #7fb2ff;
+}
+
+/* High contrast is a DISTINCT palette held to AAA, not dark mode intensified.
+ * forced-colors covers Windows High Contrast Mode; prefers-contrast covers the
+ * platform-agnostic signal. Both are honoured. */
+@media (prefers-contrast: more), (forced-colors: active) {
+  :root {
+    --surface-base: #000000;
+    --surface-raised: #000000;
+    --surface-sunken: #000000;
+    --text-primary: #ffffff;
+    --text-secondary: #ffffff;
+    --border-default: #ffffff;
+    --border-strong: #ffffff;
+    --action-primary: #ffff00;
+    --action-primary-text: #000000;
+    --focus-ring: #ffff00;
+    --status-success: #00ff7f;
+    --status-warning: #ffd400;
+    --status-error: #ff8080;
+    --status-info: #7fdfff;
+  }
+}
+
+:root[data-theme="high-contrast"] {
+  --surface-base: #000000;
+  --surface-raised: #000000;
+  --surface-sunken: #000000;
+  --text-primary: #ffffff;
+  --text-secondary: #ffffff;
+  --border-default: #ffffff;
+  --border-strong: #ffffff;
+  --action-primary: #ffff00;
+  --action-primary-text: #000000;
+  --focus-ring: #ffff00;
+  --status-success: #00ff7f;
+  --status-warning: #ffd400;
+  --status-error: #ff8080;
+  --status-info: #7fdfff;
+}
+
+/* Reduced motion SUPPRESSES animation rather than shortening it — vestibular
+ * safety, not a preference. Durations are 0ms, and the catch-all below stops any
+ * component that hard-codes its own duration from animating anyway. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-instant: 0ms;
+    --motion-duration-fast: 0ms;
+    --motion-duration-normal: 0ms;
+    --motion-duration-slow: 0ms;
+    --motion-ease-standard: linear;
+    --motion-ease-decelerate: linear;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

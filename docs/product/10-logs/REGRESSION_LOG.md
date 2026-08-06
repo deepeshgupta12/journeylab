@@ -67,6 +67,37 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-003.01 — 2026-08-06 — Design tokens including high-contrast and reduced-motion
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `9f5ff36` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 335 Python + 41 web + **68 UI** |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | One new package. No existing symbol modified |
+| R4 untested requirements | **PASS** | Decreased — `REQ-A11Y-004` and `REQ-NFR-013` now have computed coverage |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `packages/ui/**` |
+| R6 closed-bug tests | **PASS** | BUG-001…015 guards pass |
+| **R7 tenant isolation** | **PASS** | Untouched — tokens carry no data |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| The drift test could never fail | The generator wrote `tokens.css` at module top level, so importing it rewrote the file the test was about to compare | Write guarded behind a direct-invocation check; a hand-edited file now breaks the suite |
+
+### Notes
+The sub-step file predicted the graph would be `BLOCKED — no application symbols indexed yet`. That prediction is stale: application code has been indexed since STEP-002.02, so this pre-change check was **RUNNABLE**.
+
+Every accessibility assertion is computed from token values rather than asserted about them, and the contrast function is itself verified against published WCAG reference values first — without that, the other 60-odd assertions would be meaningless.
+
+---
+
 ## STEP-002.07 — 2026-08-06 — Audit event emission and runtime flag primitives
 
 | Field | Value |

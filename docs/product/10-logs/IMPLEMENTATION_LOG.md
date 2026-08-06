@@ -60,6 +60,68 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-015 — STEP-003.01 — Design tokens including high-contrast and reduced-motion
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-06 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-A11Y-004, REQ-NFR-013 |
+| Blast radius | [BR-018](blast-radius/BR-018-design-tokens.md) (MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `9f5ff36` — matched HEAD at pre-change |
+
+### What was built
+`packages/ui/` — the first design-system package. 68 tests.
+
+| File | Role |
+| --- | --- |
+| `src/tokens.ts` | Source of truth: three palettes, scales, motion, status tokens |
+| `src/tokens.css` | **Generated** custom properties with media queries |
+| `src/contrast.ts` | WCAG 2.2 relative-luminance and contrast-ratio maths |
+| `tools/gen-tokens.ts` | Generator; drift-gated by a test |
+
+### Why this approach
+**Accessibility claims are computed, not asserted.** "These colours pass AA" is something someone checked once, in a tool, against values that have since been edited. Every declared foreground/background pairing has its ratio computed from the token values on every test run, so a colour edited below the bar breaks the build.
+
+The contrast maths is itself verified against published values first — black on white is 21:1, `#767676` on white is 4.54:1. If that function were wrong, every other assertion would be meaningless.
+
+**A colour on its own has no contrast**, so foregrounds are declared *alongside* the backgrounds they may appear on. A test then fails on any colour token with no declared pairing, because such a token is unverifiable.
+
+**Non-text UI is held to 3:1, not 4.5:1** — WCAG 2.2 SC 1.4.11. Borders and focus rings would otherwise be over-constrained into ugliness for no accessibility gain.
+
+**High contrast is a distinct palette held to AAA**, not dark mode intensified. A test asserts it differs from the dark palette, because the lazy implementation is to alias them.
+
+**Reduced motion suppresses rather than shortens.** The sub-step called this vestibular safety, not a preference. Every duration is exactly `0ms` and the test asserts `toBe("0ms")` rather than "shorter than default" — a 60ms animation still moves, and movement is what triggers vertigo. A `!important` catch-all also neutralises any component that hard-codes its own duration.
+
+**Both `prefers-contrast` and `forced-colors`.** Windows High Contrast Mode signals only the latter; handling just `prefers-contrast` would strand exactly the users who most need it.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — 335 Python + 41 web + 68 UI |
+| Typecheck | Both packages, own configs |
+| Module boundaries | 25 files |
+| Guard meta-suite | 36/36 |
+
+**Mutation testing — 5/5 killed:** secondary text lightened below AA, a status losing its icon, reduced motion shortened to 60ms instead of suppressed, `forced-colors` support dropped, and a font size hard-coded in px.
+
+### The bug worth recording
+**The drift test was self-repairing.** `tokens.css` is generated, and the test imports the generator to compare its output against the committed file. But the generator wrote the file at module top level — so importing it *rewrote the very file the test was about to check*. It could never have failed.
+
+Visible only as a stray `wrote src/tokens.css` line in the test output. The write is now guarded behind a direct-invocation check, and a hand-edited `tokens.css` was confirmed to break the suite.
+
+**A test that repairs the thing it verifies proves nothing.** Same family as `BUG-001`'s self-truncating guard and the mutation harness that mutated nothing.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Lint rule forbidding hard-coded values components should take from tokens | STEP-003.02 |
+| Real-browser `forced-colors` verification | STEP-003.08 |
+| Confirm the chart library honours token theming | Before STEP-013 |
+
+---
+
 ## IMPL-014 — STEP-002.07 — Audit event emission and runtime flag primitives
 
 | Field | Value |
