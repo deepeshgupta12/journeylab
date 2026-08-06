@@ -71,11 +71,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
         <p
           style={{ marginTop: '1.5rem', padding: '1rem', background: '#fff5e6', color: '#3d2600' }}
         >
-          <strong>Auth0 succeeded but no session cookie arrived.</strong> The browser dropped it.
-          These cookies use the <code>__Host-</code> prefix, which browsers accept only over a
-          TRUSTED TLS connection. If the address bar says &ldquo;Not Secure&rdquo;, run{' '}
-          <code>mkcert -install</code> in a terminal, enter your password, then fully quit and
-          reopen the browser.
+          <strong>Auth0 succeeded but no session cookie reached this request.</strong> These cookies
+          use the <code>__Host-</code> prefix, which requires HTTPS and the <code>Secure</code>{' '}
+          attribute. Most likely causes: the request came from a tool with no cookie jar (curl), or
+          the browser is on a different origin than the one that set them. If the address bar says
+          &ldquo;Not Secure&rdquo;, run <code>mkcert -install</code>, enter your password, then
+          fully quit and reopen the browser.
         </p>
       )}
 
