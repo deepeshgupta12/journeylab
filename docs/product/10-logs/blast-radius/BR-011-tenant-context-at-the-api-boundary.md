@@ -82,7 +82,27 @@ Resolve actor and tenant **from the verified token alone**, bind that tenant to 
 | 6 | RLS policies | Row filtering | STEP-002.01, R7 12/12 |
 | 7 | Job payload / event envelope | Tenant crosses the async boundary as **data** | Round-trip + malformed-payload tests |
 
-**Post-change follow-up (required):** re-index after commit and confirm whether the extractor emits Python symbols at all. If it does not, `RISK-014` escalates from "graph lags code" to "graph cannot see this language", which changes what `REQ-KG-008` can ever mean. Recorded in §9 as open.
+**Post-change follow-up — COMPLETED at commit `0b87024`.** Re-indexed: 3,037 nodes / 4,092 edges. The extractor **does** emit Python symbols.
+
+| Measure | Result |
+| --- | --- |
+| Python files indexed | 8/8 (`apps/api/src/auth/*`, `tests/api/*`) |
+| Symbols under `apps/api` | 13 Function, 5 Class, 8 Property, 20 Variable |
+
+`KG-Q-014` was then run for real against the indexed graph, and it **reproduces the manual trace above independently**:
+
+```
+resolve_context -> _extract_bearer -> opaque_denial
+resolve_context -> verify           (TokenVerifier port)
+resolve_context -> from_claims      (tenant fixed here)
+bind_tenant     -> execute          (parameterised set_config)
+```
+
+No module outside `auth/` imports `claims` or `context`, so there is no second path by which a tenant could enter.
+
+**One finding the graph surfaced that the manual trace did not state:** `bind_tenant` has **no caller in application code** — only tests. Correct for this sub-step, because no endpoint exists. But it means context resolution (`dependencies.py`) and database binding (`db.py`) are **not yet connected to each other**; `dependencies.py` does not import `db.py`. `STEP-004` must wire them, or requests will resolve a tenant and never bind it — which fails closed (zero rows) rather than leaking, but would be a silent, confusing outage. Carried as an explicit STEP-004 obligation.
+
+**Consequence for `RISK-014`:** downgraded. The graph is no longer documentation-only, and pre-change checks become genuinely runnable from `STEP-002.03` onward. A `BLOCKED` status in a future record is now a real gap with no fallback excuse.
 
 ## 7. Classification (step 8)
 `direct` (new security boundary) · `security/privacy` · `test-integrity` (two guard defects found) · **`unknown`:** the reach of `to_job_payload`/`stamp_envelope`, because their consumers do not exist yet.

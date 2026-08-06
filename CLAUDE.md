@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (2852 symbols, 3831 relationships, 0 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (3037 symbols, 4092 relationships, 1 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -253,7 +253,7 @@ These are product promises, not preferences. Breaking one is a defect regardless
 | `DEC-004` | Identity provider undecided | Binds at `STEP-002.04`. **Not** blocking .01–.02: `auth/claims.py` defines a verifier *port*, so the vendor plugs in without touching the boundary |
 | `DEC-007` | Cloud provider / region / residency | Blocks `STEP-027` |
 | `RISK-001` | Provider licence viability unproven (exposure 20) | Highest delivery risk |
-| `RISK-014` | Graph covered documentation only | Pre-change checks `BLOCKED` for code. Application code now exists — **whether the extractor indexes Python is being verified at the STEP-002.02 re-index** |
+| ~~`RISK-014`~~ | **DOWNGRADED** (STEP-002.02) — the graph indexes Python: 8/8 files, 13 functions, 5 classes under `apps/api`. `KG-Q-014` ran for real and reproduced the manual auth trace | Pre-change checks are **runnable from `STEP-002.03`**. A `BLOCKED` status from here on is a real gap, not a vacuous one |
 
 ---
 

@@ -39,6 +39,12 @@ Business logic behind the endpoints belongs to [STEP-007](STEP-007-discovery-lan
 Authorization semantics are *declared* here and enforced by `STEP-002` primitives.
 
 ## 6. Preconditions and dependencies
+
+> **Inherited obligation from `STEP-002.02` (recorded 2026-08-06, found by `KG-Q-014` on the indexed graph).**
+> `apps/api/src/auth/dependencies.py` resolves the tenant and `apps/api/src/auth/db.py` binds it to the transaction, but **they are not connected to each other** — `dependencies.py` does not import `db.py`, and `bind_tenant` currently has no caller outside tests. This step must wire them: every request transaction must call `bind_tenant` with the resolved `RequestContext`.
+> If it does not, requests resolve a tenant and never bind it. That **fails closed** — the RLS policies return zero rows — so the symptom is an empty, confusing response rather than a leak. See [BR-011](../10-logs/blast-radius/BR-011-tenant-context-at-the-api-boundary.md) §6.
+>
+> Also inherited: `Annotated[..., Depends(x)]` combined with `from __future__ import annotations` silently yields `422` when `x` is not resolvable in module globals. Cost one debugging cycle in `STEP-002.02`.
 [STEP-002](STEP-002-identity-tenancy-and-authorization.md) exit — contracts embed the tenant/auth envelope.
 
 ## 7. Inputs and source systems
