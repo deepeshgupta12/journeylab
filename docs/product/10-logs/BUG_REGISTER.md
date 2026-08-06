@@ -28,6 +28,7 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BUG-008 | Guards assumed macOS paths; failed in CI | **S2** | second CI run | Repository owner | verify failed: documented Node path not executable on ubuntu-latest | Guards encoded Homebrew paths and BSD sed; meta-tested on macOS only | *(this commit)* | all 11 guards verified in a Linux container | **CLOSED** | 2026-08-05 |
 | BUG-007 | Security suite passed while schema was absent | **S2** | STEP-002.01 | First R7 run | 3 write-denial assertions passed with no tables; migration had failed on missing citext | Migration not self-contained; assertions could not distinguish policy denial from query error | *(this commit)* | suite meta-test: weakened policy must expose both tenants | **CLOSED** | 2026-08-05 |
 | BUG-006 | CI failed: duplicate pnpm version | **S2** | first real CI run | Repository owner | verify pipeline failed in 7s, ERR_PNPM_BAD_PM_VERSION | `version:` in workflow duplicated `packageManager` in package.json | *(this commit)* | none possible locally — see entry | **CLOSED** | 2026-08-05 |
 | BUG-005 | Missing IMPL-003; guard passed on a mention | **S3** | STEP-001 closure audit | Closure audit | 5 IMPL entries for 6 VERIFIED sub-steps, guard reported PASS | Guard grepped for the ID anywhere, not a real heading | *(this commit)* | `tests/guards/meta/run-all.sh` | **CLOSED** | 2026-08-05 |
@@ -35,6 +36,68 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 | BUG-003 | Sub-step committed without required documentation | **S3** | STEP-001.04 close-out | Post-commit verification | `8a9af9b` shipped without IMPL-004, regression entry or status update | Log script failed; commit ran in the same shell invocation regardless | *(this commit)* | `tests/guards/substep-docs.sh` | **CLOSED** | 2026-08-05 |
 | BUG-002 | `node_modules/` tracked in git | **S3** | STEP-001.02 pre-change analysis | Pre-change inventory | 2 dependency files committed; `.gitignore` contained only `.gitnexus` | `.gitignore` written without dependency/build exclusions in STEP-001.01 | *(this commit)* | `tests/guards/no-tracked-artifacts.sh` | **CLOSED** | 2026-08-05 |
 | BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-008 — Guards encoded macOS-specific assumptions and failed in CI
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — CI red on `main`; the merge gate could not run |
+| Found during | Second real CI run, reported by the repository owner |
+| Date found | 2026-08-05 |
+| Affected requirements | REQ-PLAT-001 |
+
+### Symptom
+`pnpm verify` failed on `ubuntu-latest`:
+```
+4. documented Node PATH yields Node 24
+   FAIL documented Node path not executable: /opt/homebrew/opt/node@24/bin
+FAIL: 1 README inaccuracy/ies. The README must match reality.
+```
+The README was **not** inaccurate. The guard asserted a macOS Homebrew path exists — impossible on a Linux runner.
+
+### Root cause
+Three host-specific assumptions, only the first of which CI had reached:
+1. `readme-accuracy.sh` check 4 asserted `/opt/homebrew/opt/node@24/bin/node` is executable.
+2. `meta/run-all.sh` used `sed -i ''` — BSD/macOS syntax that fails on GNU sed.
+3. `workflow-refs.sh` reported *"YAML does not parse"* whenever `uv` was missing — blaming the workflows for a toolchain gap.
+
+Only #1 was reported. **#2 and #3 were found by probing every guard under Linux** rather than fixing the one failure and pushing.
+
+### Why existing tests did not catch it
+Every guard had been meta-tested — **on macOS only**. The meta-suite proved detection logic, never portability. Same shape as `BUG-004` (scope untested) and `BUG-007` (a check correct about the wrong thing): **the tests were right about what they measured and silent about where they ran.**
+
+This is the second CI failure from a local assumption (`BUG-006` was the duplicate pnpm version). Both were invisible locally by construction.
+
+### Fix
+1. **Check 4 split into a portable invariant and a host-conditional check.** Always: the Node major version in the README must match `.nvmrc` — the single source of truth CI's `setup-node` reads, and the check that actually catches drift. Conditionally: where the Homebrew path exists, confirm it yields that version; otherwise `skip` with a reason.
+2. `sedi()` helper detecting GNU vs BSD sed.
+3. `workflow-refs.sh` distinguishes "uv unavailable" from "YAML invalid".
+
+### Regression test
+Proven in a real Linux container (`node:24-bookworm`, no Homebrew, no uv):
+- `readme-accuracy.sh` → exit 0, check 4 reports `skip`
+- **All 11 guards → exit 0**
+- Drift still caught: setting `.nvmrc` to 22 while the README says 24 → exit 1
+
+The last point matters most — the portable check is **weaker in reach but not in power**. It still fails on real README drift.
+
+
+### A self-inflicted defect while fixing this
+The `sedi` helper was introduced by a blind string replace of `sed -i ''` → `sedi`,
+which also rewrote the literal **inside the helper's own definition**. The BSD branch
+then called `sedi` recursively until the stack overflowed — the meta-suite died with
+SIGSEGV (exit 139) rather than reporting a test failure.
+
+Same family as `BUG-001`'s first guard, which embedded the very pattern it searched
+for and truncated its own source. **A fix expressed as a global substitution can hit
+the fix itself.** The definition now carries a comment warning against re-normalising it.
+
+### Prevention
+- **Run guards under Linux before pushing**, not only on the developer machine. A guard is a cross-platform contract.
+- Prefer asserting **consistency between two repository files** over the existence of a host path. `.nvmrc` vs README is portable; a Homebrew prefix is not.
+- When a check cannot apply, print `skip` **with a reason** — never `FAIL`. A false failure trains people to ignore the gate.
 
 ---
 

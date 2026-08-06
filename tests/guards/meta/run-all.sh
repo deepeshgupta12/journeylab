@@ -21,6 +21,19 @@
 set -uo pipefail
 cd "$(dirname "$0")/../../.."
 
+# PORTABILITY (BUG-008): `sed -i ''` is BSD/macOS syntax and fails on GNU sed
+# (Linux/CI). This helper works on both.
+# NOTE: the BSD branch must call `sed`, not `sedi`. An earlier edit replaced the
+# literal inside this very function, making it recurse until SIGSEGV. Do not
+# "normalise" the sed calls in this definition.
+sedi() {
+  if sed --version >/dev/null 2>&1; then
+    sed -i "$@"          # GNU
+  else
+    sed -i "" "$@"       # BSD/macOS
+  fi
+}
+
 pass=0; fail=0
 CLEANUP=()
 cleanup() { for f in "${CLEANUP[@]:-}"; do rm -rf "$f" 2>/dev/null; done; }
@@ -79,7 +92,7 @@ assert_guard "codeowners-coverage clean again" tests/guards/codeowners-coverage.
 echo ""
 echo "=== port isolation (owner constraint: shared Docker host) ==="
 cp docker-compose.dev.yml /tmp/META_COMPOSE.bak
-sed -i '' 's|127.0.0.1:5701:6379|127.0.0.1:6379:6379|' docker-compose.dev.yml
+sedi 's|127.0.0.1:5701:6379|127.0.0.1:6379:6379|' docker-compose.dev.yml
 assert_guard "port-collisions catches out-of-block port" tests/guards/port-collisions.sh 1
 cp /tmp/META_COMPOSE.bak docker-compose.dev.yml; rm -f /tmp/META_COMPOSE.bak
 assert_guard "port-collisions clean again" tests/guards/port-collisions.sh 0
@@ -99,7 +112,7 @@ assert_guard "readme-accuracy clean again" tests/guards/readme-accuracy.sh 0
 echo ""
 echo "=== CI workflow references ==="
 cp .github/workflows/verify.yml /tmp/META_WF.bak
-sed -i '' 's|- run: pnpm verify|- run: pnpm does-not-exist|' .github/workflows/verify.yml
+sedi 's|- run: pnpm verify|- run: pnpm does-not-exist|' .github/workflows/verify.yml
 assert_guard "workflow-refs catches bogus script" tests/guards/workflow-refs.sh 1
 cp /tmp/META_WF.bak .github/workflows/verify.yml; rm -f /tmp/META_WF.bak
 assert_guard "workflow-refs clean again" tests/guards/workflow-refs.sh 0
@@ -107,7 +120,7 @@ assert_guard "workflow-refs clean again" tests/guards/workflow-refs.sh 0
 echo ""
 echo "=== BUG-003/005: sub-step documentation coupling ==="
 cp docs/product/10-logs/IMPLEMENTATION_LOG.md /tmp/META_IMPL.bak
-sed -i '' 's|^## IMPL-006 — STEP-001.06 — |## IMPL-006 — wrong heading format — |' docs/product/10-logs/IMPLEMENTATION_LOG.md
+sedi 's|^## IMPL-006 — STEP-001.06 — |## IMPL-006 — wrong heading format — |' docs/product/10-logs/IMPLEMENTATION_LOG.md
 assert_guard "substep-docs rejects a mention without a real entry (BUG-005)" tests/guards/substep-docs.sh 1
 cp /tmp/META_IMPL.bak docs/product/10-logs/IMPLEMENTATION_LOG.md; rm -f /tmp/META_IMPL.bak
 assert_guard "substep-docs clean again" tests/guards/substep-docs.sh 0

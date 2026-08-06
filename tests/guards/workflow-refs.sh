@@ -15,8 +15,12 @@ WF=".github/workflows"
 
 fail=0
 
-# 1. YAML parses
-if ! uv run --quiet --with pyyaml python -c "
+# 1. YAML parses.
+# BUG-008: previously reported "YAML does not parse" whenever `uv` was missing —
+# a misleading error blaming the workflows for a toolchain gap. Distinguish the two.
+if ! command -v uv >/dev/null 2>&1; then
+  echo "  skip YAML parse check — uv not available on this host (real CI installs it)"
+elif ! uv run --quiet --with pyyaml python -c "
 import yaml,glob,sys
 bad=0
 for f in sorted(glob.glob('$WF/*.yml')):

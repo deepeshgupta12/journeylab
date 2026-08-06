@@ -55,16 +55,39 @@ else
   printf "   FAIL %s missing\n" "$COMPOSE"; fail=$((fail+1))
 fi
 
-echo "4. documented Node PATH yields Node 24"
+echo "4. documented Node version is consistent and reachable"
+# PORTABILITY (BUG-008): this previously asserted a macOS Homebrew path was
+# executable, which can never be true on ubuntu-latest. CI failed for a reason that
+# had nothing to do with the README being wrong.
+#
+# Split into a portable invariant and a host-conditional check:
+#   4a. ALWAYS  — the Node major version documented in the README must match .nvmrc,
+#                 which is the single source of truth CI's setup-node reads. This is
+#                 the check that actually catches README drift.
+#   4b. IF PRESENT — where the documented Homebrew path exists (developer macOS),
+#                 confirm it really yields that version.
+NVMRC_MAJOR=$(tr -d 'v \n' < .nvmrc 2>/dev/null | cut -d. -f1)
+README_MAJOR=$(grep -oE 'node@[0-9]+' "$README" | head -1 | grep -oE '[0-9]+')
+if [ -z "$README_MAJOR" ]; then
+  README_MAJOR=$(grep -oE 'Node(\.js)? \*\*?([0-9]+)' "$README" | grep -oE '[0-9]+' | head -1)
+fi
+
+if [ -n "$NVMRC_MAJOR" ] && [ "$README_MAJOR" = "$NVMRC_MAJOR" ]; then
+  printf "   ok   README documents Node %s, matching .nvmrc\n" "$README_MAJOR"
+else
+  printf "   FAIL README documents Node '%s' but .nvmrc says '%s'\n" "${README_MAJOR:-<none>}" "${NVMRC_MAJOR:-<none>}"
+  fail=$((fail+1))
+fi
+
 NODE_PATH_LINE=$(grep -oE '/opt/homebrew/opt/node@[0-9]+/bin' "$README" | head -1)
 if [ -n "$NODE_PATH_LINE" ] && [ -x "${NODE_PATH_LINE}/node" ]; then
   v=$("${NODE_PATH_LINE}/node" -v 2>/dev/null)
   case "$v" in
-    v24.*) printf "   ok   %s -> %s\n" "$NODE_PATH_LINE" "$v" ;;
-    *)     printf "   FAIL %s -> %s (expected v24.x)\n" "$NODE_PATH_LINE" "$v"; fail=$((fail+1)) ;;
+    v${NVMRC_MAJOR}.*) printf "   ok   %s -> %s\n" "$NODE_PATH_LINE" "$v" ;;
+    *) printf "   FAIL %s -> %s (expected v%s.x)\n" "$NODE_PATH_LINE" "$v" "$NVMRC_MAJOR"; fail=$((fail+1)) ;;
   esac
 else
-  printf "   FAIL documented Node path not executable: %s\n" "${NODE_PATH_LINE:-<none found>}"; fail=$((fail+1))
+  printf "   skip documented Homebrew path not present on this host (expected on CI/Linux)\n"
 fi
 
 echo ""
