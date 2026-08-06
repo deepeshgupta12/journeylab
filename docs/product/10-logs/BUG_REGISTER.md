@@ -39,6 +39,52 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-013 — pnpm build allowlist used a pnpm 10 key that pnpm 11 silently ignores
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — CI red on `main`; `pnpm install --frozen-lockfile` failed before any check could run |
+| Found during | Fourth real CI run, reported by the repository owner |
+| Date found | 2026-08-06 |
+| Affected requirements | REQ-PLAT-001 |
+
+### Symptom
+```
+[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: esbuild@0.28.1, sharp@0.34.5
+Error: Process completed with exit code 1.
+```
+STEP-002.05 had added an allowlist for exactly these two packages, and locally every command passed.
+
+### Root cause — three layers, each of which hid the next
+**1. Wrong key.** pnpm 11 renamed the install-script allowlist from `onlyBuiltDependencies` (a **list**, pnpm 10) to `allowBuilds` (a **map** of package → boolean). I wrote the pnpm 10 spelling.
+
+**2. `pnpm config get` confirmed the wrong thing.** Running `pnpm config get onlyBuiltDependencies` returned `["esbuild","sharp"]`, so the setting appeared to be read. It is parsed as configuration and ignored by the installer. The check I used to confirm the fix could not distinguish "applied" from "parsed and discarded".
+
+**3. Local `node_modules` masked it entirely.** After the first failure I ran `pnpm rebuild esbuild sharp`, which built them and recorded that in `node_modules/.modules.yaml`. Every later `pnpm install` reported "Already up to date" and exited 0. **The only environment that could observe the bug was one without `node_modules` — which is CI.**
+
+A fourth wrinkle: when pnpm blocks a build it **auto-writes a stub** into `pnpm-workspace.yaml` containing the literal placeholder `set this to true or false`. That stub was present alongside my hand-written block, producing a duplicate-key YAML error once I added the correct one.
+
+### Why existing tests did not catch it
+No check installed from scratch. `pnpm verify` runs against whatever `node_modules` already exists, so it cannot see an install-time failure. This is the same shape as `BUG-009` (a race only visible from a cold start) and `BUG-008` (a macOS assumption only visible on Linux): **the failing condition was structurally unreachable in the environment where I was verifying.**
+
+### Fix
+`pnpm-workspace.yaml` now uses `allowBuilds: {esbuild: true, sharp: true}`; the auto-written stub is removed; the dead `pnpm` field is removed from `package.json` (pnpm 11 ignores it and warns).
+
+New guard `tests/guards/pnpm-config.sh`, wired into `verify` and meta-tested, fails on:
+- pnpm's auto-written `set this to true or false` placeholder
+- the dead `onlyBuiltDependencies` / `neverBuiltDependencies` keys
+- a `pnpm` field in `package.json`
+
+### Verification
+`rm -rf node_modules apps/web/node_modules && pnpm install --frozen-lockfile` → exit 0, esbuild binary linked, `apps/web/node_modules/.bin/vitest` present, then full `pnpm verify` green with 292 Python + 41 TypeScript tests. Meta-suite 28/28.
+
+### Prevention
+- **After changing any dependency or workspace configuration, verify from a wiped `node_modules`.** A warm install proves nothing about a cold one.
+- **`pnpm config get <key>` is not proof a setting is honoured** — it echoes back keys the installer ignores. Confirm behaviour, not configuration.
+- When a tool auto-writes configuration into a tracked file, treat that write as untrusted input: it may be a placeholder.
+
+---
+
 ## BUG-012 — Generated matrix committed in a lint-failing state; CI red
 
 | Field | Value |

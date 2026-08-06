@@ -126,6 +126,14 @@ cp /tmp/META_IMPL.bak docs/product/10-logs/IMPLEMENTATION_LOG.md; rm -f /tmp/MET
 assert_guard "substep-docs clean again" tests/guards/substep-docs.sh 0
 
 echo ""
+echo "=== BUG-013: pnpm settings that look applied but are not ==="
+cp pnpm-workspace.yaml /tmp/META_WS.bak
+sedi 's|  esbuild: true|  esbuild: set this to true or false|' pnpm-workspace.yaml
+assert_guard "pnpm-config catches pnpm's auto-written placeholder" tests/guards/pnpm-config.sh 1
+cp /tmp/META_WS.bak pnpm-workspace.yaml; rm -f /tmp/META_WS.bak
+assert_guard "pnpm-config clean again" tests/guards/pnpm-config.sh 0
+
+echo ""
 echo "════════════════════════════════════════"
 echo "  meta-tests passed: $pass"
 echo "  meta-tests failed: $fail"
