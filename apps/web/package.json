@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "JourneyLab web surface \u2014 STEP-002.05 scaffolds auth only; the shell is STEP-003",
+  "description": "JourneyLab web surface — STEP-002.05 scaffolds auth only; the shell is STEP-003",
   "scripts": {
     "dev": "next dev --port 5709 --experimental-https --experimental-https-key ./certificates/localhost+2-key.pem --experimental-https-cert ./certificates/localhost+2.pem",
     "build": "next build",
@@ -14,7 +14,8 @@
   "dependencies": {
     "next": "16.2.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
