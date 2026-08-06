@@ -1,0 +1,13 @@
+{
+  "UserPromptSubmit": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"/Users/deepeshgupta/Projects/journeylab/.codex/vexp-hint.sh\"",
+          "timeout": 5
+        }
+      ]
+    }
+  ]
+}
