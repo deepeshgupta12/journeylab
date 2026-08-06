@@ -24,10 +24,22 @@ if [ "$have_major" != "$want" ]; then
   echo "FAIL: running Node $have, but .nvmrc and CI use $want."
   echo ""
   echo "  Local and CI must share a Node major, or tests pass here and fail there."
-  echo "  Fix for this shell:"
-  echo "    export PATH=\"/opt/homebrew/opt/node@${want}/bin:\$PATH\""
-  echo "  Or permanently, with a version manager:"
-  echo "    nvm use    # or: fnm use"
+  echo ""
+  if command -v fnm >/dev/null 2>&1 && grep -q "fnm env" "$HOME/.zshrc" 2>/dev/null; then
+    echo "  fnm IS configured in ~/.zshrc — this shell just predates it."
+    echo "  A shell only reads ~/.zshrc when it starts, so:"
+    echo "    OPEN A NEW TERMINAL   (VS Code: trash icon, then a new one)"
+    echo "  Or apply it to this one right now:"
+    echo "    eval \"\$(fnm env --use-on-cd --shell zsh)\" && fnm use"
+  else
+    echo "  Fix for this shell:"
+    echo "    export PATH=\"/opt/homebrew/opt/node@${want}/bin:\$PATH\""
+    echo "  Permanently, per project (recommended):"
+    echo "    brew install fnm && fnm install ${want} && fnm default system"
+    echo "    then add to ~/.zshrc:"
+    echo "      eval \"\$(fnm env --use-on-cd --shell zsh)\""
+    echo "      [ -f .nvmrc ] && fnm use --install-if-missing >/dev/null 2>&1"
+  fi
   exit 1
 fi
 echo "PASS: Node $have matches .nvmrc ($want)."
