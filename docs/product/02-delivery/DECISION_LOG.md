@@ -109,6 +109,14 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 - **Alternatives rejected:** asyncpg (non-DB-API parameter handling, no sync path); SQLAlchemy now (decides data-access strategy as a side effect of a security task); psycopg 2 (no native async).
 - **Review trigger:** Before `STEP-006`, or when a second service needs the same data access.
 
+### [ADR-012](../../adr/ADR-012-authorization-policy-in-python.md) — The authorization policy is Python, co-located with enforcement
+- **Date:** 2026-08-06 · **Owner:** Deepesh Kumar Gupta · **Status:** Accepted
+- **Context:** `STEP-002.03` named `packages/authz/src/policy.ts`, but `REQ-SEC-004` demands **server-side** enforcement and the server is Python/FastAPI. A TypeScript module cannot decide inside a Python request without an RPC hop in the authorization path. The sub-step's own §8 confirms client-side checks are "presentation only".
+- **Decision:** Authoritative policy lives in **`apps/api/src/authz/`** (Python). The documented path is superseded.
+- **Consequences:** In-process decision, no network hop; reuses `RequestContext`/`opaque_denial` so denial shape cannot drift; `matrix.py` is **generated** from `AUTHORIZATION_MATRIX.md` with a CI drift gate. **Cost:** a future frontend permission-hint table must be generated from the same markdown, never hand-maintained.
+- **Alternatives rejected:** TypeScript as specified (cannot enforce server-side); TS behind RPC (network dependency inside authorization); both hand-maintained (guaranteed silent divergence).
+- **Review trigger:** STEP-003 needs presentation-level hints, or a second backend language appears.
+
 ---
 
 ## 2. Open decisions
@@ -122,6 +130,7 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 | DEC-006 | KPI review cadence and decision forum | Weekly delivery review vs. monthly product review | Governance | TPM | Before Phase 1 |
 | DEC-007 | Cloud provider, region, residency posture | Undetermined; `ASM-003` assumes no residency constraint | [DEPLOYMENT_ARCHITECTURE](../03-architecture/DEPLOYMENT_ARCHITECTURE.md), STEP-027 | Product Architect | Before STEP-027 |
 | DEC-008 | Routing provider and wheelchair profile support | Determines whether accessible routing is a product claim or a disclosed limitation | STEP-005, `REQ-A11Y` routing scope | Product Architect + Data | Before STEP-005 |
+| DEC-010 | What condition permits an `ops_admin` to approve a high-impact fact override | AUTHORIZATION_MATRIX §3 marks the cell `⚠️📋` but names no condition; §4's four-eyes rule names a *second curator* only. Options: (a) ops_admin cannot approve — change the cell to `❌`; (b) ops_admin may approve with a named condition, which must be written into §4 | STEP-002.03 (encoded to **fail closed** meanwhile), STEP-021 | Security Architect | Before STEP-021 |
 | DEC-009 | Event backbone for MVP: managed queue vs. Kafka 4.3 | Blueprint permits a managed queue at MVP scale while preserving AsyncAPI contracts | STEP-006 | Product Architect | Before STEP-006 |
 
 ---

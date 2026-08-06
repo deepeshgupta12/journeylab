@@ -60,6 +60,83 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-010 — STEP-002.03 — Role and attribute policy definitions
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-06 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-SEC-004 (also REQ-ADMIN-002, REQ-COLL-003, REQ-LIVE-005) |
+| Blast radius | [BR-012](blast-radius/BR-012-authorization-policy.md) (**HIGH**) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `d9be78b` — matched HEAD at pre-change |
+
+### What was built
+One authorization decision point covering all 22 operations.
+
+| Module | Responsibility |
+| --- | --- |
+| `authz/roles.py` | 9 roles, 22 operations, `Rule` shape |
+| `authz/matrix.py` | **Generated** 176-cell decision table |
+| `authz/policy.py` | `authorize()` / `enforce()` — the only place a permission is decided |
+| `tools/authz_matrix_source.py` | Markdown parser, shared by the generator and the drift gate |
+| `tools/gen_authz_matrix.py` | Regenerates `matrix.py` from the matrix document |
+
+247 new tests (276 total), including all 176 cells exercised individually.
+
+### Why this approach
+**The matrix generates the code, not just the tests.** The sub-step asked for matrix-driven tests. Generating the *table itself* goes one step further and removes the failure mode entirely: there is no hand-transcribed copy of 176 cells to get wrong. `AUTHORIZATION_MATRIX.md` §3 is now executable, and a drift test fails CI in both directions — edit the markdown without regenerating, or hand-edit the generated file, and the build breaks.
+
+**Tenant is checked before role, deliberately.** A `trip_owner` in tenant A asking about tenant B's trip would otherwise pass the role check and fail later on relationship, and the audit record would read "relationship failure" instead of the truth. `ALRT-SEC-001` needs `cross_tenant_attempt` to be unambiguous, so the ordering is a security property and a test asserts the reason string.
+
+**Conditional cells are not permissions.** A `⚠️` cell returns `allow=True` *with a condition*, and the evaluator denies unless the condition is proven. An unrecognised condition name also denies, so a typo in the matrix fails closed rather than granting access.
+
+**`service` has no matrix column, so it is denied all 22 operations.** That is the matrix's own content, not an omission, and §4 requires exactly it ("no service holds a blanket admin role"). A test fails if a `service` column ever appears without review.
+
+### Decisions this forced
+| Decision | Resolution |
+| --- | --- |
+| `ADR-012` — the sub-step named `packages/authz/src/policy.ts`, TypeScript | Implemented in **Python**, co-located with enforcement. `REQ-SEC-004` demands server-side enforcement; the server is Python; a TS module would need an RPC hop inside the authorization path. The sub-step's own §8 says client-side checks are presentation only |
+| `DEC-010` — `ops_admin` approving a high-impact override | **Unresolved, and left that way.** The matrix marks the cell conditional but never names the condition; §4's four-eyes rule names a *second curator*. Encoded as a condition nothing grants, so it **fails closed**, with a test pinning that behaviour |
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — 16 Python files typechecked |
+| Test suite | **276 passed** (was 29) |
+| R7 tenant isolation | **12/12** |
+| Guard meta-suite | **25/25** |
+| mypy strict / ruff | Clean |
+
+**Mutation testing — 6/6 killed:**
+
+| Mutant | Caught by |
+| --- | --- |
+| Edit the matrix markdown, skip regeneration | drift gate |
+| Hand-edit the generated `matrix.py` | drift gate + anchor cell + owner-only test |
+| Deny-by-default becomes allow-by-default | 2 tests |
+| Four-eyes same-actor check removed | 1 test |
+| Unspecified condition silently allows | 3 tests |
+| Guest expiry check removed | 1 test |
+
+### Surprises and what they cost
+**A mutant appeared to survive, and it was my measuring instrument that was broken.** Hand-editing the generated matrix reported "276 passed". The mutation had not applied: `ruff format` reflows the generated file so `Rule(` sits on its own line, and my `str.replace` pattern no longer matched. I nearly recorded a false gap as a finding. Re-run with a regex spanning the reflowed entry, three tests failed as they should.
+
+This is the fourth instance of the same shape in this project — BUG-001's self-truncating guard, dependency-cruiser cruising zero modules, BUG-011's stub `test` script, and now a mutation harness that mutated nothing. **A negative result needs its own verification.** The fix here was cheap only because the mutation printed whether the substitution count was non-zero when I checked; that check should have been there from the start.
+
+**The generator found a documentation gap by refusing to guess.** It raises on a conditional cell whose condition is not stated anywhere, which is how `DEC-010` surfaced. Nine `advisor` cells resolved from §4's delegation rule and one `privacy_operator` cell from §4's support-scoping rule; the eleventh had no rule to resolve against.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Make calling `authorize` structural, not conventional | STEP-004 |
+| Audit sink for `audit=True` decisions | STEP-002.07 |
+| Verify caller-asserted conditions (delegation, unlock, prior approver) | STEP-002.04 / STEP-021 |
+| Answer `DEC-010` | Before STEP-021 |
+| `ALRT-SEC-001` on `cross_tenant_attempt` | STEP-024 |
+
+---
+
 ## IMPL-009 — STEP-002.02 — Tenant and actor context resolution at the API boundary
 
 | Field | Value |

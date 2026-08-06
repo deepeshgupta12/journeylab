@@ -67,6 +67,37 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-002.03 — 2026-08-06 — Role and attribute policy definitions
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `d9be78b` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify`; 276 tests (was 29) |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | Three new authz modules, one shared parser, two test modules, docs. **No existing `auth/` symbol modified** — confirmed by `impact(RequestContext)` returning `epistemic: exact` |
+| R4 untested requirements | **PASS** | Decreased — `REQ-SEC-004` now has 176-cell coverage; `REQ-ADMIN-002` four-eyes now tested |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `apps/api/**`, `tools/**` |
+| R6 closed-bug tests | **PASS** | BUG-001…011 guards all pass |
+| **R7 tenant isolation** | **PASS — 12/12** | Unchanged; policy adds a second, independent tenant check above the database |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Generator refused to run | 11 conditional matrix cells named no condition | 10 resolved from §4's own rules; the 11th raised `DEC-010` and is encoded to fail closed |
+| mypy could not import the shared parser | `tools/` not on `mypy_path`/`pythonpath` | Added both |
+| A mutant appeared to survive | `ruff format` reflowed the generated file; my `str.replace` pattern silently matched nothing | Re-run with a pattern spanning the reflowed entry — 3 tests failed as expected. **The harness was broken, not the guard** |
+
+### Notes
+This is the first sub-step whose pre-change check was **RUNNABLE rather than `BLOCKED`**. `impact(RequestContext, upstream, depth 3)` returned `epistemic: exact`, risk LOW, 4 direct dependents — all inside `auth/`, none modified. Confidence in BR-012 is scored 4/5, against 2/5 for every prior record.
+
+---
+
 ## STEP-002.02 — 2026-08-06 — Tenant and actor context resolution at the API boundary
 
 | Field | Value |

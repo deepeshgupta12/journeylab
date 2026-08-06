@@ -41,6 +41,16 @@ Authorization is decided by three independent checks, **all of which must pass**
 
 ## 3. Operation matrix
 
+> **This table is executable.** Since `STEP-002.03` it generates
+> `apps/api/src/authz/matrix.py` via `python3 tools/gen_authz_matrix.py`, and
+> `tests/api/test_authorization_matrix_sync.py` fails CI if the generated module and
+> this table disagree on any of the 176 cells.
+>
+> **Editing a cell changes system behaviour.** After any edit, regenerate and run
+> `pnpm test`. A conditional cell (`⚠️`) must state its condition here or in §4 —
+> the generator raises on a bare conditional it cannot resolve rather than guessing,
+> which is how `DEC-010` was found.
+
 `✅` permitted · `❌` denied · `⚠️` permitted with conditions · `📋` audited
 
 | Operation | API | guest | trip_owner | trip_editor | trip_viewer | advisor | curator | ops_admin | privacy_operator |
@@ -103,8 +113,8 @@ Authorization is decided by three independent checks, **all of which must pass**
 | Test | Coverage |
 | --- | --- |
 | TST-SEC-002 | Cross-tenant read/write/cache/job/export/graph isolation |
-| TST-SEC-004 | Every operation denies unauthorized roles; matrix-driven, not sampled |
-| TST-ADMIN-002 | Four-eyes cannot be satisfied by the same actor twice |
+| TST-SEC-004 | Every operation denies unauthorized roles; matrix-driven, not sampled — **implemented**: all 176 cells exercised in `tests/api/test_authorization_policy.py` |
+| TST-ADMIN-002 | Four-eyes cannot be satisfied by the same actor twice — **implemented** in `authz.policy` for `approve_high_impact_override` |
 | TST-COLL-001/002 | Collaborator cannot select canonical or read others' sensitive constraints |
 | TST-ADMIN-005 | Support path cannot be widened to multi-trip access |
 | TST-KG-006 | Graph traversal respects repository, tenant and source permissions |
