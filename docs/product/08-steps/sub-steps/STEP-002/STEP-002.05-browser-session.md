@@ -83,7 +83,8 @@ Client session code reverts cleanly; server-side revocation remains authoritativ
 | --- | --- |
 | Status | **`IN_PROGRESS`, not `VERIFIED`** — two acceptance criteria are unmet: nothing has run against a live Auth0 tenant, and the accessibility criterion has no UI to test |
 | Delivered 2026-08-06 | Cookie policy, CSRF, single-flight refresh, guest capability, OIDC/PKCE adapter, fail-closed session resolution |
-| Remaining, and dependencies | Live Auth0 verification + passkey enrolment (needs a tenant); accessible sign-in UI (**STEP-003**); guest session storage and immediate token revocation (**STEP-002.07**) |
+| Remaining, and dependencies | Live Auth0 verification + passkey enrolment (**tenant now exists**: `journeylab-dev.eu.auth0.com`; client secret and `mkcert -install` pending); accessible sign-in UI (**STEP-003**); guest session storage and immediate token revocation (**STEP-002.07**) |
+| Follow-up delivered | [BR-015](../../../10-logs/blast-radius/BR-015-local-tls-and-auth0-config.md) — local TLS via mkcert (`__Host-` cookies need HTTPS, so without it the whole session layer was untestable locally), Auth0 config wiring, and a guard rule that fails on tracked key material |
 | Implementation | [IMPL-012](../../../10-logs/IMPLEMENTATION_LOG.md) |
 | Tests | 41 TypeScript tests; 7/7 mutants killed |
 | Decisions closed | [ADR-013](../../../../adr/ADR-013-auth0-as-identity-provider.md) **DEC-004 → Auth0**; [ADR-014](../../../../adr/ADR-014-guest-session-lifetime.md) guest lifetime 7 days |

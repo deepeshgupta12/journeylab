@@ -23,6 +23,18 @@ if [ -n "$hits" ]; then
   echo "FAIL: $(echo "$hits" | wc -l | tr -d ' ') forbidden path(s) tracked in git."
   exit 1
 fi
+# SECRETS: private key material must never be tracked, regardless of .gitignore.
+# .gitignore protects against accident; this protects against `git add -f` and
+# against someone "fixing" .gitignore later without understanding why.
+KEY_SHAPE='\.(pem|key|p12|pfx|jks|keystore)$'
+key_hits=$({ git ls-files; git ls-files --others --exclude-standard; } | sort -u | grep -E "$KEY_SHAPE" || true)
+if [ -n "$key_hits" ]; then
+  echo "TRACKED KEY MATERIAL:"
+  echo "$key_hits" | head -20
+  echo "FAIL: private key or certificate material is tracked. Remove it and rotate."
+  exit 1
+fi
+
 # SHAPE: embedded databases and their sidecars are never shared state.
 DB_SHAPE='\.(db|sqlite|sqlite3)(-wal|-shm|-journal)?$|(^|/)index\.lock$'
 db_hits=$({ git ls-files; git ls-files --others --exclude-standard; } | sort -u | grep -E "$DB_SHAPE" || true)

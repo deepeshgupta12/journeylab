@@ -126,6 +126,15 @@ cp /tmp/META_IMPL.bak docs/product/10-logs/IMPLEMENTATION_LOG.md; rm -f /tmp/MET
 assert_guard "substep-docs clean again" tests/guards/substep-docs.sh 0
 
 echo ""
+echo "=== private key material must never be tracked ==="
+printf -- "-----BEGIN PRIVATE KEY-----\nseed\n-----END PRIVATE KEY-----\n" > META_SEED_key.pem
+CLEANUP+=(META_SEED_key.pem)
+git add -f META_SEED_key.pem >/dev/null 2>&1
+assert_guard "no-tracked-artifacts catches tracked key material" tests/guards/no-tracked-artifacts.sh 1 "TRACKED KEY MATERIAL"
+git rm -q --cached META_SEED_key.pem >/dev/null 2>&1; rm -f META_SEED_key.pem
+assert_guard "no-tracked-artifacts clean after key seed" tests/guards/no-tracked-artifacts.sh 0
+
+echo ""
 echo "=== BUG-014: tool artifacts caught by shape and size, not just by name ==="
 head -c 700000 /dev/urandom > META_SEED_big.bin; CLEANUP+=(META_SEED_big.bin)
 git add -f META_SEED_big.bin >/dev/null 2>&1

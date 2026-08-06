@@ -42,7 +42,8 @@
     "guard:change-impact": "bash tests/guards/change-impact-record.sh",
     "guard:meta": "bash tests/guards/meta/run-all.sh",
     "test:security": "bash tests/security/test_tenant_isolation.sh",
-    "guard:pnpm": "bash tests/guards/pnpm-config.sh"
+    "guard:pnpm": "bash tests/guards/pnpm-config.sh",
+    "dev:web": "pnpm --filter @journeylab/web dev"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.7",

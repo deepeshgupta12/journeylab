@@ -30,6 +30,15 @@ htmlcov/
 .env.*
 !.env.example
 
+# Local TLS material. The __Host- cookie prefix requires HTTPS, so local dev runs
+# behind a mkcert certificate. The PRIVATE KEY must never be committed — anyone
+# holding it can impersonate localhost for every developer who trusts the CA.
+apps/web/certificates/
+*.pem
+*.key
+*.p12
+*.pfx
+
 # OS / editor noise
 .DS_Store
 Thumbs.db
