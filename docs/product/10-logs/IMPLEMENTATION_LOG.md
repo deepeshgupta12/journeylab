@@ -60,6 +60,68 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-013 — STEP-002.06 — Cross-tenant isolation test suite
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-06 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-SEC-002 |
+| Blast radius | [BR-016](blast-radius/BR-016-tenant-isolation-suite.md) (MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `2687bbe` — matched HEAD at pre-change |
+
+### What was built
+`tests/security/test_tenant_isolation.py` — 19 tests: 14 active, 5 pending. R7 now runs in pytest (the fast tier) as well as the shell suite from STEP-002.01.
+
+| Vector | Coverage |
+| --- | --- |
+| Storage | Cross-tenant read, write and unbound listing all denied |
+| Authorization | **Every operation × every role** against a foreign resource — 198 combinations, not sampled |
+| Enumeration | Denial body carries no tenant, role or permission wording |
+| Jobs | Payload round-trip; missing context raises; no ambient store to inherit |
+| Events | Conflicting tenant refused; acting tenant stamped |
+| Cache, outbox, export, vector store, graph | **Pending — see below** |
+
+### Why this approach
+**The pending vectors are the interesting part.** Five paths named by `REQ-SEC-002` have nothing to test: there is no cache, no outbox, no export, no vector store, no domain graph. The two easy options are both bad — omit them and they are forgotten, or write a test that passes vacuously, which is worse because it manufactures confidence.
+
+Each unbuilt vector instead has a test that **detects whether its subsystem has landed**:
+
+- not landed → `skip`, with the reason stated
+- landed → **`fail`**, naming the subsystem and demanding a real test
+
+A placeholder that cannot notice its own dependency arriving is just a comment. These convert themselves into failures.
+
+**Two suites, deliberately overlapping at storage.** The shell suite proves the database in isolation and runs without Python; this one proves the path application code actually takes. Losing either loses a distinct guarantee.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — 311 Python + 41 TypeScript |
+| Shell R7 (STEP-002.01) | **12/12** |
+| Guard meta-suite | **36/36** |
+| mypy strict / ruff | Clean on 19 files |
+
+**Pending-vector mechanism proven, not assumed.** Seeded a fake `cache.py` in `apps/api/src/` → the cache vector failed with *"The 'cache' subsystem now exists, but its cross-tenant isolation test is still a placeholder."* Created an `outbox` table → the outbox vector failed the same way. Removing both returned all five to skips.
+
+**Mutation testing — 3/3 killed:** the tenant check removed from `authorize` (3 tests), the cross-tenant denial no longer marked `audit=True` (1 test), and a job payload defaulting instead of raising (1 test).
+
+### The meta-test is the point
+The suite disables the `memberships` RLS policy on purpose, asserts the storage vector then **leaks**, and restores it. Without that, every other assertion in the file could pass with row-level security switched off entirely — which is exactly the failure `BUG-007` produced at STEP-002.01, where a security suite reported passes while the schema was absent.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Cache isolation | STEP-010 |
+| Outbox refusing unstamped/foreign envelopes | STEP-006 |
+| Export isolation | STEP-015 / STEP-022 |
+| Vector-store tenant scoping | STEP-010 |
+| Graph traversal permission (`REQ-KG-006`) | STEP-026 |
+| Persisting audit records for denials | STEP-002.07 |
+
+---
+
 ## IMPL-012 — STEP-002.05 — Browser session, token refresh and guest sessions
 
 | Field | Value |

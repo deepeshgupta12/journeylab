@@ -33,6 +33,12 @@ Navigation: [Security architecture](../03-architecture/SECURITY_PRIVACY_RESPONSI
 ### Tenant isolation — `TST-SEC-002`
 The highest-priority security test, run at every sub-step because a regression here is catastrophic and silent.
 
+> **IMPLEMENTED at `STEP-002.06`** — `tests/security/test_tenant_isolation.py` (19 tests) plus the database-level `tests/security/test_tenant_isolation.sh` (12 assertions) from `STEP-002.01`. Both run in `pnpm verify`.
+>
+> **Vectors with no subsystem yet — cache, outbox, export, vector store, domain graph — are not omitted and do not pass vacuously.** Each has a test that detects whether its subsystem has landed: it *skips* while absent and **fails** once present, naming the subsystem and demanding a real test. Proven by seeding a fake cache module and an `outbox` table.
+>
+> Both suites carry a meta-test that disables the RLS policy on purpose and asserts the storage vector then leaks. A passing isolation suite that would also pass with row-level security switched off is worse than no suite.
+
 | Vector | Test |
 | --- | --- |
 | API | Tenant A token requesting tenant B resources → denied, identical response to not-found |

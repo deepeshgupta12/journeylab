@@ -67,6 +67,35 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-002.06 — 2026-08-06 — Cross-tenant isolation test suite
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `2687bbe` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 311 Python + 41 TypeScript |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | One new test module. **No application symbol modified** |
+| R4 untested requirements | **PASS** | Decreased — `REQ-SEC-002` now has executable coverage across five vectors |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `tests/**` |
+| R6 closed-bug tests | **PASS** | BUG-001…015 guards pass |
+| **R7 tenant isolation** | **PASS** | Shell suite 12/12; **new pytest suite 14 passed, 5 pending**. R7 now runs in the fast tier |
+
+**Overall:** PASS
+
+### Failures and resolution
+None. The suite passed on first run; the work was in proving it *could* fail.
+
+### Notes
+Five vectors have nothing to test yet (cache, outbox, export, vector store, graph). Rather than omit them or let them pass vacuously, each detects whether its subsystem has landed — skip while absent, **fail** once present. Verified by seeding a fake cache module and an `outbox` table; each converted its placeholder into a failure naming the subsystem.
+
+Mutation testing killed 3/3. The suite's own meta-test disables the RLS policy, asserts the storage vector leaks, and restores it — without which every other assertion could pass with row-level security switched off.
+
+---
+
 ## STEP-002.05 — 2026-08-06 — Browser session, token refresh and guest sessions
 
 | Field | Value |
