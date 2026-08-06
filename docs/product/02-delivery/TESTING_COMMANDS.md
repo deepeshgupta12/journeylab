@@ -5,8 +5,28 @@ Copy-paste reference for verifying JourneyLab from a VS Code terminal.
 **Every command here has been run in this repository.** Where something is not yet
 provable, it says so rather than offering a command that would give false comfort.
 
-> **Node must be 24.** If `node --version` shows anything else:
-> `export PATH="/opt/homebrew/opt/node@24/bin:$PATH"`
+> **Node must be 24** — `pnpm verify` fails first if it is not, because local and CI
+> running different Node majors is what produced three of the CI failures.
+>
+> Set up once, per-project, with [fnm](https://github.com/Schniz/fnm):
+>
+> ```bash
+> brew install fnm
+> fnm install 24
+> fnm default system          # other projects keep their own Node
+> ```
+>
+> then add to `~/.zshrc`:
+>
+> ```bash
+> eval "$(fnm env --use-on-cd --shell zsh)"
+> [ -f .nvmrc ] && fnm use --install-if-missing >/dev/null 2>&1
+> ```
+>
+> The second line matters: `--use-on-cd` only fires on an actual `cd`, so a
+> terminal that *opens* inside the project would otherwise keep the wrong Node.
+>
+> One-shot alternative: `export PATH="/opt/homebrew/opt/node@24/bin:$PATH"`
 
 ---
 

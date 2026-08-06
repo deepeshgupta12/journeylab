@@ -84,7 +84,8 @@ Client session code reverts cleanly; server-side revocation remains authoritativ
 | Status | **`IN_PROGRESS`, not `VERIFIED`** — two acceptance criteria are unmet: nothing has run against a live Auth0 tenant, and the accessibility criterion has no UI to test |
 | Delivered 2026-08-06 | Cookie policy, CSRF, single-flight refresh, guest capability, OIDC/PKCE adapter, fail-closed session resolution |
 | Remaining, and dependencies | **Passkey enrolment** (tenant and sign-in now proven; passkeys not yet exercised); **accessible sign-in UI — the blocking criterion** (STEP-003); guest session storage and immediate token revocation (STEP-002.07) |
-| Proven 2026-08-06 | Real browser sign-in against `journeylab-dev.eu.auth0.com`: login 302 → callback 302 → `/?auth=ok`, which is reachable only on successful state verification **and** a real token exchange. TLS trust verified at OS level (`curl` without `-k` returns 200). Preflight 9/9 |
+| Proven 2026-08-06 | Real browser sign-in against `journeylab-dev.eu.auth0.com`: login 302 → callback 302 → `/?auth=ok`. **Session cookies confirmed present** (`__Host-jl_session`, `__Host-jl_refresh`, both httpOnly) over trusted TLS. Preflight 9/9; `curl` without `-k` returns 200 |
+| **Unmet, not merely untested** | **Passkeys** — Auth0 offered none; the sign-in used a password. `REQ-SEC-003` requires passkey support, so the clause is unmet until the tenant connection enables it and a passkey is enrolled |
 | Follow-up delivered | [BR-015](../../../10-logs/blast-radius/BR-015-local-tls-and-auth0-config.md) — local TLS via mkcert (`__Host-` cookies need HTTPS, so without it the whole session layer was untestable locally), Auth0 config wiring, and a guard rule that fails on tracked key material |
 | Implementation | [IMPL-012](../../../10-logs/IMPLEMENTATION_LOG.md) |
 | Tests | 41 TypeScript tests; 7/7 mutants killed |
