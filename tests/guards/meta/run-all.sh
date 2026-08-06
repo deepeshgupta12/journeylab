@@ -126,6 +126,19 @@ cp /tmp/META_IMPL.bak docs/product/10-logs/IMPLEMENTATION_LOG.md; rm -f /tmp/MET
 assert_guard "substep-docs clean again" tests/guards/substep-docs.sh 0
 
 echo ""
+echo "=== BUG-014: tool artifacts caught by shape and size, not just by name ==="
+head -c 700000 /dev/urandom > META_SEED_big.bin; CLEANUP+=(META_SEED_big.bin)
+git add -f META_SEED_big.bin >/dev/null 2>&1
+assert_guard "no-tracked-artifacts catches an oversized binary" tests/guards/no-tracked-artifacts.sh 1 "OVERSIZED"
+git rm -q --cached META_SEED_big.bin >/dev/null 2>&1; rm -f META_SEED_big.bin
+
+: > META_SEED_index.db; CLEANUP+=(META_SEED_index.db)
+git add -f META_SEED_index.db >/dev/null 2>&1
+assert_guard "no-tracked-artifacts catches a tracked embedded database" tests/guards/no-tracked-artifacts.sh 1 "TRACKED DATABASE"
+git rm -q --cached META_SEED_index.db >/dev/null 2>&1; rm -f META_SEED_index.db
+assert_guard "no-tracked-artifacts clean after shape/size seeds" tests/guards/no-tracked-artifacts.sh 0
+
+echo ""
 echo "=== BUG-013: pnpm settings that look applied but are not ==="
 cp pnpm-workspace.yaml /tmp/META_WS.bak
 sedi 's|  esbuild: true|  esbuild: set this to true or false|' pnpm-workspace.yaml

@@ -1,6 +1,11 @@
 # Knowledge graph index (rebuildable from source)
 .gitnexus
 
+# Tool-private indexes. These are per-machine caches, not shared state: .vexp
+# holds a SQLite index (9.2 MB when BUG-014 committed it by accident) plus WAL,
+# SHM and lock sidecars that change on every read.
+.vexp/
+
 # Dependencies
 node_modules/
 .venv/

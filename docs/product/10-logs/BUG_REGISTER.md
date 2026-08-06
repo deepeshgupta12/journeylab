@@ -39,6 +39,51 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-014 — 9.2 MB tool database committed; artifact guard was a denylist
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — CI red on `main`; 9.2 MB of binary added to repository history |
+| Found during | Fifth real CI run, reported by the repository owner |
+| Date found | 2026-08-06 |
+| Affected requirements | REQ-PLAT-001 |
+
+### Symptom
+`biome check .` failed on a file nobody wrote:
+```
+× Formatter would have printed the following content:
+  .vexp/manifest.json
+```
+Biome was the messenger. The real problem was that `.vexp/` was tracked at all: `index.db` (**9.2 MB**), `index.db-shm`, `index.db-wal`, `index.lock` and `manifest.json` — a tool's private SQLite index, its write-ahead sidecars, and a lock file that changes on every read.
+
+### Root cause
+Introduced by commit `7f9c310` — **the BUG-013 fix itself** — via `git add -A`. I staged everything in the working tree without looking at what was in it, and a tool had written its index there during the session.
+
+`no-tracked-artifacts.sh` passed throughout. Its `FORBIDDEN` pattern is a **denylist of directory names**: `node_modules`, `dist`, `build`, `.next`, `.venv`, `coverage`, `htmlcov`, `__pycache__`. `.vexp/` was not on it, because in STEP-001.02 nobody had heard of it.
+
+**That is the actual defect.** A denylist only ever catches artifacts someone thought of in advance, so it is guaranteed to miss the next new tool. BUG-002 was fixed as an instance; the guard never generalised.
+
+### Why existing tests did not catch it
+The guard's meta-test seeded a `dist/` directory — an artifact already on the denylist. It proved the mechanism worked on a known name and said nothing about unknown ones. Passing that meta-test was compatible with the guard being useless against anything new.
+
+### Fix
+Three layers, so the class is caught and not just this instance:
+1. `.gitignore` gains `.vexp/`; `git rm -r --cached .vexp` untracks it.
+2. **Shape rule** — any tracked `*.db`, `*.sqlite`, `*.sqlite3`, their `-wal`/`-shm`/`-journal` sidecars, or an `index.lock`, fails.
+3. **Size rule** — any tracked file over **512 KB** fails. The largest legitimate file in this repository is ~31 KB of Markdown; the accidental commit was 9.2 MB. Raising the limit requires a deliberate edit and a stated reason.
+
+Both new rules are meta-tested against seeded violations, asserting the exit code **and** the specific message. Meta-suite is now 31/31.
+
+### Not fixed: the history
+The 9.2 MB blob remains in `7f9c310`. Removing it requires rewriting pushed history on `main`, which is destructive and is the repository owner's call — **not something to do unilaterally**. Untracking stops further growth; the one-off cost stays until someone decides otherwise.
+
+### Prevention
+- **`git add -A` stages what a tool wrote while you were not looking.** Review `git status` before staging, especially after a session where background tooling ran.
+- **A denylist guard needs a shape or size rule beside it**, or it silently expires the moment the toolchain changes.
+- A meta-test that seeds a violation *already on the list* proves the mechanism, not the coverage. Seed something the list has never heard of.
+
+---
+
 ## BUG-013 — pnpm build allowlist used a pnpm 10 key that pnpm 11 silently ignores
 
 | Field | Value |
