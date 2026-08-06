@@ -145,7 +145,17 @@ curl -sk -o /dev/null -w '%{http_code} %{redirect_url}\n' https://localhost:5709
 curl -sk -D - -o /dev/null https://localhost:5709/api/auth/login | grep -i '^set-cookie'
 ```
 
-### Verify Auth0 credentials without a browser
+### Preflight — one command, before touching a browser
+
+```bash
+pnpm auth0:check
+```
+
+Checks config presence, tenant reachability, PKCE support, **credential validity**
+and **callback-URL registration**, and names the exact Auth0 setting to fix for
+each failure. Passing this is the precondition for a browser sign-in working.
+
+### Verify Auth0 credentials by hand
 
 ```bash
 set -a; . ./.env; set +a
