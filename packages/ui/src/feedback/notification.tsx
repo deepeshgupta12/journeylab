@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Notification / toast — STEP-003.03 (REQ-A11Y-001).
  *

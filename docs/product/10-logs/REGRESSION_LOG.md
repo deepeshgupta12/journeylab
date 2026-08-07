@@ -67,6 +67,38 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-003.05 — 2026-08-07 — Application frame, providers and global error boundary
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `b09a0a2` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 335 Python + 41 web + **199 UI** |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | New shell modules; `apps/web` layout replaced; **import specifiers and `'use client'` changed across every `packages/ui` module** — wider than a typical sub-step, and deliberate |
+| R4 untested requirements | **PASS** | Decreased for `REQ-NFR-013`. **`REQ-A11Y-001` not fully closed** — CWV unmeasurable here |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers both packages |
+| R6 closed-bug tests | **PASS** | BUG-001…016 guards pass |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched. The provider order documents the client-side equivalent: nothing that fetches sits above the session |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `apps/web` typecheck failed | `packages/ui` used `.ts`/`.tsx` import specifiers, which require every consumer to enable `allowImportingTsExtensions` | All relative imports made extensionless. **Invisible until a real app consumed the package** |
+| Dev server rendered the pages-router error page | Seven modules use hooks or class lifecycle without `'use client'` | Directive added. Same root cause: only visible once a real app imported it |
+| Biome: suppression has no effect | A `biome-ignore` in `providers.tsx` for a rule that never fires | Removed. **Second time in two sub-steps** — a pattern in my own work |
+| Parse error after removing a role | JSX comment placed beside the root element of a `return` | Rationale moved to the doc comment. **Also the second time** |
+
+### Notes
+CWV budgets (`FRONTEND_ARCHITECTURE` §7) are recorded as **unmet, not assumed**. They need a real browser and Lighthouse, which arrive at STEP-003.08.
+
+---
+
 ## STEP-003.04 — 2026-08-07 — Table, list and CSV export
 
 | Field | Value |

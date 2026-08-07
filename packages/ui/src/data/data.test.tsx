@@ -7,8 +7,8 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { escapeCell, toCsv } from './csv.ts';
-import { DataList, DataTable, type TableColumn } from './table.tsx';
+import { escapeCell, toCsv } from './csv';
+import { DataList, DataTable, type TableColumn } from './table';
 
 afterEach(cleanup);
 

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Form primitives — STEP-003.02 (REQ-A11Y-001).
  *
@@ -18,9 +20,9 @@
 
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
 
-import { Field, useFieldIds } from './field.tsx';
-import { formatLocaleNumber, parseLocaleNumber } from './locale-number.ts';
-import { type CalendarDate, parseCalendarDate } from './zoned-date.ts';
+import { Field, useFieldIds } from './field';
+import { formatLocaleNumber, parseLocaleNumber } from './locale-number';
+import { type CalendarDate, parseCalendarDate } from './zoned-date';
 
 interface CommonProps {
   readonly label: ReactNode;

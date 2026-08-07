@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Accessible data table — STEP-003.04 (REQ-A11Y-002).
  *
@@ -22,7 +24,7 @@
 
 import { useCallback, useId, useMemo, useState } from 'react';
 
-import { type CsvColumn, downloadCsv, toCsv } from './csv.ts';
+import { type CsvColumn, downloadCsv, toCsv } from './csv';
 
 export type SortDirection = 'ascending' | 'descending';
 

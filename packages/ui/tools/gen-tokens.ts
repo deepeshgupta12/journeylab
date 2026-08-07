@@ -13,7 +13,7 @@ import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ELEVATION, MOTION, MOTION_REDUCED, PALETTES, SPACING, TYPOGRAPHY } from '../src/tokens.ts';
+import { ELEVATION, MOTION, MOTION_REDUCED, PALETTES, SPACING, TYPOGRAPHY } from '../src/tokens';
 
 function block(entries: Record<string, string>, indent = '  '): string {
   return Object.entries(entries)

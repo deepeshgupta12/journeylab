@@ -16,7 +16,7 @@
  *   list. A token with no declared pairing is unverifiable and the test says so.
  */
 
-import { AA_LARGE_TEXT_AND_UI, AA_NORMAL_TEXT } from './contrast.ts';
+import { AA_LARGE_TEXT_AND_UI, AA_NORMAL_TEXT } from './contrast';
 
 export type ThemeName = 'light' | 'dark' | 'high-contrast';
 

@@ -60,6 +60,65 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-019 — STEP-003.05 — Application frame, providers and global error boundary
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-07 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-A11Y-001, REQ-NFR-013 |
+| Blast radius | [BR-022](blast-radius/BR-022-app-shell.md) (MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `b09a0a2` — matched HEAD at pre-change |
+
+### What was built
+`packages/ui/src/shell/` (error boundaries, skip link, locale direction) and a real `apps/web` frame replacing the STEP-002.05 scaffold. 20 tests (199 in the package).
+
+### Why this approach
+**The unit of error containment is the FEATURE, not the app.** Blueprint §8.114 requires that a map or chart failure not remove itinerary text. A single root boundary satisfies the opposite: it turns one component's failure into a blank page. So `FeatureErrorBoundary` sits *between* siblings, and a test asserts that when the map throws, "Day 1: ferry to the island" and "Day 2: coastal walk" are both still on screen.
+
+**The error message is never rendered.** An `Error.message` can carry a URL, a stack frame or a provider response. A test throws `ECONNREFUSED https://provider.internal/key=abc123` and asserts neither the host nor the key reaches the DOM; the detail goes to `onError` for reporting.
+
+**Feature boundaries do not use `role="alert"`; the global one does.** Interrupting the user is wrong when the point of containment is that the rest of the page still works — and right when there is nothing left to interrupt.
+
+**Provider order is documented because the sub-step flagged it.** Outermost-in: global boundary → locale → session → query/data. The rule that falls out is worth stating plainly: **nothing that fetches sits above the session.** A client cache keyed without a session can serve one tenant's data to another — the client-side form of the hazard `REQ-SEC-002` names for server caches.
+
+**`lang` and `dir` are derived together.** A mismatched pair (`lang="ar"` with `dir="ltr"`) is worse than either alone, and that mismatch is exactly what a hand-maintained setting drifts into.
+
+**The skip link is first in the document and its target carries `tabIndex={-1}`.** Browsers differ on whether `href="#id"` moves focus or only scrolls; without the target being programmatically focusable, the link scrolls and leaves focus where it was — looking like it worked.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — 335 Python + 41 web + 199 UI |
+| Live render against the dev server | Three landmarks; **skip link first focusable in body**; `lang="en" dir="ltr"`; zero errors |
+| Guard meta-suite | 36/36 |
+
+**Mutation testing — 5/5 killed:** boundary re-throwing instead of containing, error message rendered to the user, feature boundary using `role="alert"`, recovery performed automatically, and direction hard-coded to LTR.
+
+### What is NOT met
+**CWV budgets.** `FRONTEND_ARCHITECTURE` §7 sets LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1. None is measurable in jsdom — they need a real browser and Lighthouse, which arrive at STEP-003.08. The shell is small and static and *likely* passes; likely is not measured, so the criterion is recorded unmet.
+
+### Two architectural problems this surfaced
+**`.ts`/`.tsx` import specifiers made the package unusable.** They require every *consumer* to enable `allowImportingTsExtensions`; `apps/web` does not, and Next's bundler rejects them outright. Every relative import in `packages/ui` is now extensionless.
+
+**Seven modules needed `'use client'`.** Anything using hooks or class lifecycle cannot render on the server. Neither problem was visible while `packages/ui` was only consumed by its own tests — they appeared the moment a real application imported it.
+
+### Surprises
+**A dead suppression comment again.** Biome reported a `biome-ignore` in `providers.tsx` for a rule that never fires — the second in two sub-steps. That is a pattern in my own work, not bad luck: I am adding them pre-emptively rather than in response to a rule that actually fires, and each one teaches the next reader that a constraint exists where it does not.
+
+**The same JSX syntax error twice.** Placing a comment beside the root element of a `return` is invalid, and I did it in `.04` and again here. Rationale belongs in the doc comment.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Measure CWV against §7 budgets | STEP-003.08 |
+| Locale, session and query providers | STEP-003.07, STEP-004 |
+| Error reporting sink for `onError` | STEP-024 |
+| Skip-link visibility on focus in a real browser | STEP-003.08 |
+
+---
+
 ## IMPL-018 — STEP-003.04 — Table, list and CSV export
 
 | Field | Value |

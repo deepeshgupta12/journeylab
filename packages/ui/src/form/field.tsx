@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Field association — STEP-003.02 (REQ-A11Y-001).
  *

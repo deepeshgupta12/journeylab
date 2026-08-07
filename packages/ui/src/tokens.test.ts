@@ -11,8 +11,8 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { renderCss } from '../tools/gen-tokens.ts';
-import { AAA_NORMAL_TEXT, contrastRatio, parseHex, relativeLuminance } from './contrast.ts';
+import { renderCss } from '../tools/gen-tokens';
+import { AAA_NORMAL_TEXT, contrastRatio, parseHex, relativeLuminance } from './contrast';
 import {
   contrastPairs,
   ELEVATION,
@@ -23,7 +23,7 @@ import {
   STATUS_TOKENS,
   type ThemeName,
   TYPOGRAPHY,
-} from './tokens.ts';
+} from './tokens';
 
 const here = dirname(fileURLToPath(import.meta.url));
 

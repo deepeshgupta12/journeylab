@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Quality-state primitives — STEP-003.03 (REQ-A11Y-001, REQ-A11Y-004).
  *
@@ -7,7 +9,7 @@
 
 import type { ReactNode } from 'react';
 
-import { type QualityStateName, qualityState } from './states.ts';
+import { type QualityStateName, qualityState } from './states';
 
 interface PanelProps {
   readonly children?: ReactNode;

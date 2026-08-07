@@ -9,14 +9,14 @@ export {
   parseHex,
   type Rgb,
   relativeLuminance,
-} from './contrast.ts';
+} from './contrast';
 export {
   type CsvColumn,
   type CsvOptions,
   downloadCsv,
   escapeCell,
   toCsv,
-} from './data/csv.ts';
+} from './data/csv';
 export {
   DataList,
   type DataListProps,
@@ -24,13 +24,13 @@ export {
   type DataTableProps,
   type SortDirection,
   type TableColumn,
-} from './data/table.tsx';
-export { Dialog, type DialogProps } from './feedback/dialog.tsx';
+} from './data/table';
+export { Dialog, type DialogProps } from './feedback/dialog';
 export {
   Notification,
   type NotificationProps,
   NotificationRegion,
-} from './feedback/notification.tsx';
+} from './feedback/notification';
 export {
   EmptyState,
   type InfeasibleProps,
@@ -45,15 +45,15 @@ export {
   type StaleDataProps,
   StaleDataState,
   UnauthorizedState,
-} from './feedback/panels.tsx';
+} from './feedback/panels';
 export {
   QUALITY_STATES,
   type QualityState,
   type QualityStateName,
   qualityState,
   REQUIRED_STATE_NAMES,
-} from './feedback/states.ts';
-export { Field, type FieldIds, type FieldProps, useFieldIds } from './form/field.tsx';
+} from './feedback/states';
+export { Field, type FieldIds, type FieldProps, useFieldIds } from './form/field';
 export {
   Checkbox,
   type CheckboxProps,
@@ -68,21 +68,34 @@ export {
   type SelectProps,
   TextInput,
   type TextInputProps,
-} from './form/inputs.tsx';
+} from './form/inputs';
 export {
   formatLocaleNumber,
   type ParseResult,
   parseLocaleNumber,
   type Separators,
   separatorsFor,
-} from './form/locale-number.ts';
+} from './form/locale-number';
 export {
   type CalendarDate,
   type DateParseResult,
   isValidTimeZone,
   parseCalendarDate,
   startOfDayUtc,
-} from './form/zoned-date.ts';
+} from './form/zoned-date';
+export {
+  FeatureErrorBoundary,
+  type FeatureErrorBoundaryProps,
+  GlobalErrorBoundary,
+  type GlobalErrorBoundaryProps,
+} from './shell/error-boundary';
+export {
+  type Direction,
+  type DocumentLocale,
+  documentLocale,
+  isRightToLeft,
+} from './shell/locale';
+export { SkipLink, type SkipLinkProps } from './shell/skip-link';
 export {
   type ContrastPair,
   contrastPairs,
@@ -95,4 +108,4 @@ export {
   type StatusToken,
   type ThemeName,
   TYPOGRAPHY,
-} from './tokens.ts';
+} from './tokens';

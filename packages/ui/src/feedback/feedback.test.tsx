@@ -8,8 +8,8 @@ import axe from 'axe-core';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { Dialog } from './dialog.tsx';
-import { Notification, NotificationRegion } from './notification.tsx';
+import { Dialog } from './dialog';
+import { Notification, NotificationRegion } from './notification';
 import {
   EmptyState,
   InfeasibleState,
@@ -21,8 +21,8 @@ import {
   SolverTimeoutState,
   StaleDataState,
   UnauthorizedState,
-} from './panels.tsx';
-import { QUALITY_STATES, qualityState, REQUIRED_STATE_NAMES } from './states.ts';
+} from './panels';
+import { QUALITY_STATES, qualityState, REQUIRED_STATE_NAMES } from './states';
 
 afterEach(cleanup);
 

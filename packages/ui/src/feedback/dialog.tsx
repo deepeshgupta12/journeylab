@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Dialog with focus trap and restoration — STEP-003.03 (REQ-A11Y-001).
  *

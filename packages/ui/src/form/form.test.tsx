@@ -12,9 +12,9 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { Checkbox, DateInput, NumberInput, RadioGroup, Select, TextInput } from './inputs.tsx';
-import { formatLocaleNumber, parseLocaleNumber, separatorsFor } from './locale-number.ts';
-import { isValidTimeZone, parseCalendarDate, startOfDayUtc } from './zoned-date.ts';
+import { Checkbox, DateInput, NumberInput, RadioGroup, Select, TextInput } from './inputs';
+import { formatLocaleNumber, parseLocaleNumber, separatorsFor } from './locale-number';
+import { isValidTimeZone, parseCalendarDate, startOfDayUtc } from './zoned-date';
 
 afterEach(cleanup);
 
