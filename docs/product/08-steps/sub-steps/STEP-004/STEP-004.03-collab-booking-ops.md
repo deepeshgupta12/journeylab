@@ -28,7 +28,7 @@ Phase 2–3 surfaces are contract-specified now so later steps implement against
 ## 4. Pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | **BLOCKED — static fallback** (no application symbols indexed yet) |
+| Graph status | *(record at execution)* — run `npx gitnexus status` and confirm it matches HEAD. **Application code has been indexed since STEP-002.02**, so a `BLOCKED` result here is a real finding to investigate, not the expected default. |
 | HEAD / indexed commit | *(record at execution)* |
 | Queries run | KG-Q-015 `detect_changes()`; KG-Q-006 once symbols exist |
 | Unknown / low-confidence areas | Offline manifest shape depends on STEP-017 device constraints — mark the schema extensible |

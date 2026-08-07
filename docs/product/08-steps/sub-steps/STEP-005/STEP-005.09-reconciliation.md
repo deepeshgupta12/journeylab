@@ -28,7 +28,7 @@ Ingestion completeness is provable: totals reconcile against the source, and bac
 ## 4. Pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | **BLOCKED — static fallback** (no application symbols indexed yet) |
+| Graph status | *(record at execution)* — run `npx gitnexus status` and confirm it matches HEAD. **Application code has been indexed since STEP-002.02**, so a `BLOCKED` result here is a real finding to investigate, not the expected default. |
 | HEAD / indexed commit | *(record at execution)* |
 | Queries run | KG-Q-015 `detect_changes()`; KG-Q-006 once symbols exist |
 | Unknown / low-confidence areas | Source-side count endpoints may not exist for every provider — fallback reconciliation method needed |

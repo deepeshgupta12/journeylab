@@ -28,7 +28,7 @@ One set of conventions governs every endpoint, so no service invents its own err
 ## 4. Pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | **BLOCKED — static fallback** (no application symbols indexed yet) |
+| Graph status | *(record at execution)* — run `npx gitnexus status` and confirm it matches HEAD. **Application code has been indexed since STEP-002.02**, so a `BLOCKED` result here is a real finding to investigate, not the expected default. |
 | HEAD / indexed commit | *(record at execution)* |
 | Queries run | KG-Q-015 `detect_changes()`; KG-Q-006 once symbols exist |
 | Unknown / low-confidence areas | Rate-limit values need capacity projections that do not exist yet (ASM-002) — declare the mechanism, defer the numbers |

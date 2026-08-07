@@ -34,7 +34,7 @@ last_updated: YYYY-MM-DD
 ## 4. Pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | AVAILABLE / **BLOCKED — static fallback** |
+| Graph status | *(record at execution)* — `npx gitnexus status` must match HEAD. **Application code has been indexed since STEP-002.02**, so `BLOCKED` is a real finding to investigate, not an expected default. State the query you ran and its `epistemic` value. |
 | HEAD commit | |
 | Graph indexed commit | |
 | Commits match? | |
