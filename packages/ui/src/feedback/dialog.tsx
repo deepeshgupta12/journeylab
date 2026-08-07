@@ -114,10 +114,10 @@ export function Dialog({ open, title, onClose, children, actions }: DialogProps)
 
   return (
     <div className="jl-dialog__backdrop">
-      {/* biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: role="dialog"
-          on a div is the standard pattern; there is no native element that provides
-          focus trapping, and <dialog> is not yet consistent across the browsers in
-          the support matrix. */}
+      {/* role="dialog" on a div is the standard pattern: no native element
+          provides focus trapping, and <dialog> is not yet consistent across the
+          browsers in the support matrix. No suppression is needed — the lint rule
+          does not fire here, and a comment claiming otherwise would mislead. */}
       <div
         ref={ref}
         role="dialog"

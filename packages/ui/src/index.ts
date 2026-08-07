@@ -10,6 +10,21 @@ export {
   type Rgb,
   relativeLuminance,
 } from './contrast.ts';
+export {
+  type CsvColumn,
+  type CsvOptions,
+  downloadCsv,
+  escapeCell,
+  toCsv,
+} from './data/csv.ts';
+export {
+  DataList,
+  type DataListProps,
+  DataTable,
+  type DataTableProps,
+  type SortDirection,
+  type TableColumn,
+} from './data/table.tsx';
 export { Dialog, type DialogProps } from './feedback/dialog.tsx';
 export {
   Notification,

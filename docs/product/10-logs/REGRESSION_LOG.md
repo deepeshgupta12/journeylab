@@ -67,6 +67,39 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-003.04 — 2026-08-07 — Table, list and CSV export
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `c358d4b` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 335 Python + 41 web + **179 UI** |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | New `packages/ui/src/data/`; one dead lint suppression removed |
+| R4 untested requirements | **PASS** | Decreased — `REQ-A11Y-002` now has table, list and CSV coverage |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `packages/ui/**` |
+| R6 closed-bug tests | **PASS** | BUG-001…016 guards pass |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Biome: suppression has no effect | A `biome-ignore` added defensively in `dialog.tsx` suppressed a rule that never fired | Removed. A suppression claiming a rule applies where it does not misleads the next reader |
+| Biome: `role="region"` should be `<section>` | Correct — a native element carries the role implicitly | Switched to `<section aria-label>` |
+| Parse error after that fix | I placed a JSX comment before the root element of a `return` | Rationale moved to the doc comment |
+
+### Notes
+CSV export was treated as a security surface. Formula injection is neutralised by prefixing dangerous cells with `'`, and the mutation removing that defence fails two tests — including one asserting the specific `=HYPERLINK(...)` exfiltration payload.
+
+Export uses the full sorted set rather than the rendered window; a mutation to the latter fails, because a silently truncated file is worse than a slow one.
+
+---
+
 ## STEP-003.03 — 2026-08-07 — Feedback primitives
 
 | Field | Value |
