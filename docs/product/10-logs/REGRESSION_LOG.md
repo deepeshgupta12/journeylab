@@ -67,6 +67,35 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-003.03 — 2026-08-07 — Feedback primitives
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `b28bf15` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 335 Python + 41 web + **152 UI** |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | New `packages/ui/src/feedback/`; no existing symbol modified |
+| R4 untested requirements | **PASS** | Decreased — `REQ-A11Y-004` gains state coverage; `REQ-EVID-005`, `REQ-CONS-005` and `REQ-NFR-003` gain UI-level enforcement |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `packages/ui/**` |
+| R6 closed-bug tests | **PASS** | BUG-001…016 guards pass |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Three dialog focus tests failed | The visibility filter used `offsetParent !== null`; jsdom computes no layout so it is always null, and the trap silently did nothing | Replaced with `hidden` / `aria-hidden` / `inert` checks. **This was a real defect, not a jsdom quirk** — `offsetParent` is also null for `position: fixed` elements, which a dialog usually is |
+
+### Notes
+Three requirements are enforced by making the wrong thing unconstructible rather than discouraged: `Progress` cannot be built without a label and a cancel path (`REQ-NFR-003`), `InfeasibleState` throws on an empty conflict set (`REQ-CONS-005`), and `StaleDataState` cannot be rendered without naming its subject and observation time (`REQ-EVID-005`).
+
+---
+
 ## STEP-003.02 — 2026-08-06 — Form and input primitives with validation states
 
 | Field | Value |

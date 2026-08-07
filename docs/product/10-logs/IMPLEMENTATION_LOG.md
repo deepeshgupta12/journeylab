@@ -60,6 +60,65 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-017 — STEP-003.03 — Feedback primitives: dialog, notification, empty, error, skeleton
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-07 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-A11Y-001, REQ-A11Y-004 (also REQ-EVID-005, REQ-CONS-005, REQ-NFR-003) |
+| Blast radius | [BR-020](blast-radius/BR-020-feedback-primitives.md) (MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `b28bf15` — matched HEAD at pre-change |
+
+### What was built
+`packages/ui/src/feedback/` — 45 tests (152 in the package).
+
+| File | Role |
+| --- | --- |
+| `states.ts` | The nine mandatory states as data, with icon, label and politeness |
+| `dialog.tsx` | Focus trap, restoration, Escape |
+| `panels.tsx` | One component per state, plus `Progress` |
+| `notification.tsx` | Toast with required politeness; always-mounted regions |
+
+### Why this approach
+**The nine states are data, so "all nine" is checkable.** FRONTEND_ARCHITECTURE §4 mandates a specific list and the acceptance criterion says all nine must exist. A list in a comment cannot be verified; a test compares the declared set against the required one.
+
+**Three requirements are enforced by making the wrong thing unconstructible**, rather than discouraged in a style guide nobody re-reads:
+
+- `Progress` requires both a `label` and an `onCancel`. `REQ-NFR-003` forbids a silent spinner — so a bare spinner cannot be built.
+- `InfeasibleState` **throws** on an empty conflict set. `REQ-CONS-005` requires a minimal conflict set, never a bare failure; an empty panel would be the uninformative dead end the requirement exists to prevent.
+- `StaleDataState` requires `subject` and `observedAt`. `REQ-EVID-005` wants staleness at the point of use, so this component cannot be rendered as a page-level "some data may be out of date" — there is no way to construct it without naming the thing and the time.
+
+**Assertive politeness is rationed.** Only `infeasible`, `unauthorized` and `offline` interrupt. Interrupting someone mid-sentence is justified only when what they are reading is wrong; everything else waits for a pause. A test pins that exact set, so widening it is a deliberate act.
+
+**`UnauthorizedState` offers no retry and names nothing.** Retrying cannot grant permission, and offering it implies it might. More importantly, STEP-002.02 made denial and absence indistinguishable at the API — a panel saying "you lack permission for trip 4821" would undo that at the last hop. A test asserts the text leaks none of *forbidden*, *permission*, *not found*, *exists*, *tenant*.
+
+**Notifications never auto-dismiss.** WCAG 2.2.1 requires time limits to be adjustable; a toast that vanishes on a timer is unreadable to anyone using a screen reader, magnification, or simply reading slowly. Both live regions are mounted before any message exists, because a region created when content arrives is frequently never announced.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — 335 Python + 41 web + 152 UI |
+| axe, WCAG 2.2 AA tags | Zero violations on all ten primitives plus the dialog |
+| Guard meta-suite | 36/36 |
+
+**Mutation testing — 6/6 killed:** focus never restored, focus trap removed, Escape disabled, infeasible accepting an empty conflict set, a quality state dropped, and progress losing its cancel control.
+
+### The bug worth recording
+**The focus trap was silently inert.** My visibility filter used `element.offsetParent !== null`. jsdom computes no layout, so that is *always* null — the filter returned an empty list and the trap did nothing. Three tests failed immediately.
+
+It would also have been wrong in a real browser: `offsetParent` is null for `position: fixed` elements, which is what a dialog usually is. So the jsdom failure exposed a genuine defect rather than an environment quirk. Replaced with checks on `hidden`, `aria-hidden` and `inert`, none of which need layout.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Validate streamed-update politeness with a real screen reader | STEP-003.08 / STEP-011 |
+| Icon set behind the `data-icon` names | STEP-003.04 / .05 |
+| Feature error boundaries (map/chart failure must not remove itinerary text) | STEP-013 |
+
+---
+
 ## IMPL-016 — STEP-003.02 — Form and input primitives with validation states
 
 | Field | Value |
