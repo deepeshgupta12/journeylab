@@ -60,6 +60,66 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-020 — STEP-003.06 — Role-aware desktop and mobile navigation
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-10 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-A11Y-001, REQ-SEC-004 |
+| Blast radius | [BR-023](blast-radius/BR-023-navigation.md) (MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `94bf916` — matched HEAD at pre-change |
+
+### What was built
+`packages/ui/src/nav/` — `navigation.tsx` and a **generated** `authz-matrix.ts`; `tools/gen_authz_matrix_ts.py`; navigation wired into the shell header. 21 tests (220 in the package).
+
+### ADR-012's review trigger fired, and its prediction held
+That ADR said the frontend would eventually need the matrix in TypeScript, that it must be **generated from the same markdown**, and that the shared parser made a second emitter additive. All three were correct: `gen_authz_matrix_ts.py` reuses `parse_matrix()` unchanged and the Python emitter was not touched.
+
+Two hand-maintained copies of an authorization matrix diverge, and the divergence is silent — the menu starts offering something the server refuses, or hiding something it permits, and neither is visible from either file alone.
+
+### Why the security tests matter more than the rendering ones
+The sub-step says it plainly: *"a hidden nav item with an open endpoint is a vulnerability, not a UI bug."* So the tests establish two separate things:
+
+1. **Hiding matches the server** — every operation × every role, not a sample.
+2. **Hiding is not relied upon, and cannot become a control by accident.** The function is `visibleItems`, not `permittedItems`. A test asserts it contains no `fetch`, `redirect` or `throw`, that the `href` survives filtering, and that the module says so in plain words.
+
+The last of those looks like testing a comment, and is deliberate. The comment is the only thing standing between a future reader and the assumption that the menu protects the route.
+
+### Other decisions
+**`aria-current="page"`, and the CSS styles from that attribute** rather than a separate class. One source, so the visual state cannot say something different from what a screen reader announces.
+
+**44×44 touch targets**, not the 24×24 that WCAG 2.2 AA requires. The difference between technically-compliant and usable with a thumb on a moving train — which is where a traveller uses this.
+
+**Role hard-coded to `guest`** in the shell until the session provider lands. Guest sees the least, so the placeholder cannot accidentally reveal an item.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — 335 Python + 41 web + 220 UI |
+| Live render | `<nav aria-label="Main navigation">`; guest sees no `/admin/` links; zero errors |
+| Guard meta-suite | 36/36 |
+
+**Mutation testing — 5/5 killed:** role filtering removed, `aria-current` dropped, drawer focus trap removed, `aria-expanded` hard-coded, and an unknown pairing shown instead of hidden.
+
+### What is NOT met
+**"Directly requesting a hidden route is denied server-side."** No routes exist — `/admin/*` and `/trips` are not pages, and no endpoint enforces anything until STEP-004. The policy itself is proven at STEP-002.03 across 176 cells, but that is a unit test of the decision function, not a request to a route. Recorded unmet rather than counted as covered by the policy tests.
+
+### Surprises
+**Biome's `useValidAriaRole` fired on a React prop named `role`.** It reads `role="guest"` on a component as the HTML ARIA attribute. That is a false positive — but the collision is real for human readers too, so the prop became `actorRole` rather than adding a suppression. Given I had just added two suppressions that suppressed nothing, biasing away from them was the right instinct.
+
+**The blanket rename then caught a loop variable of the same name**, breaking two assertions. A regex rename is not a refactor; typecheck caught it immediately.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Server-denial test against real routes | STEP-004 |
+| Touch-target and breakpoint verification in a browser | STEP-003.08 |
+| Session provider to replace the hard-coded `guest` | STEP-004 |
+
+---
+
 ## IMPL-019 — STEP-003.05 — Application frame, providers and global error boundary
 
 | Field | Value |

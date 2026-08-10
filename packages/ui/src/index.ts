@@ -84,6 +84,23 @@ export {
   startOfDayUtc,
 } from './form/zoned-date';
 export {
+  MATRIX as AUTHZ_MATRIX,
+  mayAttempt,
+  OPERATIONS as AUTHZ_OPERATIONS,
+  type Operation,
+  ROLES as AUTHZ_ROLES,
+  type Role,
+  type Rule as AuthzRule,
+} from './nav/authz-matrix';
+export {
+  MobileNavigation,
+  type MobileNavigationProps,
+  type NavItem,
+  Navigation,
+  type NavigationProps,
+  visibleItems,
+} from './nav/navigation';
+export {
   FeatureErrorBoundary,
   type FeatureErrorBoundaryProps,
   GlobalErrorBoundary,

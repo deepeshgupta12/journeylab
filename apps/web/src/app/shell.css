@@ -75,3 +75,71 @@ body {
   border: 2px solid var(--status-error);
   border-radius: var(--space-1);
 }
+
+/*
+ * Navigation — STEP-003.06.
+ *
+ * TOUCH TARGETS
+ *   WCAG 2.2 SC 2.5.8 (AA) requires 24x24 CSS pixels. 44x44 is used instead:
+ *   it is the AAA figure (SC 2.5.5) and the size both platform guidelines
+ *   recommend, and the difference between 24 and 44 is the difference between
+ *   technically-compliant and actually usable with a thumb on a moving train —
+ *   which is where a traveller uses this.
+ */
+.jl-nav__link,
+.jl-nav__toggle,
+.jl-nav__close {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-primary);
+}
+
+.jl-nav__list {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * The current page is marked by aria-current, and styled from that attribute
+ * rather than a separate class. One source, so the visual state cannot say
+ * something different from what a screen reader announces.
+ */
+.jl-nav__link[aria-current='page'] {
+  font-weight: var(--font-weight-bold);
+  /* Not colour alone — REQ-A11Y-004. The underline survives forced-colors. */
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.jl-nav__drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  padding: var(--space-4);
+  background: var(--surface-base);
+}
+
+.jl-nav__drawer .jl-nav__list {
+  flex-direction: column;
+}
+
+/* The toggle is a mobile affordance; the desktop nav is the default. */
+.jl-nav__toggle {
+  display: none;
+}
+
+@media (max-width: 48rem) {
+  .jl-shell__header .jl-nav {
+    display: none;
+  }
+
+  .jl-nav__toggle {
+    display: inline-flex;
+  }
+}

@@ -16,6 +16,7 @@ import './shell.css';
 import { SkipLink } from '@journeylab/ui';
 import type { ReactNode } from 'react';
 
+import { AppNavigation } from './navigation';
 import { Providers } from './providers';
 
 const MAIN_ID = 'main-content';
@@ -45,9 +46,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SkipLink targetId={MAIN_ID} />
         <Providers>
           <header className="jl-shell__header">
-            {/* Navigation arrives at STEP-003.06. The landmark exists now so the
-                document structure does not change shape when it does. */}
             <span className="jl-shell__brand">JourneyLab</span>
+            {/*
+              Role is hard-coded to `guest` until the session provider lands at
+              STEP-004. That is the CONSERVATIVE choice: guest sees the least, so
+              a placeholder cannot accidentally reveal an item. It is also
+              presentation only — the server refuses regardless of what is drawn.
+            */}
+            <AppNavigation actorRole="guest" />
           </header>
 
           {/*

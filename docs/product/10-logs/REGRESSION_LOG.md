@@ -67,6 +67,38 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-003.06 — 2026-08-10 — Role-aware desktop and mobile navigation
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `94bf916` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 335 Python + 41 web + **220 UI** |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004) |
+| R3 graph diff as expected | **PASS** | New `packages/ui/src/nav/`, a second matrix emitter, shell header wired. **The Python emitter is untouched** |
+| R4 untested requirements | **PASS** | `REQ-A11Y-001` improved. **`REQ-SEC-004` not fully closed** — the server-denial test needs routes that do not exist |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers both packages and `tools/` |
+| R6 closed-bug tests | **PASS** | BUG-001…016 guards pass |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Biome `useValidAriaRole` ×5 | A React prop named `role` is read as the HTML ARIA attribute | Renamed to `actorRole` rather than suppressed — the collision is real for readers too, and I had just added two suppressions that suppressed nothing |
+| Two assertions broke after the rename | The blanket regex also renamed a loop variable called `role` | Reverted those two lines. A regex rename is not a refactor; typecheck caught it |
+
+### Notes
+`ADR-012`'s review trigger fired and its prediction held: the second emitter reuses the shared parser unchanged, so the TypeScript and Python matrices cannot diverge.
+
+The most important assertions here are not about rendering. They establish that hiding a nav item is **not** an authorization control and cannot quietly become one: `visibleItems` contains no `fetch`, `redirect` or `throw`, the `href` survives filtering, and the module says so in words a future reader will meet before the code.
+
+---
+
 ## STEP-003.05 — 2026-08-07 — Application frame, providers and global error boundary
 
 | Field | Value |
