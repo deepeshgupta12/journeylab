@@ -33,11 +33,24 @@ body {
   border: 0;
 }
 
-/* On focus the skip link becomes visible and takes normal flow. */
+/*
+ * On focus the skip link becomes visible and takes normal flow.
+ *
+ * LOGICAL PROPERTIES, NOT PHYSICAL ONES — STEP-003.07
+ *   `inset-inline-start` is the start of the reading direction: the left edge in
+ *   English, the RIGHT edge in Arabic. `left` is always the left edge, so an
+ *   RTL page would put the skip link on the far side from where the eye and the
+ *   focus ring both start.
+ *
+ *   This is why RTL can be a configuration change rather than a second
+ *   stylesheet: setting `dir="rtl"` on <html> flips everything expressed
+ *   logically, and flips nothing expressed physically. A stylesheet that mixes
+ *   the two produces a layout that is half-mirrored, which is worse than either.
+ */
 .jl-skip-link:focus-visible {
   position: fixed;
-  top: var(--space-2);
-  left: var(--space-2);
+  inset-block-start: var(--space-2);
+  inset-inline-start: var(--space-2);
   z-index: 100;
   width: auto;
   height: auto;

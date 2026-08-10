@@ -13,8 +13,11 @@
 import '@journeylab/ui/tokens.css';
 import './shell.css';
 
-import { SkipLink } from '@journeylab/ui';
+import { documentLocale, SkipLink } from '@journeylab/ui';
+import { headers } from 'next/headers';
 import type { ReactNode } from 'react';
+
+import { requestI18n } from '@/lib/i18n';
 
 import { AppNavigation } from './navigation';
 import { Providers } from './providers';
@@ -34,19 +37,36 @@ export const viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
-  // Locale becomes dynamic at STEP-003.07; `documentLocale` already derives both
-  // attributes together so they cannot drift apart.
-  const lang = 'en';
-  const dir = 'ltr';
+/**
+ * STEP-003.07 — the locale is negotiated per request rather than hard-coded.
+ *
+ * COST, STATED PLAINLY
+ *   `headers()` opts this layout — and therefore every route beneath it — out of
+ *   static rendering. Today that costs nothing: the only page is already
+ *   `force-dynamic` because it reads session cookies. It will stop being free the
+ *   moment a cacheable marketing or destination page arrives (STEP-007).
+ *
+ *   The migration when that happens is a locale path segment — `/[locale]/…` —
+ *   which lets Next.js pre-render one static variant per locale and drops the
+ *   header read entirely. It is not done now because with a single shipped
+ *   catalogue it would be routing scaffolding with nothing to route.
+ *
+ *   `lang` and `dir` come from `documentLocale` together, so they cannot drift
+ *   into the mismatched pair (lang="ar" dir="ltr") that is worse than either
+ *   alone.
+ */
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const head = await headers();
+  const { locale, t } = requestI18n(head.get('accept-language'));
+  const { lang, dir } = documentLocale(locale);
 
   return (
     <html lang={lang} dir={dir}>
       <body>
-        <SkipLink targetId={MAIN_ID} />
+        <SkipLink targetId={MAIN_ID}>{t('shell.skipToContent')}</SkipLink>
         <Providers>
           <header className="jl-shell__header">
-            <span className="jl-shell__brand">JourneyLab</span>
+            <span className="jl-shell__brand">{t('shell.brand')}</span>
             {/*
               Role is hard-coded to `guest` until the session provider lands at
               STEP-004. That is the CONSERVATIVE choice: guest sees the least, so
@@ -66,7 +86,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </main>
 
           <footer className="jl-shell__footer">
-            <span>JourneyLab</span>
+            <span>{t('shell.brand')}</span>
           </footer>
         </Providers>
       </body>

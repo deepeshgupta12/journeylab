@@ -23,8 +23,9 @@
     "py:lint": "uv run ruff check .",
     "py:format:check": "uv run ruff format --check .",
     "py:typecheck": "bash tests/guards/py-typecheck.sh",
+    "build": "pnpm -r --if-present build",
     "py:test": "uv run pytest",
-    "verify": "pnpm guard:node && pnpm guard:pnpm && pnpm guard:markup && pnpm guard:artifacts && pnpm guard:codeowners && pnpm guard:ports && pnpm guard:substep-docs && pnpm guard:readme && pnpm guard:workflows && pnpm guard:boundaries && pnpm lint && pnpm format:check && pnpm typecheck && pnpm py:lint && pnpm py:format:check && pnpm py:typecheck && pnpm test",
+    "verify": "pnpm guard:node && pnpm guard:pnpm && pnpm guard:markup && pnpm guard:artifacts && pnpm guard:codeowners && pnpm guard:ports && pnpm guard:substep-docs && pnpm guard:readme && pnpm guard:workflows && pnpm guard:boundaries && pnpm guard:logical-css && pnpm lint && pnpm format:check && pnpm typecheck && pnpm py:lint && pnpm py:format:check && pnpm py:typecheck && pnpm test && pnpm build",
     "kg:status": "npx --yes gitnexus status",
     "kg:refresh": "npx --yes gitnexus analyze",
     "guard:markup": "bash tests/guards/no-stray-markup.sh",
@@ -46,7 +47,8 @@
     "dev:web": "pnpm --filter @journeylab/web dev",
     "ci:local": "bash tests/ci-mirror.sh",
     "auth0:check": "bash tests/auth0-preflight.sh",
-    "guard:node": "bash tests/guards/node-version.sh"
+    "guard:node": "bash tests/guards/node-version.sh",
+    "guard:logical-css": "bash tests/guards/logical-css.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.7",

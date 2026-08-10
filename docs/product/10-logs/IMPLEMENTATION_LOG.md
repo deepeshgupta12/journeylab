@@ -60,6 +60,108 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-021 — STEP-003.07 — Locale, time zone, currency and DST handling
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-10 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-NFR-007, REQ-NFR-008 (and REQ-SEC-006 on the negotiation path) |
+| Blast radius | [BR-024](blast-radius/BR-024-i18n-locale-timezone-money.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `bb943f9` — matched HEAD at pre-change |
+
+### What was built
+`packages/ui/src/i18n/` — `money.ts`, `datetime.ts`, `messages.ts`; `apps/web/src/lib/i18n.ts` and `messages/en.ts`; `tests/guards/logical-css.sh`. The root layout now negotiates a locale per request. 36 new tests (256 UI, 61 web).
+
+### DST is a feasibility concern, not a formatting one
+The sub-step record said it before the work started, and it shaped everything: *"an itinerary crossing a transition computes wrong travel windows, which STEP-012 will then present as a valid plan."*
+
+A formatting bug shows a wrong string. A DST bug ships a wrong plan — and it ships it looking correct, because the solver will already have declared it feasible.
+
+The night of 2026-03-29 in Europe/London is **23 hours long**. A journey from 22:00 the previous evening to 06:00 the next morning is eight hours on a wall clock and **seven in reality**. A 90-minute connection inside that window is a 30-minute one. `hoursInDay` returns 23, 24 or 25 rather than assuming; `elapsedHours` subtracts instants, which cannot be fooled by a clock that jumped. Both are tested against Europe/London **and** Australia/Sydney, where the transitions are reversed — a suite that only checks Europe encodes a northern-hemisphere assumption it never states.
+
+### Two carried questions, resolved — and they were the same question
+`STEP-003.02` left "the ICU message loading strategy interacts with server components" open, and §4 of this sub-step asked whether formatting runs server-side, client-side or both. Both are the hydration problem.
+
+**The decision: every formatter takes `locale` and `timeZone` as required arguments and reads nothing ambient.** The usual mismatch is a server rendering in UTC and a browser re-rendering in its own zone; React reports it, and a user sees the time flicker to a different value. Passing both explicitly makes the two outputs identical by construction.
+
+**The zone comes from the trip, not the reader.** A traveller checking their Tokyo itinerary from London wants Tokyo times. "The ferry leaves at 23:40 yesterday" is true and useless.
+
+**Catalogues are plain data, resolved synchronously, passed in as values.** An async load inside a component makes every component that renders text a suspense boundary. A module-level "current locale" is shared mutable state on a server handling concurrent requests, and the failure mode is one user seeing another user's language — the same hazard `auth/context.py` designed out at STEP-002.02.
+
+### `Accept-Language` is untrusted input
+The naive locale loader is `import('./messages/' + locale)`. With `Accept-Language: ../../../../etc/passwd` that is a path traversal. The header is therefore only ever used to **select** from a statically-imported map, and never concatenated into anything; a miss is `undefined`, not a filesystem read. It is length-capped at 512 bytes before parsing, because a 2 MB header with fifty thousand q-weighted tags is a cheap way to spend server CPU on every request.
+
+### Money is an integer count of minor units
+`0.1 + 0.2 !== 0.3`, and currency arithmetic is mostly addition. Thirty ten-cent items summed as floats do not equal three euros. The representation is `{ amountMinor, currency }`; only formatting divides. **The exponent is not always 2** — JPY and KRW have none, BHD/KWD/TND have three, and hard-coding `/ 100` shows a Japanese price one hundred times too small.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` (16 guards + lint + typecheck + Python + tests + **build**) | **PASS** — 335 Python + 61 web + 256 UI |
+| `pnpm ci:local` (Linux, clean checkout, cold install, `CI=true`) | **PASS** — and it rejected my first BUG-017 fix before it was pushed |
+| Host-zone independence | **PASS** under UTC, Pacific/Auckland, America/Los_Angeles, Asia/Kolkata, Europe/London |
+| Guard meta-suite | 40/40 |
+
+**Mutation testing — 26 killed, 2 recorded as equivalent, 3 vacuous tests found and fixed.**
+
+| Module | Result |
+| --- | --- |
+| `datetime.ts` | 6/6 killed — including dropping the second DST correction pass and ignoring the zone entirely |
+| `money.ts` | 6 killed, **1 equivalent** (see below) |
+| `messages.ts` | 5/5 killed, **after fixing two tests that passed for the wrong reason** |
+| `apps/web/src/lib/i18n.ts` | 9 killed, **1 equivalent**; one vacuous test fixed |
+| `logical-css.sh` | 5/5 killed, and the documented exemption honoured |
+
+### Three tests that proved nothing, and one comment that was wrong
+This is the part worth reading.
+
+**`resolveLocale` — two tests passed for the wrong reason.** `resolveLocale('en-AU', ['fr', 'en'])` expected `'en'`, which is also the default fallback. Deleting the base-language branch entirely still returned `'en'`. The fix is to make the fallback a *different* language from the expected answer.
+
+**The header length cap.** The flood was built from tags like `xx0`, `xx1` — which the shape check discards anyway, so removing the cap still produced `[]`. Rebuilt from well-formed tags, plus an assertion that the same tags *under* the cap are parsed, so the empty result is the cap and not the shape check quietly doing the work.
+
+**My own comment in `parseMoney` was false.** It claimed `Math.round(1.005 * 100)` mis-parses to 100 minor units. That is true of the expression and irrelevant here: `1.005` has three decimals, so for EUR it is **rejected by the precision check before any multiplication**. I scanned every two-decimal value from 0.01 upward and magnitudes past `Number.MAX_SAFE_INTEGER` and found no accepted input where the two routes disagree. The mutant is recorded as **equivalent** rather than papered over with a contrived test, and the comment now says so. The string implementation stays because it is exact by construction rather than exact by empirical accident.
+
+**A `?? {}` that could never be reached.** A missing catalogue would have rendered a page of raw message keys with no error anywhere — and the branch was unreachable, so it could not be tested either. Replaced with a load-time invariant that throws if the fallback locale has no catalogue, proven by renaming the catalogue key and watching the error appear. Same shape as the unreachable fail-closed branch found in `redaction.py` at STEP-002.07.
+
+### A runtime check TypeScript could not give me
+The first version of the "no ambient zone" test asserted that `formatDateTime` throws without a `timeZone`. **It did not throw.** `Intl.DateTimeFormat` treats `timeZone: undefined` as "use the system zone", so the failure was not an exception — it was a server silently rendering in whatever zone the container happened to have. TypeScript makes the argument required and that is worthless at the package boundary, where JavaScript consumers, `any` from a fetch, and optional fields two layers up all arrive as `undefined`. `assertZone` now rejects an absent zone **and** a misspelled one, because `Europe/Londn` must never quietly become the system default.
+
+### The performance cost, stated rather than hidden
+`headers()` in the root layout opts every route out of static rendering — the build output now marks all seven routes `ƒ (Dynamic)`. That is free today, because the only page is already `force-dynamic` for session cookies, and it stops being free when STEP-007 adds cacheable pages. The migration is a `/[locale]/` path segment, and it is written into `layout.tsx` rather than left to be rediscovered.
+
+### RTL is enforced at the source, not tested at the surface
+Physical properties (`left`, `margin-left`) and logical ones (`inset-inline-start`, `margin-inline-start`) render **identically** in the LTR locale everyone develops in. No unit test catches the difference; it appears only in a language nobody on the team reads. So `tests/guards/logical-css.sh` fails the build on any physical directional property, with a same-line `rtl-exempt: <reason>` escape hatch that is reviewable because it must state why.
+
+### A pre-existing broken production build — BUG-017
+`pnpm --filter @journeylab/web build` failed at `bb943f9`, before any change here. Confirmed by stashing the working tree and rebuilding at HEAD: identical failure. Next's own type-check step loads the TypeScript **compiler API**, which TypeScript 7 (ADR-009) does not ship, so Next decides TypeScript is missing, "installs" it, and then crashes with an error naming nothing that is actually wrong.
+
+Nothing in `pnpm verify` or CI ran `next build`, which is why it sat undetected.
+
+**My first fix was wrong, and the CI mirror is the only reason that is known.** `ignoreBuildErrors: true` made the build pass locally, so I committed it. `pnpm ci:local` failed on the next run: that flag does not gate the probe, it only decides whether the *result* is enforced. Locally the auto-install branch stumbled through; under `CI=true` the same probe aborts with the single word `Failed`. One defect, two symptoms, and only one visible where I was looking.
+
+The real fix is `@typescript/native-preview` as a pinned **marker** devDependency — Next 16 has an explicit branch that skips its check when that package resolves. Nothing imports it, and `tsc` still resolves to 7.0.2 (native-preview's binary is `tsgo`). `ignoreBuildErrors` stays, for an unobvious reason: without it the build prints *"Running TypeScript … Finished TypeScript in 75ms"* having checked nothing, and a green message for work that did not happen is worse than an honest "Skipping validation of types".
+
+`pnpm build` is now part of `verify`, which protects its own fix: remove the marker and `verify` fails.
+
+### What is NOT met
+**RTL implementation** — explicitly Phase 2, and out of scope by the sub-step's own boundary. What is delivered is the precondition: logical properties everywhere, enforced.
+
+**Translation content** — also out of scope. One catalogue ships, and the machinery around it is the deliverable.
+
+**Real-browser RTL rendering.** The RTL test asserts structure in jsdom, which does not lay anything out. Binds at STEP-003.08 with the other browser-dependent checks.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| `/[locale]/` routing to restore static rendering | STEP-007 |
+| Real-browser RTL and touch-target verification | STEP-003.08 |
+| Cross-package impact is invisible to the graph (`workspace:*` not followed) | STEP-026 |
+| Trip-supplied time zone replacing the UTC default | STEP-009 |
+
+---
+
 ## IMPL-020 — STEP-003.06 — Role-aware desktop and mobile navigation
 
 | Field | Value |

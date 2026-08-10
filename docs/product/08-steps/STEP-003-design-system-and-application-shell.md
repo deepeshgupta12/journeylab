@@ -105,7 +105,7 @@ High fan-out (all UI steps), high detectability (visual and automated a11y tests
 | STEP-003.04 | Table and list primitives (the accessible alternative to every visualization) |
 | STEP-003.05 | Application frame, providers, global error boundary |
 | STEP-003.06 | Role-aware navigation (desktop + mobile) |
-| STEP-003.07 | i18n, time zone, currency, DST handling |
+| STEP-003.07 | i18n, time zone, currency, DST handling — ✅ **VERIFIED** 2026-08-10 (BR-024, IMPL-021) |
 | STEP-003.08 | Automated keyboard + axe checks in CI |
 
 ## 22. Test and evaluation plan

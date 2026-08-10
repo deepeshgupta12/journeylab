@@ -40,5 +40,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: uv sync --frozen
 
-      # The same 14 checks a developer runs locally.
+      # The same checks a developer runs locally, in the same order.
       - run: pnpm verify

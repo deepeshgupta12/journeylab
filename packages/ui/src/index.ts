@@ -84,6 +84,37 @@ export {
   startOfDayUtc,
 } from './form/zoned-date';
 export {
+  crossesDstTransition,
+  elapsedHours,
+  type FormatOptions,
+  formatDate,
+  formatDateTime,
+  formatNumber,
+  formatRelative,
+  formatTime,
+  hoursInDay,
+  MILLIS_PER_HOUR,
+  zonedTimeToUtc,
+} from './i18n/datetime';
+export {
+  createTranslator,
+  FALLBACK_LOCALE,
+  interpolate,
+  type MessageCatalogue,
+  resolveLocale,
+  type Translator,
+} from './i18n/messages';
+export {
+  addMoney,
+  formatMoney,
+  type Money,
+  MoneyError,
+  minorUnitExponent,
+  money,
+  parseMoney,
+  sumMoney,
+} from './i18n/money';
+export {
   MATRIX as AUTHZ_MATRIX,
   mayAttempt,
   OPERATIONS as AUTHZ_OPERATIONS,

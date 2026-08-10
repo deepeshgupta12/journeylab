@@ -39,6 +39,75 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-017 — The production build of the web app was broken, and nothing ran it
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — `main` was not deployable; no incorrect behaviour shipped to a user because nothing was deployed |
+| Found during | STEP-003.07 regression run |
+| Date found | 2026-08-10 |
+| Affected requirements | REQ-PLAT-001, REQ-NFR-013 |
+
+### Symptom
+```
+✓ Compiled successfully in 1474ms
+  Running TypeScript ...
+It looks like you're trying to use TypeScript but do not have the required package(s) installed.
+Installing devDependencies (pnpm): - typescript
+Done in 1.5s using pnpm v11.20.0
+
+The "id" argument must be of type string. Received undefined
+Next.js build worker exited with code: 1
+```
+
+The application compiled. TypeScript **was** installed — `require.resolve('typescript')` succeeded from `apps/web`. The error names nothing that is actually wrong.
+
+### Confirmed pre-existing, not caused by this sub-step
+`git stash push -u`, rebuild at `bb943f9`, identical failure, `git stash pop`. This is stated because "the build broke during my change" and "the build was already broken" call for different responses, and guessing between them is how a real regression gets attributed to history.
+
+### Root cause
+Two layers.
+
+**1. Next's type-check step needs the TypeScript compiler API; TypeScript 7 does not ship one.** `ADR-009` adopted TypeScript 7.0.2, the native compiler. Its package contains `bin/tsc`, `lib/tsc.js`, `lib/getExePath.js` and `lib/version.cjs` — and no `lib/typescript.js`, which is the exact path `next/dist/lib/verify-typescript-setup.js` probes for. Next concludes TypeScript is absent and takes one of two bad branches:
+
+| Environment | Branch | Outcome |
+| --- | --- | --- |
+| `CI` unset (a developer machine) | auto-install | Installs a package that is already there, mutates `node_modules` mid-build, then dereferences an undefined value: `The "id" argument must be of type string. Received undefined` |
+| `CI=true` (GitHub Actions, `pnpm ci:local`) | `missingDepsError` | Aborts, printing the single word **`Failed`** and nothing else |
+
+**2. Nothing ever ran `next build`.** `pnpm verify` did not include it and neither did the workflow. The gap is the same shape as `BUG-011`, where `pnpm test` was a placeholder that echoed and exited 0: a check that everyone assumes is running because a script exists with the right name.
+
+### Why existing tests did not catch it
+They could not. `pnpm typecheck` runs `tsc --noEmit` per package and passes — it uses the TypeScript 7 **binary**, which works fine. The vitest suites do not build. The `workflow-refs` guard verifies that every script a workflow names exists, not that the set of scripts is sufficient. No guard has ever asserted "the thing we would deploy can be produced".
+
+### The first fix was incomplete, and `pnpm ci:local` is why that is known
+`typescript.ignoreBuildErrors: true` made the build pass **on my machine** and I committed it. `pnpm ci:local` — Linux, clean checkout, cold install, `CI=true` — then failed on the very next run.
+
+That flag does not gate the probe. Reading `next/dist/build/type-check.js` confirms it: `verifyAndRunTypeScript` is called unconditionally, and `ignoreBuildErrors` only decides whether its *result* is enforced. Locally the auto-install branch happened to stumble through; under `CI=true` the same probe aborts. Same defect, two symptoms, and only one of them was visible where I was looking.
+
+This is the fifth time an environment difference has produced a green local run and a red CI one, and the first time the mirror caught it **before** the push.
+
+### Fix
+Three parts.
+
+**1. `@typescript/native-preview` as a devDependency of `apps/web`.** Next 16 has an explicit branch for it: if that package resolves and `typescript` is the only thing "missing", Next logs a notice, skips its check and returns — no install, no abort. It is Microsoft's package for the same native compiler `typescript@7` now ships as. Here it functions as a **marker**: nothing imports it, and `tsc` still resolves to 7.0.2 (native-preview installs its binary as `tsgo`, so the two do not collide). Pinned to an exact version because a dev-channel package with a range is a rebuild that changes under you.
+
+**2. `typescript.ignoreBuildErrors: true`.** With the marker present the build succeeds either way — but at `false` it prints *"Running TypeScript … Finished TypeScript in 75ms"* while checking nothing, because the native-preview branch returned before any checking happened. A green message for work that did not occur is the most expensive kind of wrong. At `true` it prints *"Skipping validation of types"*, which is what is actually happening. Types are checked by `pnpm typecheck`, proven non-vacuous by injecting `const _typeProbe: number = "not a number"` and observing `error TS2322`.
+
+**3. `pnpm build` is now a step in `pnpm verify`.** Local and CI run the same thing, per the workflow's own rule that CI must never be the only place a check exists.
+
+Remove parts 1 and 2 when Next recognises `typescript@7` directly; `pnpm build` will say so by failing.
+
+### Verification
+`pnpm verify` and `pnpm ci:local` both pass; all 7 routes emit. Regression proof: removing the marker dependency makes `pnpm build` fail under `CI=true`, and `pnpm build` is inside `pnpm verify`, so no separate guard is needed to protect the fix.
+
+### Prevention
+- **A build is a check.** "It typechecks and the tests pass" is not "it can be deployed", and the difference is invisible until someone tries to deploy.
+- When adopting a toolchain ahead of its ecosystem (`ADR-009`), the failure will surface somewhere that names something else entirely. The error here blamed a missing package that was present.
+- **Run `pnpm ci:local` before pushing anything that touches the toolchain, and believe it over the local run.** It is the only place `CI=true` and a cold install exist together, and both mattered here.
+
+---
+
 ## BUG-016 — Flaky workflow guard blamed the workflows for a failed download
 
 | Field | Value |

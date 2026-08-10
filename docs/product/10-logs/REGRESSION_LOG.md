@@ -67,6 +67,42 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-003.07 — 2026-08-10 — Locale, time zone, currency and DST handling
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `bb943f9` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 335 Python + **61 web** + **256 UI**; also green under 5 different host time zones |
+| R2 contract compatibility | **N/A** | No contracts yet (STEP-004). `packages/ui` gained 25 exports and removed none |
+| R3 graph diff as expected | **PASS** | `detect_changes()` reports 3 touched symbols, all in `layout.tsx` (`RootLayout`, `MAIN_ID`, `dir`), 0 affected processes. New files are not yet indexed — they appear after the post-commit re-index |
+| R4 untested requirements | **PASS** | `REQ-NFR-007` and `REQ-NFR-008` newly covered. Real-browser RTL rendering recorded unmet, not counted |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `packages/ui/src/i18n/`, `apps/web/src/lib/` and the new guard |
+| R6 closed-bug tests | **PASS** | BUG-001…016 guards pass; meta-suite 40/40 |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched. Nothing here reads tenant data or derives a cache key from the locale |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `pnpm --filter @journeylab/web build` failed | **Pre-existing at `bb943f9`** — Next's type-check step needs a TypeScript compiler API that TypeScript 7 does not ship | Logged `BUG-017`; `pnpm build` added to `verify` so it cannot break silently again |
+| `pnpm ci:local` failed **after** the commit | My first BUG-017 fix (`ignoreBuildErrors`) does not gate Next's probe — it works on a developer machine and aborts under `CI=true` | Real fix applied (`@typescript/native-preview` marker), commit amended, mirror re-run green. **The mirror caught this before the push, which is what it is for** |
+| 2 UI tests failed on first run | `formatRelative(48, 'de-DE')` is `übermorgen`, not "in 2 Tagen"; and `formatDateTime` did **not** throw on a missing zone | The first was a wrong expectation. The second was a real defect — `Intl` treats `timeZone: undefined` as the system zone, so `assertZone` was added |
+| 1 web test failed on first run | The source check for a dynamic import matched the module's own **documentation**, which quotes the forbidden pattern to explain it | Comments are stripped before matching, plus an assertion that stripping left the code intact |
+| 3 mutants survived | Three tests passed for the wrong reason — see IMPL-021 | All three tests rebuilt so the mutants die; re-run confirms |
+| 2 mutants survive by design | Recorded as **equivalent** with the evidence, not silently dropped | See IMPL-021 |
+
+### Notes
+`detect_changes()` reporting only `layout.tsx` is expected and not reassuring on its own: the graph does not follow `workspace:*` package aliases, so the `packages/ui` → `apps/web` edge is invisible to it. That limitation is stated in `BR-024` §3 rather than left as an apparent clean bill of health, and is a candidate finding for STEP-026.
+
+The most valuable output of this sub-step was not the code. It was finding three tests that asserted things they could not have failed on, and one comment of mine that was simply false. Every one of those surfaced through mutation testing, and none would have surfaced from a green run.
+
+---
+
 ## STEP-003.06 — 2026-08-10 — Role-aware desktop and mobile navigation
 
 | Field | Value |

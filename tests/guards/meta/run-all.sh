@@ -164,6 +164,19 @@ cp /tmp/META_WS.bak pnpm-workspace.yaml; rm -f /tmp/META_WS.bak
 assert_guard "pnpm-config clean again" tests/guards/pnpm-config.sh 0
 
 echo ""
+echo "=== REQ-NFR-008: RTL stays a configuration change ==="
+# A physical property renders identically in the LTR locale everyone develops in,
+# so only a source-level check catches it. Seeded as an untracked file to also
+# re-assert the BUG-004 scope rule.
+printf '.meta-seed {\n  margin-left: 4px;\n}\n' > META_SEED_physical.css
+CLEANUP+=(META_SEED_physical.css)
+assert_guard "logical-css catches a physical property" tests/guards/logical-css.sh 1 "PHYSICAL CSS"
+printf '.meta-seed {\n  left: 0; /* rtl-exempt: meta-test */\n}\n' > META_SEED_physical.css
+assert_guard "logical-css honours a reasoned rtl-exempt" tests/guards/logical-css.sh 0
+rm -f META_SEED_physical.css
+assert_guard "logical-css clean again" tests/guards/logical-css.sh 0
+
+echo ""
 echo "════════════════════════════════════════"
 echo "  meta-tests passed: $pass"
 echo "  meta-tests failed: $fail"

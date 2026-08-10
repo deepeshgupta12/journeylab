@@ -26,6 +26,36 @@ const nextConfig: NextConfig = {
   // The workspace root, not apps/web — otherwise Next infers it from the lockfile
   // and warns on every start.
   outputFileTracingRoot: path.resolve(import.meta.dirname, '../..'),
+
+  typescript: {
+    /*
+     * BUG-017 — this does NOT skip type checking. It makes the build SAY SO.
+     *
+     * `next build` runs its own type check by loading the TypeScript compiler
+     * API from `typescript/lib/typescript.js`. TypeScript 7 (ADR-009) is the
+     * native compiler: its package ships `tsc.js`, `getExePath.js` and
+     * `version.cjs`, and no JavaScript API entry at all. Next therefore decides
+     * TypeScript is "not installed" — and under `CI=true` it refuses to
+     * auto-install and aborts the build with the word `Failed` and nothing else.
+     *
+     * The other half of the fix is the `@typescript/native-preview`
+     * devDependency; see the note beside it in package.json.
+     *
+     * With that marker present Next skips its own check, and the flag below
+     * decides what it says about having done so. Left at `false` the build
+     * prints "Running TypeScript … Finished TypeScript in 75ms" while checking
+     * NOTHING — a green message for work that did not happen, which is the most
+     * expensive kind of wrong. `true` prints "Skipping validation of types",
+     * which is true.
+     *
+     * Types ARE checked, by `pnpm typecheck` — `tsc --noEmit` against this
+     * package's own tsconfig, proven non-vacuous by injecting a type error and
+     * observing TS2322.
+     *
+     * Revisit when Next recognises `typescript@7` directly.
+     */
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;
