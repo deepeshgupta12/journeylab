@@ -83,6 +83,23 @@ docker run --rm \
     export PATH="$HOME/.local/bin:$PATH"
     echo "--- uv sync --frozen ---"
     uv sync --frozen
+    # STEP-003.08: pnpm verify now runs a real browser. CI installs Chromium and
+    # its system libraries the same way; without this the mirror would pass a
+    # commit that CI rejects, which is the one failure mode it exists to prevent.
+    echo "--- playwright install chromium ---"
+    # Two container details, neither of which is a repo defect — but the mirror
+    # is worthless if it cannot get past them.
+    #
+    # 1. GitHub runners ship a fresh package index; node:24-bookworm does not,
+    #    so --with-deps fails with a wall of "Unable to locate package".
+    # 2. The image points apt at http://deb.debian.org. Behind an egress proxy
+    #    that allows curl but not apt over plain HTTP, every fetch fails with
+    #    "Connection failed" and apt STILL EXITS 0, having quietly kept its empty
+    #    index. HTTPS sources work, and are the better default regardless.
+    sed -i "s|http://deb.debian.org|https://deb.debian.org|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || true
+    sed -i "s|http://deb.debian.org|https://deb.debian.org|g" /etc/apt/sources.list 2>/dev/null || true
+    apt-get -o Acquire::Retries=3 update -qq >/dev/null
+    pnpm --filter @journeylab/web exec playwright install --with-deps chromium >/dev/null
     echo "--- pnpm verify ---"
     pnpm verify
   '

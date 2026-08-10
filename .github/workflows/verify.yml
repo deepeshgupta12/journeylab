@@ -40,5 +40,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: uv sync --frozen
 
+      # STEP-003.08: `pnpm verify` ends with a real-browser accessibility run.
+      # Chromium and its system libraries are not on the runner by default, and
+      # the failure without them is an opaque browser-launch error rather than a
+      # missing-dependency message.
+      - run: pnpm --filter @journeylab/web exec playwright install --with-deps chromium
+
       # The same checks a developer runs locally, in the same order.
       - run: pnpm verify
+
+      # Traces and the axe report for a failed accessibility run. Without these a
+      # CI-only violation has to be reproduced blind.
+      - name: Upload accessibility report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

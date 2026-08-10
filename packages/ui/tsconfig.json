@@ -10,6 +10,9 @@
     "noImplicitOverride": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
+    // BUG-018: the tokens generator runs under Node, which requires explicit
+    // extensions in ESM. Legal only with noEmit, which is set above.
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "jsx": "react-jsx",
     "types": ["node"]

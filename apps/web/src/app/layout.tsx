@@ -11,6 +11,7 @@
  */
 
 import '@journeylab/ui/tokens.css';
+import '@journeylab/ui/components.css';
 import './shell.css';
 
 import { documentLocale, SkipLink } from '@journeylab/ui';

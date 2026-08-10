@@ -1,6 +1,15 @@
 /** JourneyLab design system — STEP-003.01 delivers tokens; components follow in .02-.04. */
 
 export {
+  type A11yCounter,
+  type A11yEvent,
+  type A11ySignal,
+  type A11ySink,
+  countUnnamedControls,
+  createA11yCounter,
+  observeFocusLoss,
+} from './a11y/counter';
+export {
   AA_LARGE_TEXT_AND_UI,
   AA_NORMAL_TEXT,
   AAA_NORMAL_TEXT,

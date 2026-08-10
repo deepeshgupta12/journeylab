@@ -11,6 +11,11 @@
     "noFallthroughCasesInSwitch": true,
     "verbatimModuleSyntax": true,
     "jsx": "react-jsx",
+    // BUG-018: `packages/ui/src/tokens.ts` uses an explicit `.ts` specifier so
+    // the token generator can run under Node, which requires extensions in ESM.
+    // apps/web typechecks that file through the workspace import, so it needs the
+    // same allowance. Legal only with noEmit, which is set here.
+    "allowImportingTsExtensions": true,
     "noEmit": true,
     "skipLibCheck": true,
     "incremental": true,

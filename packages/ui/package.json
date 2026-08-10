@@ -3,10 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "JourneyLab design system — STEP-003.01 delivers tokens only; components follow in .02-.04",
+  "description": "JourneyLab design system — tokens, primitives and accessibility styling (STEP-003.01-.08)",
   "exports": {
     ".": "./src/index.ts",
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./components.css": "./src/components.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

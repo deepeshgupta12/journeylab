@@ -1,0 +1,70 @@
+/*
+ * Component gallery layout — STEP-003.08.
+ *
+ * Logical properties only; tests/guards/logical-css.sh enforces it. Nothing here
+ * styles a component — the gallery must show the design system as it is, not as
+ * this page would prefer it. Anything that overrode a component's own styling
+ * would make the accessibility run measure the override instead.
+ */
+
+.jl-gallery {
+  padding: var(--space-6) var(--space-4);
+  max-width: 80rem;
+  margin-inline: auto;
+}
+
+.jl-gallery__section {
+  margin-block-start: var(--space-8, 3rem);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--border-subtle, currentColor);
+}
+
+.jl-gallery__grid {
+  display: grid;
+  /* `min(20rem, 100%)`, not `20rem`. A bare 20rem minimum is wider than a
+     320px viewport once the page padding is subtracted, and the grid then pushes
+     the document sideways — WCAG 1.4.10 Reflow. The first real-browser run
+     measured 32px of horizontal overflow at 320px because of this line. */
+  grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.jl-gallery__specimen {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle, currentColor);
+  border-radius: var(--space-1);
+  background: var(--surface-raised);
+}
+
+.jl-gallery__caption {
+  /* A figcaption above its figure. `caption-side` is the logical way to say so. */
+  caption-side: block-start;
+  margin-block-end: var(--space-2);
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--text-secondary, inherit);
+}
+
+/*
+ * The direction switch only. NOT `.jl-gallery a`.
+ *
+ * That broader selector (specificity 0,1,1) outranked `.jl-nav__link` (0,1,0)
+ * and replaced its 44px minimum with 24px — the gallery silently shrank the
+ * component it was supposed to be displaying, and the 44x44 test caught it one
+ * run later. A gallery must never restyle its specimens; it would then be
+ * measuring itself.
+ */
+.jl-gallery__switch {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
+  color: var(--action-primary);
+}
+
+.jl-gallery__stage {
+  /* The drawer inside the mobile-navigation specimen is position: fixed, so the
+     stage must not clip it — containment here would hide the very thing the
+     focus-trap test needs to reach. */
+  min-height: 3rem;
+}

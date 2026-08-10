@@ -60,7 +60,9 @@ echo "=== baseline: every guard passes on a clean tree ==="
 # is the gate working, not failing — asserting exit 0 here would be asserting the
 # wrong thing.
 for g in tests/guards/*.sh; do
-  case "$(basename "$g")" in change-impact-record.sh) continue ;; esac
+  # gallery-gate.sh boots a production server and takes ~15s; it is exercised in
+  # its own section below rather than in the fast baseline loop.
+  case "$(basename "$g")" in change-impact-record.sh|gallery-gate.sh) continue ;; esac
   assert_guard "$(basename "$g") clean" "$g" 0
 done
 
@@ -175,6 +177,24 @@ printf '.meta-seed {\n  left: 0; /* rtl-exempt: meta-test */\n}\n' > META_SEED_p
 assert_guard "logical-css honours a reasoned rtl-exempt" tests/guards/logical-css.sh 0
 rm -f META_SEED_physical.css
 assert_guard "logical-css clean again" tests/guards/logical-css.sh 0
+
+echo ""
+echo "=== STEP-003.08: the gallery must stay gated ==="
+# The accessibility harness sets JOURNEYLAB_ENABLE_GALLERY, so it can only prove
+# the route works WITH the flag. This proves the production case: without it, the
+# route that enumerates every internal component must be a 404.
+if [ -d apps/web/.next ]; then
+  assert_guard "gallery-gate passes on the current build" tests/guards/gallery-gate.sh 0 "is 404 without its flag"
+  cp apps/web/src/app/dev/gallery/gate.ts /tmp/META_GATE.bak
+  sedi "s|return env\[GALLERY_FLAG\] === '1';|return true;|" apps/web/src/app/dev/gallery/gate.ts
+  (cd apps/web && pnpm build >/dev/null 2>&1)
+  assert_guard "gallery-gate catches an always-on gate" tests/guards/gallery-gate.sh 1 "without JOURNEYLAB_ENABLE_GALLERY"
+  cp /tmp/META_GATE.bak apps/web/src/app/dev/gallery/gate.ts; rm -f /tmp/META_GATE.bak
+  (cd apps/web && pnpm build >/dev/null 2>&1)
+  assert_guard "gallery-gate clean again" tests/guards/gallery-gate.sh 0
+else
+  echo "  skip gallery-gate meta-test — no production build present (run pnpm build)"
+fi
 
 echo ""
 echo "════════════════════════════════════════"

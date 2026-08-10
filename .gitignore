@@ -50,3 +50,8 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Playwright accessibility run — STEP-003.08. Traces and reports are per-run
+# diagnostics, sometimes tens of MB; BUG-014 was a committed tool artifact.
+apps/web/playwright-report/
+apps/web/test-results/

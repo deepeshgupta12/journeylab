@@ -67,6 +67,70 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-003.08 — 2026-08-10 — Automated keyboard and axe checks in CI
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `1d67ffc` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 335 Python + 61 web + **267 UI** + **40 browser** |
+| R2 contract compatibility | **N/A** | No contracts yet. `packages/ui` gained 7 exports and a `./components.css` entry point; nothing removed |
+| R3 graph diff as expected | **PASS** | `detect_changes()` scope as expected — see note below |
+| R4 untested requirements | **PASS — materially improved** | Six criteria carried from .01–.07 closed, plus the STEP-002.05 auth-page carry. CWV field measurement recorded unmet, not counted |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `apps/web/src/test/`, `src/app/dev/`, `packages/ui/src/a11y/` |
+| R6 closed-bug tests | **PASS** | BUG-001…017 guards pass; meta-suite **43/43** |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched. Nothing here reads tenant data; the counter is per-instance so a server process cannot mix signals |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| **7 browser tests failed on the first run** | Real defects: sub-24px controls, unstyled components, a contrast failure, 32px reflow overflow, forced-colors overridden | All fixed. Enumerated in BR-025 §6 and IMPL-022 |
+| 2 of those 7 were **my test's fault, not the product's** | The drawer test did not set a mobile viewport, so it waited for a button correctly hidden above 48rem; the target-size test counted the skip link, which is 1×1 until focused by design | Viewport set; visually-hidden-until-focus detected by the clip technique rather than by exempting anything small |
+| A fix introduced a regression one run later | `.jl-gallery a` (specificity 0,1,1) outranked `.jl-nav__link` (0,1,0) and replaced its 44px minimum with 24px | Narrowed to `.jl-gallery__switch`. A gallery must never restyle its specimens |
+| `pnpm --filter @journeylab/ui tokens:build` failed | Node's ESM resolver needs explicit extensions; the whole import chain was extensionless | **BUG-018** |
+| `pnpm typecheck` then failed in a *different* package | `apps/web` typechecks `packages/ui/src/tokens.ts` through the workspace import and needed the same `allowImportingTsExtensions` | Added there too. Only the full per-package run revealed it |
+| A screenshot showed every stylesheet missing | An orphaned `next start` on port 5708 from an earlier run was serving the previous build's HTML, referencing a chunk hash that no longer existed | Not a code defect. The gate guard now refuses to run if the port is occupied rather than measuring the wrong server |
+| **`pnpm ci:local` failed three times after the commit, and every failure was worth having** | See below | Fixed; the mirror is green |
+
+### What only the Linux mirror could find
+Three failures appeared after the commit and before the push, none of which the
+development machine could produce. This is the third sub-step in a row where the
+mirror earned its cost.
+
+| # | Failure | Cause |
+| --- | --- | --- |
+| 1 | `playwright install --with-deps` could not find a single package | The container's apt index is stale and its sources use plain HTTP, which the local egress path blocks — while `apt-get update` **still exits 0**, having quietly kept an empty index. Fixed by switching sources to HTTPS and retrying |
+| 2 | The accessibility run died with `127.0.0.1:5708 is already used` | `gallery-gate.sh` cleaned up with `lsof`, **which is not installed in node:24-bookworm**. The cleanup silently did nothing, the guard still reported PASS, and the next step inherited an occupied port. Liveness is now decided by asking the server with curl, and the guard escalates until the port is genuinely free |
+| 3 | The seeded-violation meta-test found no violation | The seed is prepended to `<body>`, which React owns. On Linux, hydration finished **after** the injection and discarded it — so the one test that proves the gate can fail had stopped testing anything. Now waits for hydration and asserts the seed is still in the DOM before running axe |
+
+A fourth failure was an assertion of mine that was simply wrong on a narrow
+viewport: the RTL check asserted the skip link's `x > width / 2`, which fails at
+412px because the link is ~200px wide and its *left* edge sits just left of
+centre while its right edge is correctly pinned to the right. Measured from the
+trailing edge now, which is the property that was meant.
+
+### Notes
+**R3 needs a caveat, and it is a bigger one than last time.** BR-024 recorded that
+the graph does not follow `workspace:*` aliases. This sub-step established
+something sharper: `impact(SkipLink)` returns **0 impacted** against eight real
+references, because `SkipLink` is only ever used as JSX and the graph records
+`CALLS` edges from function calls. **Component-level impact analysis in this
+repository is unreliable by construction** until STEP-026 addresses it, and a
+`0 impacted` result on a component means "not traced".
+
+The value of this sub-step was not the harness. It was discovering that seven
+sub-steps of "accessible components" had never been rendered by anything with a
+layout engine, and that 28 of 40 component classes had no styling at all. Every
+geometric assertion in the jsdom suites was vacuous, and nothing in those suites
+could have said so.
+
+---
+
 ## STEP-003.07 — 2026-08-10 — Locale, time zone, currency and DST handling
 
 | Field | Value |

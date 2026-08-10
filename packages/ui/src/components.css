@@ -1,0 +1,334 @@
+/*
+ * Component styling — STEP-003.08.
+ *
+ * WHAT THIS IS, AND WHAT IT IS NOT
+ *   This is ACCESSIBILITY styling, not visual design. Every rule here exists to
+ *   satisfy a WCAG criterion the real-browser suite gates on. There is no brand
+ *   here, no illustration, no considered typographic rhythm — that is a design
+ *   pass, and it has not happened.
+ *
+ * WHY IT ARRIVES NOW, AT THE ACCESSIBILITY SUB-STEP
+ *   STEP-003.01–.07 shipped forty-odd component class names and CSS for twelve
+ *   of them: the shell, the nav and the skip link. Everything else — every
+ *   field, input, table, dialog, notification and quality state — rendered at
+ *   raw browser defaults. 256 jsdom tests could not notice, because jsdom has no
+ *   layout: it will happily report that a checkbox exists, is labelled, and is
+ *   13 CSS pixels across.
+ *
+ *   The first real-browser run found exactly that:
+ *
+ *     input  13x13    checkboxes and radios at the browser default
+ *     input  153x21   text inputs with no minimum height
+ *     select 108x19
+ *     button 40x21    sortable table headers
+ *
+ *   All below the 24x24 that WCAG 2.2 SC 2.5.8 (AA) requires. On a phone that is
+ *   not a style question; it is the difference between hitting the control and
+ *   hitting the one beside it.
+ *
+ * RULES THIS FILE FOLLOWS
+ *   1. Colours come from tokens. Nothing is hard-coded, so the dark and
+ *      high-contrast palettes keep working and tokens.test.ts keeps proving the
+ *      contrast ratios.
+ *   2. Logical properties only — tests/guards/logical-css.sh enforces it.
+ *   3. Nothing is conveyed by colour alone (REQ-A11Y-004): every status carries
+ *      a border, a glyph or a weight change as well.
+ */
+
+/* --- shared control geometry ------------------------------------------------
+ *
+ * 44px, not the 24px the specification requires. Same reasoning shell.css gives
+ * for the nav: 24 is technically compliant, 44 is usable with a thumb on a
+ * moving train, and that is where a traveller uses this.
+ */
+/*
+ * `button` unqualified, not an enumerated list of component selectors.
+ *
+ * The first version listed `.jl-dialog button`, `.jl-table button` and so on,
+ * and the browser immediately found two it had missed — a gallery trigger and
+ * the "Try again" inside an error boundary, both 21px tall. An allowlist of
+ * places a button may appear is a list that is wrong the moment someone adds a
+ * button somewhere new, and the omission is invisible until a phone is involved.
+ * A baseline that every button inherits is the only version that stays true.
+ */
+button,
+.jl-field input,
+.jl-field select,
+.jl-field textarea {
+  min-block-size: 44px;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--surface-base);
+  border: 1px solid var(--border-default);
+  border-radius: var(--space-1);
+}
+
+/* Checkbox and radio cannot be sized by padding — the box is drawn by the
+ * browser. `inline-size`/`block-size` scale the control itself. */
+.jl-field input[type='checkbox'],
+.jl-field input[type='radio'],
+.jl-radio input {
+  inline-size: 24px;
+  block-size: 24px;
+  min-block-size: 24px;
+  padding: 0;
+  accent-color: var(--action-primary);
+}
+
+/* The label is part of the target: a 24px box beside 200px of text where only
+ * the box is clickable is a 24px target. `<label>` wrapping makes the whole row
+ * hittable, and the min-height keeps rows apart. */
+.jl-radio,
+.jl-field label:has(input[type='checkbox']) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: 44px;
+  cursor: pointer;
+}
+
+.jl-field input:disabled,
+.jl-field select:disabled {
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  /* Not colour alone: disabled controls also lose the pointer and gain a dashed
+     edge, so the state survives a monochrome or forced-colors rendering. */
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+/* --- fields ----------------------------------------------------------------- */
+
+.jl-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-block-end: var(--space-3);
+}
+
+.jl-field__label {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.jl-field__description {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.jl-field__error {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--status-error);
+}
+
+/*
+ * An errored control is outlined as well as described. Colour alone would fail
+ * REQ-A11Y-004 and vanish under forced-colors.
+ *
+ * Keyed on `[data-invalid]`, NOT on `:has(.jl-field__error)`.
+ *   Field always renders the error element, empty or not, because a live region
+ *   inserted at the moment it gains content is frequently never announced. So
+ *   `:has(.jl-field__error)` matches EVERY field — the first gallery screenshot
+ *   showed a valid "Destination" input and a disabled "Trip code" both wearing
+ *   the red error edge. Nothing in 256 jsdom tests could see that, because jsdom
+ *   does not paint.
+ */
+.jl-field[data-invalid] input,
+.jl-field[data-invalid] select,
+.jl-field[data-invalid] textarea {
+  border-color: var(--status-error);
+  border-inline-start-width: 4px;
+}
+
+/* Empty error containers must not reserve space, or every field gains a gap. */
+.jl-field__error:empty {
+  display: none;
+}
+
+/* --- table and list --------------------------------------------------------- */
+
+.jl-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  /* Wide tables scroll INSIDE their own container rather than pushing the page
+     sideways — WCAG 1.4.10 Reflow. */
+  display: block;
+  overflow-x: auto;
+}
+
+.jl-table caption {
+  text-align: start;
+  padding-block-end: var(--space-2);
+  font-weight: var(--font-weight-medium);
+}
+
+.jl-table th,
+.jl-table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+  border-block-end: 1px solid var(--border-default);
+  vertical-align: top;
+}
+
+.jl-table th {
+  font-weight: var(--font-weight-bold);
+  background: var(--surface-raised);
+}
+
+/* Sort buttons fill their header cell, so the target is the cell, not the word. */
+.jl-table th button {
+  inline-size: 100%;
+  text-align: start;
+  background: transparent;
+  border: 0;
+  font-weight: inherit;
+  cursor: pointer;
+}
+
+.jl-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.jl-list__pair {
+  display: grid;
+  grid-template-columns: minmax(6rem, 30%) 1fr;
+  gap: var(--space-2);
+  padding-block: var(--space-1);
+}
+
+/* --- quality states ---------------------------------------------------------
+ *
+ * Each state carries a coloured edge AND a text label. The edge is the fast
+ * signal; the label is the one that survives colour blindness, greyscale
+ * printing and forced-colors.
+ */
+
+.jl-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-inline-start: 4px solid var(--border-strong);
+  border-radius: var(--space-1);
+  background: var(--surface-raised);
+}
+
+.jl-state__label {
+  font-weight: var(--font-weight-bold);
+}
+
+.jl-state__detail {
+  color: var(--text-secondary);
+}
+
+.jl-state__icon {
+  /* Decorative: the label carries the meaning. Sized so it reads as a glyph
+     rather than a control. */
+  font-size: var(--font-size-lg);
+  line-height: 1;
+}
+
+.jl-state--skeleton {
+  color: var(--text-secondary);
+  border-inline-start-color: var(--border-default);
+}
+
+.jl-state__conflicts,
+.jl-state__relaxations {
+  margin: 0;
+  padding-inline-start: var(--space-6);
+}
+
+.jl-state__action {
+  margin-block-start: var(--space-1);
+}
+
+.jl-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.jl-progress__bar {
+  inline-size: 100%;
+  block-size: var(--space-2);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--space-1);
+}
+
+/* --- dialog ------------------------------------------------------------------ */
+
+.jl-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 0.5);
+}
+
+.jl-dialog {
+  inline-size: min(32rem, 100%);
+  max-block-size: 90vh;
+  overflow: auto;
+  padding: var(--space-4);
+  background: var(--surface-base);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--space-2);
+  box-shadow: var(--elevation-3);
+}
+
+.jl-dialog__title {
+  margin-block: 0 var(--space-2);
+  font-size: var(--font-size-lg);
+}
+
+.jl-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-4);
+}
+
+/* --- notifications ----------------------------------------------------------- */
+
+.jl-notifications {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.jl-notification {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-inline-start: 4px solid var(--status-info);
+  border-radius: var(--space-1);
+  background: var(--surface-raised);
+}
+
+.jl-notification__title {
+  font-weight: var(--font-weight-bold);
+}
+
+.jl-notification__dismiss {
+  align-self: flex-start;
+}
+
+/* --- error containment -------------------------------------------------------
+ * Base rules live in the app shell; only the message needs a colour here. */
+
+.jl-feature-error__message {
+  color: var(--text-primary);
+}

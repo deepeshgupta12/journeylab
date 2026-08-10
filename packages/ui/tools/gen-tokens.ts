@@ -13,7 +13,7 @@ import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ELEVATION, MOTION, MOTION_REDUCED, PALETTES, SPACING, TYPOGRAPHY } from '../src/tokens';
+import { ELEVATION, MOTION, MOTION_REDUCED, PALETTES, SPACING, TYPOGRAPHY } from '../src/tokens.ts';
 
 function block(entries: Record<string, string>, indent = '  '): string {
   return Object.entries(entries)
@@ -58,11 +58,51 @@ ${block(dark)}
 }
 
 /* High contrast is a DISTINCT palette held to AAA, not dark mode intensified.
- * forced-colors covers Windows High Contrast Mode; prefers-contrast covers the
- * platform-agnostic signal. Both are honoured. */
-@media (prefers-contrast: more), (forced-colors: active) {
+ * This is OUR palette, chosen for the platform-agnostic "I want more contrast"
+ * signal. */
+@media (prefers-contrast: more) {
   :root {
 ${block(highContrast, '    ')}
+  }
+}
+
+/*
+ * forced-colors is NOT the same signal, and STEP-003.08 found out the hard way.
+ *
+ * These two conditions used to share one block, so Windows High Contrast got our
+ * hard-coded palette: black surfaces, yellow actions. That is wrong twice over.
+ *
+ *   1. Forced colors is the USER's palette, not ours. They chose it, often for a
+ *      specific visual condition, and Windows ships light themes as well as dark
+ *      ones. Overriding it substitutes our guess for their decision.
+ *   2. It does not even work. In forced-colors the user agent replaces
+ *      background-color with its own system colour regardless of what we say,
+ *      while our authored text colour may survive — so a yellow-on-black palette
+ *      becomes yellow on whatever canvas the system picked. axe measured 1.07:1
+ *      against a light forced palette. Unreadable, from a rule written to help.
+ *
+ * The correct answer is to stop specifying colours and map the tokens onto CSS
+ * system colours, so every component keeps working and the user's palette wins.
+ */
+@media (forced-colors: active) {
+  :root {
+    --surface-base: Canvas;
+    --surface-raised: Canvas;
+    --surface-sunken: Canvas;
+    --text-primary: CanvasText;
+    --text-secondary: CanvasText;
+    --border-default: CanvasText;
+    --border-strong: CanvasText;
+    --action-primary: LinkText;
+    --action-primary-text: Canvas;
+    --focus-ring: Highlight;
+    /* System colours carry no semantics for status, so status falls back to
+       CanvasText. The non-colour signal — the border, the glyph, the label —
+       is what conveys state here, which REQ-A11Y-004 required anyway. */
+    --status-success: CanvasText;
+    --status-warning: CanvasText;
+    --status-error: CanvasText;
+    --status-info: CanvasText;
   }
 }
 

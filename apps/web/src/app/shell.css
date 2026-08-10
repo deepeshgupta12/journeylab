@@ -10,6 +10,32 @@ body {
   color: var(--text-primary);
   font-size: var(--font-size-base);
   line-height: var(--line-height-normal);
+  /*
+   * A system font stack, not a webfont — STEP-003.08.
+   *
+   * Before this the app rendered in the browser's serif default, which reads as
+   * "unstyled" rather than as a choice. A system stack is not a typographic
+   * decision either; it is the neutral baseline. It costs no network request,
+   * so it cannot delay LCP or cause the flash of invisible text that a webfont
+   * introduces, and it honours whatever the reader has configured at OS level.
+   *
+   * Choosing an actual typeface is a design decision that has not been made.
+   */
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+}
+
+code,
+kbd,
+samp {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9375em;
 }
 
 /*
@@ -155,4 +181,48 @@ body {
   .jl-nav__toggle {
     display: inline-flex;
   }
+}
+
+/*
+ * Diagnostic page — STEP-003.08.
+ *
+ * Replaces the inline hex colours the STEP-002.05 scaffold used. Those failed
+ * axe on contrast (#888 on white is 3.5:1, below the 4.5:1 WCAG 1.4.3 requires)
+ * and were invisible to tokens.test.ts, which only computes ratios for declared
+ * token pairings.
+ */
+.jl-page__lede {
+  color: var(--text-secondary);
+  max-inline-size: 60ch;
+}
+
+.jl-page__result {
+  margin-block-start: var(--space-6);
+  max-inline-size: 60ch;
+}
+
+/* The left edge carries the status, and the heading text says the same thing in
+ * words — never colour alone (REQ-A11Y-004). */
+.jl-page__result--ok {
+  border-inline-start-color: var(--status-success);
+}
+
+.jl-page__result--warn {
+  border-inline-start-color: var(--status-warning);
+}
+
+.jl-page__links {
+  margin-block-start: var(--space-8);
+  color: var(--text-secondary);
+}
+
+/*
+ * Inline links inside a sentence are exempt from SC 2.5.8 target sizing — making
+ * them 44px tall would break the paragraph. They still need to be distinguishable
+ * without colour, so they stay underlined.
+ */
+.jl-page__links a {
+  color: var(--action-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }

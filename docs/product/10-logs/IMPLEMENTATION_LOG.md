@@ -60,6 +60,174 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-022 — STEP-003.08 — Automated keyboard and axe checks in CI
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-10 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-A11Y-001 (and REQ-A11Y-004, REQ-NFR-013 in passing) |
+| Blast radius | [BR-025](blast-radius/BR-025-accessibility-ci.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `1d67ffc` — matched HEAD at pre-change |
+
+### What was built
+Playwright with `@axe-core/playwright`, running against a **production** build in
+two profiles (Desktop Chrome, Pixel 7): 20 tests × 2 = 40. A gated component
+gallery at `/dev/gallery` as the surface to walk. `packages/ui/src/components.css`.
+A runtime accessibility counter. `tests/guards/gallery-gate.sh`.
+`ACCESSIBILITY_AUTOMATION_LIMITS.md`. All of it inside `pnpm verify`, so it runs
+locally exactly as it runs in CI.
+
+### The headline: a browser found seven defects that 256 jsdom tests could not
+
+This is the whole argument for the sub-step, so it goes first.
+
+| # | Defect |
+| --- | --- |
+| 1 | **Checkboxes and radios rendered 13×13.** Text inputs 21px tall, selects 19px, table sort buttons 21px. Every one below the 24×24 WCAG 2.2 SC 2.5.8 requires |
+| 2 | **28 of the design system's 40 class names had no CSS whatsoever.** Only the shell, nav and skip link were styled. Everything else was browser defaults |
+| 3 | **A `color-contrast` failure on the home page** — `#888` on white is 3.5:1 |
+| 4 | **32px of horizontal overflow at a 320px viewport** — WCAG 1.4.10 Reflow |
+| 5 | **`forced-colors` was overridden with our palette**, and axe measured the result at 1.07:1 |
+| 6 | **Valid and disabled fields wore the error styling** |
+| 7 | **The gallery's own CSS outranked `.jl-nav__link`** and shrank nav targets from 44px to 24px |
+
+jsdom has no layout engine. It will state, correctly and uselessly, that a
+checkbox exists, is labelled, is reachable by keyboard — and is 0×0. Every
+geometric assertion made in seven previous sub-steps was vacuous, and none of
+them could have known.
+
+Defect 7 is the most instructive: it was **introduced by me, four minutes
+earlier**, in the fix for defect 2, and caught on the next run. A gallery must
+never restyle its specimens or it measures itself.
+
+### The forced-colors mistake was conceptual, not a typo
+`tokens.css` had one media query for `prefers-contrast: more` **and**
+`forced-colors: active`. They are different signals:
+
+- `prefers-contrast: more` says *"I want more contrast"*. Our AAA palette is the
+  right answer.
+- `forced-colors: active` says *"I have chosen my own palette"*. It is not ours
+  to override — Windows High Contrast ships light themes as well as dark ones —
+  and the override does not even work: the user agent replaces `background-color`
+  regardless while authored text colour may survive, so black-and-yellow became
+  yellow on whatever canvas the system picked.
+
+The forced-colors branch now maps every token onto a CSS system colour. Status
+tokens all resolve to `CanvasText`, which is fine precisely because
+`REQ-A11Y-004` already required a non-colour signal for every status.
+
+### Why there is a gallery, and why it is gated by an explicit flag
+"axe over every component story" needs stories, and there is no Storybook. The
+gallery is one route rendering every primitive in every quality state.
+
+`NODE_ENV !== 'production'` would be the obvious gate and is wrong here: the
+accessibility run must walk a **production** build, because that is the build
+whose Core Web Vitals and hydration behaviour are worth measuring. So the gate is
+`JOURNEYLAB_ENABLE_GALLERY === '1'`, default off — exact match, because
+`'false'` and `'0'` are both truthy strings and both mean off.
+
+`notFound()`, not a 403: a 403 confirms the path exists.
+
+The gate is verified by `tests/guards/gallery-gate.sh`, which boots a production
+server **without** the flag and asserts 404. It is deliberately not a Playwright
+test — the harness sets the flag in order to do its job, so it can only ever
+prove the positive case.
+
+### What the runtime counter is, and is not
+Not axe in production: walking the accessibility tree on a traveller's phone
+would cost more than the page, and a violation found on the device is already in
+front of the user.
+
+It counts the failures that only exist in a real session — chiefly **focus
+falling to `<body>` after a client navigation**, which axe cannot see because it
+is a property of a transition, not of a page. For a sighted user nothing
+happens; for a keyboard user the next Tab starts from the top of the document.
+
+The event is `{signal, surface}` and nothing else. An accessible name can contain
+a traveller's name or destination, so element text is never reported — a test
+asserts the event has exactly those two keys, so a field cannot be added quietly.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` (guards + lint + typecheck + Python + tests + build + gate + browser) | **PASS** |
+| `pnpm ci:local` (Linux, clean checkout, cold install, `CI=true`) | **PASS** — after rejecting three commits first; see the regression entry |
+| Playwright | **40 passed** (20 × desktop and Pixel 7) |
+| UI / web / Python | 267 / 61 / 335 passed |
+| Guard meta-suite | **43/43** |
+
+**Mutation testing.** The gallery gate forced open ⇒ guard fails. `ignoreBuildErrors`
+reverted ⇒ build fails. A seeded `image-alt` violation ⇒ axe run fails — that one
+is a permanent test, not a one-off mutation, because §7 asks for it explicitly.
+
+### Six carried criteria closed
+| From | Criterion |
+| --- | --- |
+| STEP-003.01 | forced-colors rendering |
+| STEP-003.04 | real-browser verification of table and list |
+| STEP-003.05 | skip-link visible on focus; Core Web Vitals |
+| STEP-003.06 | touch-target size; the 48rem breakpoint |
+| STEP-003.07 | RTL layout in something that lays out |
+| STEP-002.05 | auth-flow page accessibility — the contrast failure was on that page |
+
+### What is NOT met, and is documented rather than glossed
+`ACCESSIBILITY_AUTOMATION_LIMITS.md` exists because §5 asks for it, and because
+the honest number is that automation finds **a third to a half** of real
+accessibility defects.
+
+Not covered, and not coverable: whether an announcement makes sense; screen-reader
+behaviour across the five required AT/browser combinations; whether focus *order*
+is logical as opposed to unstuck; cognitive load and error recovery; meaning
+carried by hue within a chart; voice control, switch access and magnifiers.
+
+**Core Web Vitals are lab numbers.** §7's budgets specify mid-tier mobile on 4G;
+this runs on a CI machine over loopback. It catches regressions. It cannot confirm
+the budget for a traveller on a ferry — that needs real-user monitoring at
+STEP-024, and is recorded as unmet rather than counted.
+
+### Surprises
+**A stale server made me believe I had broken every stylesheet.** A screenshot came
+back completely unstyled; the CSS chunk was 500ing. The cause was an orphaned
+`next start` from a previous run still bound to 5708, serving the previous build's
+HTML with a chunk hash that no longer existed. The guard now refuses to run if the
+port is occupied rather than measuring the wrong server.
+
+**`pnpm typecheck` caught what `pnpm --filter @journeylab/ui typecheck` could not.**
+The BUG-018 fix needed `allowImportingTsExtensions` in a *second* package, because
+`apps/web` typechecks `packages/ui/src/tokens.ts` through the workspace import.
+Only the full per-package run said so.
+
+**A guard reported PASS while its cleanup did nothing.** `gallery-gate.sh` used
+`lsof`, which node:24-bookworm does not ship. On Linux the trap failed silently,
+the guard still printed PASS, and the accessibility run that follows it died on
+an occupied port. A cleanup that depends on a tool which may be absent is a
+cleanup that fails on the machine you were not testing on — so liveness is now
+decided by asking the server with curl, and the guard escalates until the port
+is genuinely free rather than assuming it is.
+
+**The meta-test stopped testing anything, on Linux only.** The seeded `image-alt`
+violation is prepended to `<body>`, which React owns; there, hydration finished
+after the injection and discarded it. The one test whose job is to prove the gate
+can fail was quietly proving nothing. It now waits for hydration and asserts the
+seed is still in the DOM before axe runs.
+
+**The graph reports zero dependents for every React component.** See BR-025 §3:
+`CALLS` edges come from function calls, and a component used only as JSX is never
+called. `impact(SkipLink)` returns 0 against eight real references.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Manual screen-reader journeys across the five AT/browser pairs | Every release |
+| Real-user CWV monitoring to replace the lab numbers | STEP-024 |
+| Component impact analysis is unreliable (JSX not traced) | STEP-026 |
+| A visual design pass — `components.css` is accessibility styling, not design | Design, unscheduled |
+| Voice control, switch access, 200%/400% zoom | Before GA |
+
+---
+
 ## IMPL-021 — STEP-003.07 — Locale, time zone, currency and DST handling
 
 | Field | Value |
