@@ -60,6 +60,97 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-028 — STEP-004.04 — Privacy, admin, coverage and job operations (API-015…018)
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-11 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PLAT-005, REQ-PRIV-005 (enforcing REQ-PRIV-006/007, REQ-EVID-006, REQ-NFR-004) |
+| Blast radius | [BR-031](blast-radius/BR-031-platform-operations.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `6ea8436` — matched HEAD at pre-change |
+
+### What was built
+Six operations and 8 schemas: privacy requests with per-store tracking, curator
+overrides with four-eyes, public coverage, and job streaming with cancellation.
+23 assertions. Python suite 469 → **492**. STEP-004 is now 4/8 with **22
+operations declared**.
+
+### The graph gave me a confidently wrong answer
+`impact(CLIENT_VISIBLE)` returned **`0 impacted`, `risk: LOW`, `epistemic:
+exact`** for a constant with five references across two files.
+
+**That is worse than the degraded concept search**, and worth being precise
+about. The FTS gap at least emits a warning. This emits a guarantee: a pre-change
+check targeting a module-level constant reports a clean blast radius for a symbol
+with real dependents, and `epistemic: exact` invites the reader to stop looking.
+
+Six limitations are now recorded across BR-024 through BR-031: workspace aliases,
+JSX components, CSS, the concept search, duplicate indexing, and now imported
+constants. Functions are traced correctly and usefully — `impact(problem)` and
+`impact(safe_detail)` both returned real callers and processes. **The tool is
+reliable for one shape of symbol and silently unreliable for several others**, and
+a `0 impacted` result is only trustworthy for a Python function.
+
+### Correcting something I said
+I stated that `auth/errors.py` would migrate to RFC 9457 at `.04` and that
+invitation redemption would land here. **Neither is true.** `.04` is privacy,
+admin, coverage and jobs, and STEP-004 declares contracts only — no route handler
+exists anywhere in the repository, so a migration has nothing to be verified
+against. Both carry to the implementing steps.
+
+### One public operation, counted rather than assumed
+`getCoverage` is the only operation that declares `security: []`. A test **counts
+them**, so a second one added by accident is visible rather than inherited.
+
+Public is right: a traveller must be able to learn their destination is
+unsupported without registering to be told no. What must not leak is *how* it is
+supplied — so `provider_health` is a single aggregate enum, never a list, a name
+or a count, each of which reveals the shape of the supply chain. `Coverage` and
+`CoverageRegion` are closed, and a test asserts eight leak-shaped names are absent
+rather than that the current fields look acceptable.
+
+### Privacy made verifiable rather than assertable
+`REQ-PRIV-006` names seven stores — primary, object, vector, graph, cache, export,
+token. The record tracks each individually.
+
+A single `complete` boolean goes true when the easy stores finish. `partially_failed`
+is therefore a distinct state: six of seven is not complete, and calling it
+complete is precisely the failure `REQ-PRIV-007` guards against. Acceptance is
+`202` and never `200`, because the work continues after the response.
+
+### A control the organisation cannot currently satisfy
+`status` is absent from the override request schema, which is closed — a caller
+that could ask for `active` could skip four-eyes. The server decides, and
+high-impact overrides are created `pending_approval`.
+
+The contract names a **second curator**, matching the authorization matrix.
+`DEC-010` has not resolved whether an `ops_admin` may stand in, so the contract
+declares only what the matrix states.
+
+**With a single owner, four-eyes is structurally unsatisfiable** (`ADR-010`). The
+contract declares the control correctly; satisfying it is an organisational
+problem `STEP-021` cannot ship without.
+
+### Heartbeats are the design, not a detail
+Without them a client cannot distinguish a job that is thinking from a connection
+that died — and a traveller watching a spinner cannot either. The stream also
+carries warnings, because a generation that succeeded while three providers were
+degraded is not the same as one that succeeded cleanly. Cancellation is `202`, not
+`204`: a job stops at a safe point, and claiming it already has is a lie the
+client acts on.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Migrate `auth/errors.py` once handlers exist | STEP-008 onward |
+| Invitation redemption + the `invitation_expired` 403 conflict | STEP-015 |
+| `DEC-010` — may an `ops_admin` be the second approver? | Before STEP-021 |
+| Six graph limitations | STEP-026 |
+
+---
+
 ## IMPL-027 — STEP-004.03 — Collaboration, booking, live and feedback (API-010…014)
 
 | Field | Value |

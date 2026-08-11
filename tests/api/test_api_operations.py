@@ -551,3 +551,156 @@ class TestPhase3OperationsStillObeyTheConventions:
             if m in MUTATING and "IdempotencyKey" not in param_names(op)
         ]
         assert not missing, missing
+
+
+# ============================================================================
+# STEP-004.04 — privacy, admin, coverage and jobs
+# ============================================================================
+
+
+class TestPublicCoverageLeaksNothing:
+    """TST-EVID-006 — the only unauthenticated operation in the contract."""
+
+    def test_exactly_one_operation_is_public(self) -> None:
+        """An unauthenticated endpoint is a decision, not an oversight.
+
+        Global `security` requires a bearer token; an operation opts out by
+        declaring `security: []`. Counting them is how a second one added by
+        accident becomes visible.
+        """
+        public = [op["operationId"] for _, _, op in operations() if op.get("security") == []]
+        assert public == ["getCoverage"], (
+            f"unauthenticated operations: {public}. Exactly one is intended — a "
+            f"traveller must be able to learn their destination is unsupported "
+            f"without registering to be told no."
+        )
+
+    def test_coverage_is_a_closed_schema(self) -> None:
+        """An open public response is where a provider name eventually appears."""
+        assert SPEC["components"]["schemas"]["Coverage"]["additionalProperties"] is False
+        assert SPEC["components"]["schemas"]["CoverageRegion"]["additionalProperties"] is False
+
+    def test_provider_health_is_an_aggregate_not_a_breakdown(self) -> None:
+        """REQ-EVID-006.
+
+        A per-provider list names the supply chain; a count tells an attacker how
+        many suppliers are degraded, which is when the product is weakest.
+        """
+        health = SPEC["components"]["schemas"]["Coverage"]["properties"]["provider_health"]
+        assert health["type"] == "string"
+        assert set(health["enum"]) == {"healthy", "degraded", "unavailable"}
+
+    def test_no_provider_or_quota_field_reaches_the_public_response(self) -> None:
+        names = {
+            n.lower()
+            for n in TestNoPaymentCredentialAnywhere()._all_property_names(
+                {
+                    "a": SPEC["components"]["schemas"]["Coverage"],
+                    "b": SPEC["components"]["schemas"]["CoverageRegion"],
+                }
+            )
+        }
+        for leak in (
+            "provider_id",
+            "provider_name",
+            "providers",
+            "quota",
+            "quota_remaining",
+            "rate_limit",
+            "supplier",
+            "vendor",
+        ):
+            assert leak not in names, f"public coverage exposes {leak!r}"
+
+
+class TestPrivacyRequestLifecycle:
+    """TST-PRIV-005."""
+
+    def test_all_four_request_kinds_are_specified(self) -> None:
+        kinds = SPEC["components"]["schemas"]["PrivacyRequest"]["properties"]["kind"]["enum"]
+        assert set(kinds) == {"export", "correction", "consent_withdrawal", "deletion"}
+
+    def test_the_request_is_trackable_to_completion(self) -> None:
+        """A deletion the subject cannot verify is a deletion they must trust."""
+        ids = {op["operationId"] for _, _, op in operations()}
+        assert {"createPrivacyRequest", "getPrivacyRequest"} <= ids
+
+    def test_every_store_req_priv_006_names_is_tracked_individually(self) -> None:
+        """A single boolean goes true when the easy stores finish.
+
+        REQ-PRIV-006 requires deletion to traverse primary, object, vector,
+        graph, cache, export and token stores. The record names each, so a
+        subject can see which are outstanding.
+        """
+        stores = SPEC["components"]["schemas"]["PrivacyStoreStatus"]["properties"]["store"]
+        assert set(stores["enum"]) == {
+            "primary",
+            "object",
+            "vector",
+            "graph",
+            "cache",
+            "export",
+            "token",
+        }
+
+    def test_partial_failure_is_a_distinct_state(self) -> None:
+        """REQ-PRIV-007. Six of seven stores is not 'complete'."""
+        states = SPEC["components"]["schemas"]["PrivacyRequestRecord"]["properties"]["state"]
+        assert "partially_failed" in states["enum"]
+        assert "complete" in states["enum"]
+
+    def test_acceptance_is_202_not_200(self) -> None:
+        """The work continues after the response; saying otherwise is a lie the
+        subject acts on."""
+        op = next(o for _, _, o in operations() if o["operationId"] == "createPrivacyRequest")
+        assert "202" in op["responses"]
+        assert "200" not in op["responses"]
+
+
+class TestFourEyesIsInTheContract:
+    def test_the_server_sets_the_status_not_the_caller(self) -> None:
+        """A caller that could request `active` could skip four-eyes."""
+        request = SPEC["components"]["schemas"]["EvidenceOverrideRequest"]
+        assert "status" not in request["properties"]
+        assert request["additionalProperties"] is False
+
+        response = SPEC["components"]["schemas"]["EvidenceOverride"]
+        assert "pending_approval" in response["properties"]["status"]["enum"]
+
+    def test_an_override_requires_a_reason_and_evidence(self) -> None:
+        """A fact override with neither is an opinion overwriting a source."""
+        request = SPEC["components"]["schemas"]["EvidenceOverrideRequest"]
+        assert {"reason", "evidence"} <= set(request["required"])
+        assert request["properties"]["reason"]["minLength"] >= 10, '"fix" is not a reason'
+        assert request["properties"]["evidence"]["minItems"] >= 1
+
+    def test_the_impact_is_previewable_before_it_applies(self) -> None:
+        override = SPEC["components"]["schemas"]["EvidenceOverride"]
+        assert "impact_preview" in override["required"]
+
+
+class TestJobStreaming:
+    def test_heartbeat_is_a_declared_event_type(self) -> None:
+        """Without it, a client cannot tell a slow job from a dead connection."""
+        events = SPEC["components"]["schemas"]["JobEvent"]["properties"]["event"]["enum"]
+        assert "heartbeat" in events
+
+    def test_warnings_are_carried_not_only_progress_and_result(self) -> None:
+        """A generation that succeeded while three providers were degraded is not
+        the same as one that succeeded cleanly (REQ-EVID-006)."""
+        events = SPEC["components"]["schemas"]["JobEvent"]["properties"]["event"]["enum"]
+        assert {"progress", "warning", "result", "error"} <= set(events)
+
+    def test_the_stream_is_event_stream_not_json(self) -> None:
+        op = next(o for _, _, o in operations() if o["operationId"] == "streamJobEvents")
+        assert "text/event-stream" in op["responses"]["200"]["content"]
+
+    def test_cancellation_exists_and_is_202(self) -> None:
+        """A job mid-flight stops at a safe point; 204 would claim it already had."""
+        op = next(o for _, _, o in operations() if o["operationId"] == "cancelJob")
+        assert "202" in op["responses"]
+        assert "204" not in op["responses"]
+
+    def test_events_are_sequenced(self) -> None:
+        """So a client that reconnects can tell whether it missed anything."""
+        assert "sequence" in SPEC["components"]["schemas"]["JobEvent"]["properties"]

@@ -67,6 +67,49 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-004.04 — 2026-08-11 — Privacy, admin, coverage and job operations
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `6ea8436` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **492 Python** (up from 469) + 61 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | Purely additive — 6 operations, 8 schemas |
+| R3 graph diff as expected | **PASS**, with a caveat | Contract and tests only. **The graph reported `0 impacted` as `epistemic: exact` for a constant with five references** — see BR-031 §3 |
+| R4 untested requirements | **PASS — improved** | REQ-PRIV-006/007 and REQ-EVID-006 gain contract assertions |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…019; meta-suite 43/43 |
+| **R7 tenant isolation** | **PASS — 12/12** | Coverage is public and **tenant-free by construction** — it has no tenant-scoped field to leak |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| YAML would not parse | A description containing `` `kind: correction` `` — an unquoted colon-space reads as a mapping | Block scalar. The document is 1,700 lines and prose is where YAML bites |
+| `ruff format` wanted one file | Long assertion lines in the new tests | Reformatted |
+
+### Notes
+**R3 carries a caveat that should not be skimmed.** `impact(CLIENT_VISIBLE)`
+reported `0 impacted` with `epistemic: exact` for a constant referenced five
+times across two files. Unlike the degraded concept search, which warns, this one
+issues a guarantee — and a `0 impacted` on a constant is exactly the result that
+persuades a reader they need not check further.
+
+Six graph limitations are now recorded across BR-024…BR-031. Functions trace
+correctly; nothing else reliably does. The operational rule, now in `CLAUDE.md`,
+is that a zero result is trustworthy only for a Python function.
+
+**A correction to a previous hand-off.** I had said `auth/errors.py` migrates to
+RFC 9457 at `.04` and that invitation redemption lands here. Neither is true —
+STEP-004 declares contracts only, and no route handler exists to verify a
+migration against.
+
+---
+
 ## STEP-004.03 — 2026-08-11 — Collaboration, booking, live and feedback
 
 | Field | Value |

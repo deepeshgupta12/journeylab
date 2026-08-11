@@ -56,6 +56,14 @@ tags:
     description: Activation, monitoring and controlled replanning. (Phase 3)
   - name: feedback
     description: Explicit outcome and preference feedback. (Phase 3)
+  - name: privacy
+    description: |
+      Export, correction, consent withdrawal and deletion. The data subject's
+      own operations.
+  - name: admin
+    description: Curation and overrides. Four-eyes where the impact is high.
+  - name: platform
+    description: Public coverage and job streaming.
   - name: scenarios
     description: |
       Generate, compare and select feasible futures. **Deterministic engines own
@@ -636,6 +644,217 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/FeedbackRecord' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-015 — privacy requests
+  # ==========================================================================
+  /privacy/requests:
+    post:
+      operationId: createPrivacyRequest
+      tags: [privacy]
+      summary: Export, correct, withdraw consent, or delete.
+      description: |
+        The data subject, or an authorised privacy operator acting for them.
+
+        **Every request is tracked and returns a completion confirmation.** A
+        deletion that quietly half-succeeds is worse than one that fails: the
+        subject believes their data is gone. `REQ-PRIV-006` requires deletion to
+        traverse primary, object, vector, graph, cache, export and token stores,
+        and a partial traversal enters a **monitored retry queue** visible to the
+        privacy owner rather than being reported as done.
+
+        That is why failure is `202` and not `500` — the request is accepted and
+        still in progress, which is the truth.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PrivacyRequest' }
+            example:
+              kind: 'deletion'
+              subject_confirmation: 'I understand this cannot be undone'
+      responses:
+        '202':
+          description: |
+            Accepted and tracked. `202` even for a request that completes
+            immediately: the subject should learn the outcome from the tracked
+            record, not from a status code they have to interpret.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacyRequestRecord' }
+        '422': { $ref: '#/components/responses/Problem' }
+
+  /privacy/requests/{requestId}:
+    get:
+      operationId: getPrivacyRequest
+      tags: [privacy]
+      summary: Track a privacy request to completion.
+      description: |
+        The confirmation half of the contract. A subject who asked for deletion
+        must be able to see that it finished, including which stores are still
+        outstanding — `REQ-PRIV-007`.
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Current state of the request.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivacyRequestRecord' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-016 — curator evidence override
+  # ==========================================================================
+  /admin/evidence-overrides:
+    post:
+      operationId: createEvidenceOverride
+      tags: [admin]
+      summary: Override a fact, with reason, evidence and an impact preview.
+      description: |
+        Curator only. **High-impact overrides require four-eyes approval**, which
+        the response models explicitly: a high-impact override is created
+        `pending_approval` and does not take effect until a *second curator*
+        approves it.
+
+        `AUTHORIZATION_MATRIX` §4 names a second curator, not an `ops_admin`, and
+        `DEC-010` has not resolved whether an `ops_admin` may stand in. Until it
+        does, the contract declares only what the matrix states — encoding a guess
+        here would be inventing authorization policy.
+
+        **Known gap:** with a single owner, four-eyes is structurally
+        unsatisfiable (`ADR-010`). The contract declares the control correctly;
+        satisfying it is an organisational problem, and `STEP-021` cannot ship
+        without an answer.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceOverrideRequest' }
+      responses:
+        '201':
+          description: |
+            Created. `status` is `active` for a low-impact override and
+            `pending_approval` for a high-impact one — the caller does not choose.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceOverride' }
+        '422': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-017 — public coverage
+  # ==========================================================================
+  /coverage:
+    get:
+      operationId: getCoverage
+      tags: [platform]
+      summary: Supported regions, date bounds, freshness and documented limits.
+      # The ONLY unauthenticated operation in this contract. Declared explicitly
+      # rather than inherited, so it is visible in a diff.
+      security: []
+      description: |
+        **Public and unauthenticated** — the one operation in this contract that
+        is. A traveller must be able to learn whether their destination is
+        supported before creating an account, and putting that behind a login
+        means asking someone to register to be told "no".
+
+        **It must never expose provider identities or quota details**
+        (`REQ-EVID-006`). Which supplier backs a region is commercially
+        confidential; how close a provider is to its quota tells an attacker
+        exactly when the product degrades. Coverage answers *what is supported*,
+        never *how it is supplied*.
+
+        `provider_health` is therefore an aggregate label, not a per-provider
+        breakdown.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Coverage.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Coverage' }
+              example:
+                regions:
+                  - region_id: 'gr-cyclades'
+                    display_name: 'Cyclades, Greece'
+                    date_bounds: { start: '2026-04-01', end: '2027-03-31' }
+                    freshness: 'current'
+                    limitations: ['Ferry timetables are seasonal and change monthly']
+                provider_health: 'healthy'
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  # ==========================================================================
+  # API-018 — job event stream and cancellation
+  # ==========================================================================
+  /jobs/{jobId}/events:
+    get:
+      operationId: streamJobEvents
+      tags: [platform]
+      summary: Server-sent progress, warnings and terminal result.
+      description: |
+        **Heartbeats are required**, and that is the whole point of the
+        operation's design. Without them a client cannot distinguish a job that is
+        thinking hard from a connection that died — and a traveller watching a
+        spinner has no way to tell either. A heartbeat at a stated interval turns
+        "is this broken?" into a question the client can answer.
+
+        The stream also carries **warnings**, not only progress and the result.
+        A generation that succeeded while three providers were degraded is not the
+        same as one that succeeded cleanly, and the difference must reach the
+        interface (`REQ-EVID-006`).
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: An event stream.
+          content:
+            text/event-stream:
+              schema: { $ref: '#/components/schemas/JobEvent' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  /jobs/{jobId}:
+    delete:
+      operationId: cancelJob
+      tags: [platform]
+      summary: Cancel a long-running job.
+      description: |
+        Cancellation is part of the contract, not an afterthought. A scenario
+        generation the traveller no longer wants should stop consuming a solver
+        budget, and `REQ-NFR-004` requires the **last valid state to survive** —
+        cancelling must never discard work already usable.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '202':
+          description: |
+            Cancellation requested. `202`, not `204`: a job mid-flight stops when
+            it reaches a safe point, and claiming it has already stopped would be
+            a lie the client acts on.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobHandle' }
         '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
 
   # ==========================================================================
@@ -1408,6 +1627,195 @@ components:
         feedback_id: { type: string }
         recorded_at: { type: string, format: date-time }
         consent_scope: { type: string }
+
+    # --- privacy ------------------------------------------------------------------
+
+    PrivacyRequest:
+      type: object
+      required: [kind]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum: [export, correction, consent_withdrawal, deletion]
+        subject_confirmation:
+          type: string
+          description: |
+            Required by the handler when `kind` is `deletion`. Declared optional
+            here because the contract cannot express that conditional without
+            a conditional that generated clients render badly; the handler
+            enforces it and `TST-PRIV-005` will assert it. Stated rather than left
+            as an apparent hole.
+        correction:
+          type: object
+          description: |
+            Field-level corrections. Used when `kind` is `correction`.
+          additionalProperties: true
+
+    PrivacyStoreStatus:
+      type: object
+      description: |
+        Per-store progress. `REQ-PRIV-006` requires deletion to traverse primary,
+        object, vector, graph, cache, export and token stores — so the record
+        names them individually. **A subject who asked for deletion must be able
+        to see which stores are still outstanding**, not a single boolean that is
+        true when the easy ones finished.
+      required: [store, state]
+      properties:
+        store:
+          type: string
+          enum: [primary, object, vector, graph, cache, export, token]
+        state:
+          type: string
+          enum: [pending, complete, retrying, failed]
+
+    PrivacyRequestRecord:
+      type: object
+      required: [request_id, kind, state, stores, created_at]
+      properties:
+        request_id: { type: string }
+        kind: { type: string }
+        state:
+          type: string
+          enum: [accepted, in_progress, complete, partially_failed]
+          description: |
+            `partially_failed` exists deliberately. A deletion that finished six
+            of seven stores is not complete, and calling it complete is the exact
+            failure `REQ-PRIV-007` guards against.
+        stores:
+          type: array
+          items: { $ref: '#/components/schemas/PrivacyStoreStatus' }
+        created_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        export_url:
+          type: string
+          description: |
+            Present for a completed export. Expiring, single-use; a permanent link
+            to someone's entire trip history is a credential.
+
+    # --- admin ------------------------------------------------------------------------
+
+    EvidenceOverrideRequest:
+      type: object
+      required: [fact_id, value, reason, effective_from, evidence]
+      additionalProperties: false
+      properties:
+        fact_id: { type: string }
+        value: {}
+        reason:
+          type: string
+          minLength: 10
+          description: |
+            **Required, with a minimum length.** An override with no stated reason
+            is indistinguishable from a mistake six months later, and "fix" is not
+            a reason.
+        effective_from: { type: string, format: date-time }
+        effective_to: { type: string, format: date-time }
+        evidence:
+          type: array
+          minItems: 1
+          description: |
+            What the curator is relying on. A fact override with no supporting
+            evidence is an opinion overwriting a source.
+          items:
+            type: object
+            required: [description]
+            properties:
+              description: { type: string }
+              url: { type: string }
+
+    EvidenceOverride:
+      type: object
+      required: [override_id, status, impact_preview]
+      properties:
+        override_id: { type: string }
+        status:
+          type: string
+          enum: [active, pending_approval, rejected]
+          description: |
+            **Set by the server, not requested.** A high-impact override is
+            created `pending_approval` and takes effect only when a second curator
+            approves it — a caller that could choose `active` would be a caller
+            that could skip four-eyes.
+        impact_preview:
+          type: object
+          description: |
+            Which scenarios this would change, before it takes effect. An override
+            whose consequences are invisible until applied is one nobody can
+            review.
+          required: [affected_scenario_count]
+          properties:
+            affected_scenario_count: { type: integer, minimum: 0 }
+            affected_trip_count: { type: integer, minimum: 0 }
+        approver_required:
+          type: boolean
+          description: True when four-eyes applies.
+
+    # --- platform -----------------------------------------------------------------------
+
+    CoverageRegion:
+      type: object
+      required: [region_id, display_name, date_bounds, freshness]
+      additionalProperties: false
+      properties:
+        region_id: { type: string }
+        display_name: { type: string }
+        date_bounds: { $ref: '#/components/schemas/LocalDateRange' }
+        freshness:
+          type: string
+          enum: [current, degraded, stale]
+        limitations:
+          type: array
+          description: |
+            Documented honestly. `REQ-TRIP-002` wants an honest scope statement,
+            and "ferry timetables are seasonal and change monthly" is worth more
+            to a traveller than a green tick.
+          items: { type: string }
+
+    Coverage:
+      type: object
+      description: |
+        **Public. Contains no provider identity and no quota detail**
+        (`REQ-EVID-006`).
+
+        Which supplier backs a region is commercially confidential, and how close
+        a provider is to its quota tells an attacker precisely when the product
+        degrades. This answers *what is supported*, never *how it is supplied* —
+        which is why `provider_health` is one aggregate label rather than a
+        per-provider breakdown, and why the schema is **closed**.
+      required: [regions, provider_health]
+      additionalProperties: false
+      properties:
+        regions:
+          type: array
+          items: { $ref: '#/components/schemas/CoverageRegion' }
+        provider_health:
+          type: string
+          enum: [healthy, degraded, unavailable]
+          description: |
+            An aggregate. Never a list, never named, never a count — each of those
+            leaks the shape of the supply chain.
+
+    JobEvent:
+      type: object
+      description: |
+        One server-sent event. `heartbeat` is not filler: without it a client
+        cannot tell a job that is thinking from a connection that died.
+      required: [event, job_id]
+      properties:
+        event:
+          type: string
+          enum: [heartbeat, progress, warning, result, error]
+        job_id: { type: string }
+        sequence:
+          type: integer
+          description: |
+            Monotonic, so a client that reconnects can tell whether it missed
+            anything rather than assuming it did not.
+        progress_percent: { type: number, minimum: 0, maximum: 100 }
+        message: { type: string }
+        problem:
+          $ref: '#/components/schemas/Problem'
 
     ZonedTimestamp:
       type: object
