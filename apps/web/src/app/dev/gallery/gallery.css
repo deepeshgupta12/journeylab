@@ -14,9 +14,13 @@
 }
 
 .jl-gallery__section {
-  margin-block-start: var(--space-8, 3rem);
-  padding-block-start: var(--space-4);
-  border-block-start: 1px solid var(--border-subtle, currentColor);
+  margin-block-start: var(--space-12);
+  padding-block-start: var(--space-6);
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.jl-gallery__section > h2 {
+  margin-block-end: var(--space-5);
 }
 
 .jl-gallery__grid {
@@ -25,25 +29,39 @@
      320px viewport once the page padding is subtracted, and the grid then pushes
      the document sideways — WCAG 1.4.10 Reflow. The first real-browser run
      measured 32px of horizontal overflow at 320px because of this line. */
-  grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(min(22rem, 100%), 1fr));
+  /* `min-width: 0` on the items: a grid item defaults to `min-width: auto`, which
+     refuses to shrink below its widest unbreakable content. A single wide table
+     inside one specimen then pushes the whole grid past the viewport — the 2px
+     of overflow the gate measured at 320px. */
+  min-inline-size: 0;
+  gap: var(--space-5);
   align-items: start;
 }
 
 .jl-gallery__specimen {
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   margin: 0;
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle, currentColor);
-  border-radius: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   background: var(--surface-raised);
+  box-shadow: var(--elevation-1);
 }
 
 .jl-gallery__caption {
   /* A figcaption above its figure. `caption-side` is the logical way to say so. */
   caption-side: block-start;
-  margin-block-end: var(--space-2);
-  font-size: var(--font-size-sm, 0.875rem);
-  color: var(--text-secondary, inherit);
+  padding-block-end: var(--space-2);
+  border-block-end: 1px solid var(--border-subtle);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 
 /*

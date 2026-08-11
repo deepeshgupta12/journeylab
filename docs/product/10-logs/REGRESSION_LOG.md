@@ -67,6 +67,61 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-003.09 — 2026-08-11 — Visual design language
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `3793494` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 335 Python + 61 web + **307 UI** + 40 browser |
+| R2 contract compatibility | **N/A** | Token keys added, none removed or renamed; no component API touched |
+| R3 graph diff as expected | **PASS** | Palette constants, `contrastPairs`, `renderCss`, two stylesheets. **CSS has no representation in the graph at all**, so the component-level reach is established by the browser suite instead — stated in BR-026 §3 rather than left implied |
+| R4 untested requirements | **PASS** | 12 new contrast pairs newly proven |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers all changed paths |
+| R6 closed-bug tests | **PASS** | BUG-001…018; meta-suite 43/43 |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Touch targets below 24×24, both profiles | I shrank checkbox and radio to 20px because it looks better beside 14px labels | Back to 24. SC 2.5.8 applies to the control, not the row it sits in |
+| 2px horizontal overflow at 320px | Gallery grid minimum raised to 22rem; a grid item's default `min-width: auto` refuses to shrink below its widest word | `min-inline-size: 0` and `overflow-wrap: anywhere` on the list cells |
+| A further 2px of overflow | `margin: -1px` left on the visually-hidden pattern from the older `clip: rect()` technique | Removed. `clip-path` does not need it |
+| Contrast test failed on my own invented threshold | I declared a 1.4:1 floor for the hairline and then chose a colour at 1.26:1 | Hairline darkened to clear it, and the comment now says plainly that the number is this project's choice, not a WCAG requirement |
+| Status-coverage test failed on the new tints | The rule could not distinguish a signal colour from a background | Rule sharpened to exclude the `-surface` suffix, **plus a second test proving the exclusion did not disable it** |
+| INP reported 422ms once, 7ms when idle | Single-sample lab measurement on a loaded machine | Median of five. BUG-016: a flaky gate is worse than a failing one |
+| **`pnpm ci:local` failed twice with 7 of 8 UI suites unable to collect** | Not a code fault. Docker gives the container **4 GB**; vitest spawns one worker per CPU and each builds its own jsdom with axe-core loaded, so eight workers exhaust it. The main thread then cannot answer transform requests and every suite dies with `[vitest-worker]: Timeout calling "fetch"` — a message that names no file of ours and reads like a module-resolution failure | `packages/ui/vitest.config.ts` caps workers at 2 and raises the transform timeout **under CI only**, so the local path stays fast. Verified by running the capped path locally with `CI=true`: 307 passed either way |
+
+### A note on that last one
+It is worth being precise about why capping concurrency is a fix and not a
+workaround. A suite that only passes with several gigabytes of free memory is
+fragile everywhere — a CI runner is always a shared, constrained machine, and
+this one would have been one bad scheduling day away from failing in GitHub
+Actions too. The cap makes the memory ceiling explicit instead of implicit.
+
+My first two readings of this failure were both wrong, and both were wrong in
+the same way: the error text mentions a module path, so I looked for a
+dependency problem — first a `vite-node` version mismatch in the lockfile
+(there was none), then an incomplete install (there was none). The message named
+the wrong cause and I believed it twice before capturing the full log.
+
+### Notes
+**The order was the point.** Three of the six failures above are accessibility
+defects introduced by a design pass, caught by a gate built one sub-step earlier.
+Each looks fine by hand and passes in jsdom. Had `.09` come first, all three
+would have shipped and been found — if at all — in an audit months later.
+
+The 20px checkbox is the clearest example: it is a better-looking control, it is
+easier to hit than the browser default it replaced, and it is below a standard.
+Judgement alone does not catch that; a measurement does.
+
+---
+
 ## STEP-003.08 — 2026-08-10 — Automated keyboard and axe checks in CI
 
 | Field | Value |

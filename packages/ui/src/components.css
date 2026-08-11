@@ -1,55 +1,103 @@
 /*
- * Component styling — STEP-003.08.
+ * JourneyLab component styling — STEP-003.08 (accessibility) + .09 (design).
  *
- * WHAT THIS IS, AND WHAT IT IS NOT
- *   This is ACCESSIBILITY styling, not visual design. Every rule here exists to
- *   satisfy a WCAG criterion the real-browser suite gates on. There is no brand
- *   here, no illustration, no considered typographic rhythm — that is a design
- *   pass, and it has not happened.
+ * WHAT THIS PRODUCT IS, AND WHAT THAT ARGUES FOR
+ *   JourneyLab shows which futures are feasible, and the evidence behind each
+ *   one. The interface is a reading surface for decisions a traveller will act
+ *   on, sometimes under pressure, sometimes on a phone in an unfamiliar place.
  *
- * WHY IT ARRIVES NOW, AT THE ACCESSIBILITY SUB-STEP
- *   STEP-003.01–.07 shipped forty-odd component class names and CSS for twelve
- *   of them: the shell, the nav and the skip link. Everything else — every
- *   field, input, table, dialog, notification and quality state — rendered at
- *   raw browser defaults. 256 jsdom tests could not notice, because jsdom has no
- *   layout: it will happily report that a checkbox exists, is labelled, and is
- *   13 CSS pixels across.
+ *   That argues for restraint, not personality:
  *
- *   The first real-browser run found exactly that:
+ *     Hierarchy over decoration   The eye should find the answer, not the chrome.
+ *     Colour reserved for meaning Status and action only. Nothing is coloured to
+ *                                 look nice, because then colour stops meaning
+ *                                 anything when it needs to.
+ *     Density that stays legible  Comparing five scenarios across seven days is
+ *                                 a lot of information; whitespace that turns
+ *                                 that into scrolling is not generosity.
+ *     Calm                        Nothing animates for its own sake. A product
+ *                                 that says "this plan does not work" should not
+ *                                 be jaunty about it.
  *
- *     input  13x13    checkboxes and radios at the browser default
- *     input  153x21   text inputs with no minimum height
- *     select 108x19
- *     button 40x21    sortable table headers
+ * WHAT CHANGED AT .09
+ *   .08 delivered the minimum that let the WCAG gate pass: target sizes,
+ *   contrast, focus rings. It looked like a browser with opinions, because that
+ *   is what it was. This adds the layer that was missing — a type scale actually
+ *   applied, a border hierarchy, surface elevation, and radii that scale with
+ *   the element.
  *
- *   All below the 24x24 that WCAG 2.2 SC 2.5.8 (AA) requires. On a phone that is
- *   not a style question; it is the difference between hitting the control and
- *   hitting the one beside it.
+ * THE CONSTRAINT THAT MAKES THIS SAFE
+ *   40 real-browser tests gate every change here: contrast, 24x24 targets, focus
+ *   visibility, reflow at 320px, forced-colors, RTL. The design cannot regress
+ *   accessibility without the build going red. That is the whole reason .08 came
+ *   first, and the order was worth it.
  *
- * RULES THIS FILE FOLLOWS
- *   1. Colours come from tokens. Nothing is hard-coded, so the dark and
- *      high-contrast palettes keep working and tokens.test.ts keeps proving the
- *      contrast ratios.
+ * RULES
+ *   1. Colours come from tokens. Nothing hard-coded, so dark and high-contrast
+ *      keep working and tokens.test.ts keeps proving the ratios.
  *   2. Logical properties only — tests/guards/logical-css.sh enforces it.
- *   3. Nothing is conveyed by colour alone (REQ-A11Y-004): every status carries
- *      a border, a glyph or a weight change as well.
+ *   3. Nothing conveyed by colour alone (REQ-A11Y-004).
  */
 
-/* --- shared control geometry ------------------------------------------------
+/* --- foundations ------------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:where(h1, h2, h3, h4) {
+  /* Headings are set tight and balanced. `text-wrap: balance` stops a two-line
+     heading leaving one orphaned word, which is the most visible typographic
+     failure on a narrow screen. */
+  margin-block: 0 var(--space-3);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--font-weight-semibold);
+  text-wrap: balance;
+}
+
+:where(h1) {
+  font-size: var(--font-size-3xl);
+}
+:where(h2) {
+  font-size: var(--font-size-2xl);
+}
+:where(h3) {
+  font-size: var(--font-size-xl);
+}
+:where(h4) {
+  font-size: var(--font-size-lg);
+}
+
+:where(p) {
+  margin-block: 0 var(--space-3);
+  /* Prose is capped at 65ch. Beyond that the eye loses the line on the return
+     sweep — and the evidence panels this product is built around are prose. */
+  max-inline-size: var(--measure-prose);
+  text-wrap: pretty;
+}
+
+:where(code, kbd, samp) {
+  font-family: var(--font-family-mono);
+  font-size: 0.9375em;
+  /* Tabular figures, so a column of times or prices does not shuffle sideways
+     as digits change. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- shared control geometry -------------------------------------------------
  *
- * 44px, not the 24px the specification requires. Same reasoning shell.css gives
- * for the nav: 24 is technically compliant, 44 is usable with a thumb on a
- * moving train, and that is where a traveller uses this.
- */
-/*
- * `button` unqualified, not an enumerated list of component selectors.
+ * 44px, not the 24px SC 2.5.8 requires. Same reasoning shell.css gives for the
+ * nav: 24 is technically compliant, 44 is usable with a thumb on a moving train,
+ * and that is where a traveller uses this.
  *
- * The first version listed `.jl-dialog button`, `.jl-table button` and so on,
- * and the browser immediately found two it had missed — a gallery trigger and
- * the "Try again" inside an error boundary, both 21px tall. An allowlist of
- * places a button may appear is a list that is wrong the moment someone adds a
- * button somewhere new, and the omission is invisible until a phone is involved.
- * A baseline that every button inherits is the only version that stays true.
+ * `button` unqualified, not an enumerated list of component selectors. The first
+ * version listed `.jl-dialog button`, `.jl-table button` and so on, and the
+ * browser immediately found two it had missed — both 21px tall. An allowlist of
+ * places a button may appear is wrong the moment someone adds a button somewhere
+ * new, and the omission is invisible until a phone is involved.
  */
 button,
 .jl-field input,
@@ -60,13 +108,71 @@ button,
   padding-inline: var(--space-3);
   font: inherit;
   color: var(--text-primary);
-  background: var(--surface-base);
+  background: var(--surface-raised);
   border: 1px solid var(--border-default);
-  border-radius: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+button {
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  /* Colour and shadow only. Never `transform` — a control that moves under the
+     finger is harder to hit, and this product's targets already matter. */
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    border-color var(--motion-duration-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+button:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  border-color: var(--border-strong);
+}
+
+button:active:not(:disabled) {
+  box-shadow: inset 0 1px 2px rgb(26 24 21 / 0.10);
+}
+
+button:disabled {
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+/*
+ * The primary action. Opt-in by class rather than the default, because a screen
+ * with three primary buttons has none.
+ */
+.jl-button--primary {
+  color: var(--action-primary-text);
+  background: var(--action-primary);
+  border-color: var(--action-primary);
+}
+
+.jl-button--primary:hover:not(:disabled) {
+  background: var(--action-primary);
+  border-color: var(--action-primary);
+  box-shadow: var(--elevation-2);
+}
+
+.jl-field input:focus-visible,
+.jl-field select:focus-visible,
+.jl-field textarea:focus-visible,
+button:focus-visible {
+  border-color: var(--action-primary);
 }
 
 /* Checkbox and radio cannot be sized by padding — the box is drawn by the
  * browser. `inline-size`/`block-size` scale the control itself. */
+/*
+ * 24px, and the design pass tried to make it 20.
+ *
+ * 20 looks better next to 14px label text. The accessibility gate rejected it
+ * within one run: SC 2.5.8 is 24x24, and a checkbox is its own target regardless
+ * of the 44px row it sits in. This is precisely the trade .08 existed to make
+ * un-makeable, and it took thirty seconds to try it by accident.
+ */
 .jl-field input[type='checkbox'],
 .jl-field input[type='radio'],
 .jl-radio input {
@@ -77,14 +183,14 @@ button,
   accent-color: var(--action-primary);
 }
 
-/* The label is part of the target: a 24px box beside 200px of text where only
- * the box is clickable is a 24px target. `<label>` wrapping makes the whole row
- * hittable, and the min-height keeps rows apart. */
+/* The label is part of the target: a 20px box beside 200px of text where only
+ * the box is clickable is a 20px target. Wrapping in a label makes the whole row
+ * hittable, and the min-height keeps rows 44px apart. */
 .jl-radio,
 .jl-field label:has(input[type='checkbox']) {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   min-block-size: 44px;
   cursor: pointer;
 }
@@ -105,17 +211,21 @@ button,
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  margin-block-end: var(--space-3);
+  margin-block-end: var(--space-4);
 }
 
 .jl-field__label {
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
+  letter-spacing: var(--tracking-wide);
   color: var(--text-primary);
 }
 
 .jl-field__description {
   font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
   color: var(--text-secondary);
+  max-inline-size: var(--measure-narrow);
 }
 
 .jl-field__error {
@@ -124,28 +234,25 @@ button,
   color: var(--status-error);
 }
 
+/* Empty error containers must not reserve space, or every field gains a gap. */
+.jl-field__error:empty {
+  display: none;
+}
+
 /*
- * An errored control is outlined as well as described. Colour alone would fail
- * REQ-A11Y-004 and vanish under forced-colors.
+ * An errored control is outlined as well as described.
  *
- * Keyed on `[data-invalid]`, NOT on `:has(.jl-field__error)`.
- *   Field always renders the error element, empty or not, because a live region
- *   inserted at the moment it gains content is frequently never announced. So
- *   `:has(.jl-field__error)` matches EVERY field — the first gallery screenshot
- *   showed a valid "Destination" input and a disabled "Trip code" both wearing
- *   the red error edge. Nothing in 256 jsdom tests could see that, because jsdom
- *   does not paint.
+ * Keyed on `[data-invalid]`, NOT on `:has(.jl-field__error)`. Field always
+ * renders the error element, empty or not, because a live region inserted at the
+ * moment it gains content is frequently never announced. So
+ * `:has(.jl-field__error)` matches EVERY field — the first gallery screenshot
+ * showed a valid input and a disabled one both wearing the red error edge.
  */
 .jl-field[data-invalid] input,
 .jl-field[data-invalid] select,
 .jl-field[data-invalid] textarea {
   border-color: var(--status-error);
-  border-inline-start-width: 4px;
-}
-
-/* Empty error containers must not reserve space, or every field gains a gap. */
-.jl-field__error:empty {
-  display: none;
+  border-inline-start-width: 3px;
 }
 
 /* --- table and list --------------------------------------------------------- */
@@ -153,6 +260,7 @@ button,
 .jl-table {
   inline-size: 100%;
   border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
   /* Wide tables scroll INSIDE their own container rather than pushing the page
      sideways — WCAG 1.4.10 Reflow. */
   display: block;
@@ -162,30 +270,55 @@ button,
 .jl-table caption {
   text-align: start;
   padding-block-end: var(--space-2);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-secondary);
 }
 
 .jl-table th,
 .jl-table td {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
   text-align: start;
-  border-block-end: 1px solid var(--border-default);
-  vertical-align: top;
+  vertical-align: baseline;
+  /* Hairlines between rows, not boxes around cells. A grid of boxes reads as a
+     spreadsheet; rules that only separate read as a table. */
+  border-block-end: 1px solid var(--border-subtle);
 }
 
-.jl-table th {
-  font-weight: var(--font-weight-bold);
-  background: var(--surface-raised);
+.jl-table thead th {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-secondary);
+  background: var(--surface-base);
+  /* The one strong rule in the table. It separates header from data, which is
+     the only division a reader needs help with. */
+  border-block-end: 2px solid var(--border-strong);
+}
+
+.jl-table tbody tr:last-child td {
+  border-block-end: 0;
 }
 
 /* Sort buttons fill their header cell, so the target is the cell, not the word. */
 .jl-table th button {
   inline-size: 100%;
+  min-block-size: 44px;
+  padding-inline: 0;
   text-align: start;
+  color: inherit;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
   background: transparent;
   border: 0;
-  font-weight: inherit;
-  cursor: pointer;
+}
+
+.jl-table th button:hover {
+  color: var(--text-primary);
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .jl-list {
@@ -194,73 +327,121 @@ button,
   margin: 0;
 }
 
+.jl-list > li {
+  padding-block: var(--space-3);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.jl-list > li:last-child {
+  border-block-end: 0;
+}
+
 .jl-list__pair {
   display: grid;
   grid-template-columns: minmax(6rem, 30%) 1fr;
-  gap: var(--space-2);
+  gap: var(--space-3);
   padding-block: var(--space-1);
+}
+
+/*
+ * `min-inline-size: 0` on the cells, and it is not defensive noise.
+ *
+ * A grid item defaults to `min-width: auto`, meaning it refuses to shrink below
+ * its widest unbreakable word. One long place name in the value column then
+ * widens the track, the track widens the list, and the list widens the document
+ * — the reflow test measured exactly 2px of it at 320px. The rule is invisible
+ * at every other viewport, which is why it is the kind of thing only a browser
+ * at a phone width ever finds.
+ */
+.jl-list__pair > * {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.jl-list__pair > :first-child {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
 }
 
 /* --- quality states ---------------------------------------------------------
  *
- * Each state carries a coloured edge AND a text label. The edge is the fast
- * signal; the label is the one that survives colour blindness, greyscale
- * printing and forced-colors.
+ * Each state carries a tinted surface, a coloured leading edge AND a text label.
+ * The tint and edge are the fast signal; the label is the one that survives
+ * colour blindness, greyscale printing and forced-colors.
+ *
+ * The tints are declared tokens with their own contrast pairs, so a tint cannot
+ * be chosen because it looked nice — text on it is asserted at 4.5:1.
  */
 
 .jl-state {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid var(--border-default);
-  border-inline-start: 4px solid var(--border-strong);
-  border-radius: var(--space-1);
+  padding: var(--space-4);
   background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-inline-start: 3px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  max-inline-size: var(--measure-prose);
 }
 
 .jl-state__label {
-  font-weight: var(--font-weight-bold);
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-tight);
 }
 
 .jl-state__detail {
+  margin: 0;
   color: var(--text-secondary);
+  line-height: var(--line-height-normal);
 }
 
 .jl-state__icon {
-  /* Decorative: the label carries the meaning. Sized so it reads as a glyph
-     rather than a control. */
+  /* Decorative: the label carries the meaning. */
   font-size: var(--font-size-lg);
   line-height: 1;
 }
 
 .jl-state--skeleton {
   color: var(--text-secondary);
+  background: var(--surface-sunken);
   border-inline-start-color: var(--border-default);
 }
 
 .jl-state__conflicts,
 .jl-state__relaxations {
   margin: 0;
-  padding-inline-start: var(--space-6);
+  padding-inline-start: var(--space-5);
+  line-height: var(--line-height-relaxed);
 }
 
 .jl-state__action {
-  margin-block-start: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
 }
 
 .jl-progress {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  max-inline-size: var(--measure-narrow);
+}
+
+.jl-progress__label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
 }
 
 .jl-progress__bar {
   inline-size: 100%;
   block-size: var(--space-2);
   background: var(--surface-sunken);
-  border: 1px solid var(--border-default);
-  border-radius: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  overflow: hidden;
 }
 
 /* --- dialog ------------------------------------------------------------------ */
@@ -272,31 +453,42 @@ button,
   display: grid;
   place-items: center;
   padding: var(--space-4);
-  background: rgb(0 0 0 / 0.5);
+  /* Warm, not neutral black: a cold scrim over warm surfaces reads as a colour
+     shift rather than as shade. */
+  background: rgb(26 24 21 / 0.55);
 }
 
 .jl-dialog {
-  inline-size: min(32rem, 100%);
-  max-block-size: 90vh;
+  inline-size: min(34rem, 100%);
+  max-block-size: 85vh;
   overflow: auto;
-  padding: var(--space-4);
-  background: var(--surface-base);
+  padding: var(--space-6);
+  background: var(--surface-raised);
   color: var(--text-primary);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   box-shadow: var(--elevation-3);
 }
 
 .jl-dialog__title {
   margin-block: 0 var(--space-2);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
+  letter-spacing: var(--tracking-tight);
+}
+
+.jl-dialog__body {
+  color: var(--text-secondary);
+  line-height: var(--line-height-normal);
 }
 
 .jl-dialog__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-block-start: var(--space-4);
+  margin-block-start: var(--space-6);
+  /* Actions sit at the trailing edge, where the eye finishes reading — and in
+     RTL that is the other side, which is why this is flex-end and not `right`. */
+  justify-content: flex-end;
 }
 
 /* --- notifications ----------------------------------------------------------- */
@@ -304,31 +496,39 @@ button,
 .jl-notifications {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .jl-notification {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-3);
-  border: 1px solid var(--border-default);
-  border-inline-start: 4px solid var(--status-info);
-  border-radius: var(--space-1);
-  background: var(--surface-raised);
+  padding: var(--space-4);
+  background: var(--status-info-surface);
+  border: 1px solid var(--border-subtle);
+  border-inline-start: 3px solid var(--status-info);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-1);
+  max-inline-size: var(--measure-prose);
 }
 
 .jl-notification__title {
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
+}
+
+.jl-notification__body {
+  color: var(--text-secondary);
 }
 
 .jl-notification__dismiss {
   align-self: flex-start;
+  margin-block-start: var(--space-1);
 }
 
 /* --- error containment -------------------------------------------------------
- * Base rules live in the app shell; only the message needs a colour here. */
+ * The base rules live in the app shell; only the message needs a colour here. */
 
 .jl-feature-error__message {
   color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
 }

@@ -60,6 +60,152 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-023 — STEP-003.09 — Visual design language
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-11 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-A11Y-004, REQ-NFR-007, REQ-NFR-013 |
+| Blast radius | [BR-026](blast-radius/BR-026-visual-design.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `3793494` — matched HEAD at pre-change |
+
+### Why an unplanned sub-step
+STEP-003 had eight sub-steps and none of them was design. `.01` delivered
+accessible tokens, `.02`–`.07` behaviour, `.08` the accessibility floor. The
+owner reviewed the `.08` screenshots and rejected the result, correctly: it was
+legible, operable, standards-clean and looked like an unstyled document, because
+in most respects it was one.
+
+Direction was delegated with "use your judgement". This is what that produced.
+
+### The brief I gave myself
+JourneyLab shows which futures are feasible and the evidence behind each one. The
+interface is a reading surface for decisions someone will act on, sometimes under
+pressure, sometimes on a phone in an unfamiliar place. That argues for four
+things, and against personality:
+
+- **Hierarchy over decoration** — the eye should find the answer, not the chrome.
+- **Colour reserved for meaning** — status and action only. Colour used to look
+  nice stops meaning anything when it needs to.
+- **Density that stays legible** — five scenarios across seven days is a lot of
+  information; whitespace that turns that into scrolling is not generosity.
+- **Calm** — a product that says "this plan does not work" should not be jaunty.
+
+### What changed
+**Warm neutrals instead of blue-grey.** The old ramp was the default palette of
+every developer tool; the content here is places and times of day. The hue moved
+and the luminance did not, so no contrast ratio regressed.
+
+**Three border weights.** There had been one, so a hairline between table rows
+was drawn at the same weight as the outline of a text input. That single fact is
+most of why `.08` looked like a wireframe.
+
+**Status surface tints, each with declared contrast pairs.** A tinted panel reads
+faster than a coloured edge alone. Twelve new pairs assert text and edge contrast
+on every tint — a tinted panel is the easiest place in a design system to lose
+contrast, because the tint is chosen for feel and the text colour is inherited
+from somewhere else.
+
+**A radius scale.** Everything had used `--space-1`, so a text input and a
+full-screen dialog wore the same 4px corner.
+
+**A system font stack, as a decision rather than a placeholder.** A webfont costs
+a request on the critical path and either blocks paint or swaps mid-read; both
+damage LCP, which `.08` now gates. It also fails exactly when a traveller most
+needs the page. It is one fewer third-party origin in the CSP as well.
+
+Plus optical tracking, a 65ch measure on prose, two-layer shadows, tabular
+figures for times and prices, a sticky header, and content centred in 72rem.
+
+### Verification performed
+| Check | Result |
+| --- | --- |
+| `pnpm verify` | **PASS** — 335 Python + 61 web + **307 UI** + **40 browser** |
+| `pnpm ci:local` | **PASS** |
+| Guard meta-suite | 43/43 |
+
+### The accessibility gate rejected my design three times
+This is the part worth keeping, and it is the argument for having built `.08`
+before `.09` rather than the other way round.
+
+1. **I shrank checkbox and radio to 20px.** It looks better beside 14px label
+   text. SC 2.5.8 requires 24×24, and a checkbox is its own target regardless of
+   the 44px row it sits in. Rejected in one run, in both device profiles.
+2. **I raised the gallery grid minimum to 22rem** and put 2px of horizontal
+   overflow at 320px into the document. A grid item defaults to
+   `min-width: auto` and refuses to shrink below its widest unbreakable word; one
+   long place name widened a track, the track widened the page. WCAG 1.4.10.
+3. **A `margin: -1px` survived from the older `clip: rect()` visually-hidden
+   technique**, putting the skip link at `x = -1`. Two more pixels of overflow,
+   from a leftover of a technique we do not use.
+
+Each of those looks fine by hand, tests fine in jsdom, and quietly fails a
+standard. In any other order they would have shipped.
+
+### A test that failed correctly, and had to be sharpened rather than loosened
+The status-token coverage rule requires every `status-*` colour to have an icon
+and a label, so nothing can signal by colour alone. It caught the four new
+`-surface` tints and demanded icons for them.
+
+A tint is not a signal — the foreground colour, the icon and the label are — so
+requiring an icon for `status-success-surface` asks for something meaningless.
+The rule now excludes the `-surface` suffix. **The easy fix would have been to
+ignore anything unmatched, which would have made the whole test vacuous**, so a
+second test asserts that a hypothetical new signal colour is still caught while a
+hypothetical new tint is not.
+
+### And one flaw in the gate itself
+The INP check measured a single interaction. It reported 422 ms once on a machine
+that was also building, and 7 ms when idle. That is a flaky gate, and `BUG-016`
+already established a flaky gate is worse than a failing one: it teaches people
+that re-running is the fix. It now takes the median of five interactions, which
+is stable against a scheduling hiccup and still fails outright for a handler that
+genuinely blocks the main thread.
+
+### The CI mirror rejected the commit twice, for a reason that was not the code
+`pnpm ci:local` failed with 7 of 8 UI suites unable to collect:
+
+```
+[vitest-worker]: Timeout calling "fetch" with "[".../tokens.test.ts","web"]"
+```
+
+That names a module path, so I chased a dependency problem — first a
+`vite-node`/`vitest` version mismatch in the lockfile, then an incomplete cold
+install. **Neither existed.** I believed the error's implied cause twice before
+capturing the full log and reading it properly.
+
+The actual cause: Docker allocates the container 4 GB, vitest defaults to one
+worker per CPU, and every worker in this package builds its own jsdom and loads
+axe-core into it. Eight jsdoms exhaust the container, the main thread stops
+answering transform requests, and the workers time out.
+
+Capped at two workers under `CI` only, with a longer transform timeout. That is
+a fix rather than a workaround: a suite that needs several free gigabytes is
+fragile on any shared runner. Verified by running the capped path locally with
+`CI=true` — 307 pass either way.
+
+### What is NOT met
+**Iconography.** `STATUS_TOKENS` names an icon per status — `check-circle`,
+`alert-triangle` — and nothing renders them. The non-colour signal is currently
+carried by the text label and the panel edge, which satisfies REQ-A11Y-004, but
+the tokens describe a system that does not exist yet.
+
+**A logo, illustration, and marketing surfaces.** Out of scope and unscheduled.
+
+**Any of this validated with a user.** It is one implementer's judgement against
+a written brief. It is defensible, not proven.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Icon set to make `STATUS_TOKENS` real | STEP-013, with the first visualisation |
+| Design review with someone who is not the implementer | Before GA |
+| Chart and map palettes (categorical, colour-blind safe) | STEP-013 |
+
+---
+
 ## IMPL-022 — STEP-003.08 — Automated keyboard and axe checks in CI
 
 | Field | Value |

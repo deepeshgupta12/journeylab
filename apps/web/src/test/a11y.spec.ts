@@ -401,20 +401,57 @@ test.describe('Core Web Vitals (FRONTEND_ARCHITECTURE §7)', () => {
   });
 
   test('an interaction responds within the 200ms INP budget', async ({ page }) => {
-    // INP is also a field metric; this measures a single interaction in the lab.
-    // It catches a handler that blocks the main thread, not a slow phone.
+    /*
+     * MEDIAN OF FIVE, NOT ONE.
+     *
+     * The first version measured a single interaction and duly failed once at
+     * 422 ms on a machine that was also running a build — while the same
+     * interaction measures 7 ms when the machine is idle. That is a flaky gate,
+     * and BUG-016 already established that a flaky gate is worse than a failing
+     * one: it teaches people that re-running is the fix, and the next real
+     * failure gets the same treatment.
+     *
+     * A median over several interactions is stable against one scheduling
+     * hiccup while still failing outright for a handler that genuinely blocks
+     * the main thread — which is the only thing a lab measurement can honestly
+     * claim to detect.
+     */
     await page.goto('/dev/gallery');
     const button = page.getByRole('button', { name: 'Open dialog' });
 
-    const latency = await page.evaluate(async () => {
-      const el = document.querySelector<HTMLElement>('button');
-      if (!el) return 0;
-      const start = performance.now();
-      el.click();
-      await new Promise((r) => requestAnimationFrame(() => r(null)));
-      return performance.now() - start;
+    /*
+     * A NAMED button, resolved through a locator that waits.
+     *
+     * The previous version measured `document.querySelector('button')` — whatever
+     * happened to be first in the document. Two problems, and the second is the
+     * one that failed the build: on desktop the first button is the drawer
+     * toggle, which is `display: none` above the 48rem breakpoint, so the test
+     * was timing a click on a hidden control; and `page.evaluate` immediately
+     * after `goto` can run before the tree is there, which returns null and makes
+     * the whole measurement silently empty.
+     *
+     * Waiting for a specific, visible, meaningful control fixes both. Measuring
+     * "the first button" was never the intent — opening a dialog is.
+     */
+    await button.waitFor({ state: 'visible' });
+
+    const samples = await button.evaluate(async (el: HTMLElement) => {
+      const taken: number[] = [];
+      for (let i = 0; i < 5; i += 1) {
+        const start = performance.now();
+        el.click();
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+        taken.push(performance.now() - start);
+      }
+      return taken;
     });
-    expect(latency, `interaction took ${latency}ms`).toBeLessThanOrEqual(200);
+
+    expect(samples.length, 'the interaction did not run five times').toBe(5);
+    const median = [...samples].sort((a, b) => a - b)[2] as number;
+    expect(
+      median,
+      `median ${median}ms over samples ${samples.map(Math.round).join(', ')}`,
+    ).toBeLessThanOrEqual(200);
     await expect(button).toBeVisible();
   });
 });

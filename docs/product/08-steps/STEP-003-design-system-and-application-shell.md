@@ -106,7 +106,8 @@ High fan-out (all UI steps), high detectability (visual and automated a11y tests
 | STEP-003.05 | Application frame, providers, global error boundary |
 | STEP-003.06 | Role-aware navigation (desktop + mobile) |
 | STEP-003.07 | i18n, time zone, currency, DST handling — ✅ **VERIFIED** 2026-08-10 (BR-024, IMPL-021) |
-| STEP-003.08 | Automated keyboard + axe checks in CI — ✅ **VERIFIED** 2026-08-10 (BR-025, IMPL-022). **STEP-003 complete: 8/8** |
+| STEP-003.08 | Automated keyboard + axe checks in CI — ✅ **VERIFIED** 2026-08-10 (BR-025, IMPL-022) |
+| STEP-003.09 | Visual design language — ✅ **VERIFIED** 2026-08-11 (BR-026, IMPL-023). **Added after the .08 review: the eight planned sub-steps delivered tokens, behaviour and an accessibility floor, but no design.** STEP-003 complete: 9/9 |
 
 ## 22. Test and evaluation plan
 `TST-A11Y-001`, `TST-A11Y-004`, `TST-NFR-007`, `TST-NFR-013`. Component tests must assert **every** quality state, not only success. Manual screen-reader journeys supplement automation, which cannot detect misleading-but-valid semantics.

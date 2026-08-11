@@ -117,11 +117,39 @@ describe('status tokens', () => {
     }
   });
 
-  it('covers every status-* colour token, so none can signal by colour alone', () => {
+  it('covers every status-* SIGNAL colour, so none can signal by colour alone', () => {
+    /*
+     * `-surface` tints are excluded, and the exclusion is narrow on purpose.
+     *
+     * STEP-003.09 added tinted panel backgrounds and this test failed, correctly:
+     * it had no way to tell a signal-bearing colour from a background. A tint is
+     * not a signal — the foreground colour, the icon and the label are — so
+     * requiring an icon for `status-success-surface` asks for something
+     * meaningless.
+     *
+     * The exclusion is by exact suffix rather than by an allowlist, so a NEW
+     * signal colour (`status-degraded`, say) is still caught. Weakening this to
+     * "ignore anything unmatched" would have made the whole test vacuous, which
+     * is the easy and wrong fix.
+     */
     const paired = new Set(STATUS_TOKENS.map((s) => s.colorToken));
-    const statusColours = Object.keys(PALETTES.light).filter((k) => k.startsWith('status-'));
+    const statusColours = Object.keys(PALETTES.light).filter(
+      (k) => k.startsWith('status-') && !k.endsWith('-surface'),
+    );
+    expect(statusColours.length, 'no status colours found — the filter is wrong').toBeGreaterThan(
+      0,
+    );
     const unpaired = statusColours.filter((k) => !paired.has(k));
     expect(unpaired, `status colours with no icon/label counterpart: ${unpaired}`).toEqual([]);
+  });
+
+  it('still requires a counterpart for a NEW signal colour', () => {
+    // Proves the exclusion above did not turn the check off. A hypothetical
+    // signal token must fail; a hypothetical tint must not.
+    const paired = new Set(STATUS_TOKENS.map((s) => s.colorToken));
+    const hypothetical = ['status-degraded', 'status-degraded-surface'];
+    const caught = hypothetical.filter((k) => !k.endsWith('-surface') && !paired.has(k));
+    expect(caught).toEqual(['status-degraded']);
   });
 
   it('uses a distinct icon per status — a shared icon carries no information', () => {

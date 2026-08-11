@@ -13,7 +13,15 @@ import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ELEVATION, MOTION, MOTION_REDUCED, PALETTES, SPACING, TYPOGRAPHY } from '../src/tokens.ts';
+import {
+  ELEVATION,
+  MOTION,
+  MOTION_REDUCED,
+  PALETTES,
+  RADIUS,
+  SPACING,
+  TYPOGRAPHY,
+} from '../src/tokens.ts';
 
 function block(entries: Record<string, string>, indent = '  '): string {
   return Object.entries(entries)
@@ -38,6 +46,8 @@ export function renderCss(): string {
 ${block(light)}
 
 ${block(SPACING)}
+
+${block(RADIUS)}
 
 ${block(TYPOGRAPHY)}
 

@@ -7,31 +7,47 @@
  */
 
 :root {
-  --surface-base: #ffffff;
-  --surface-raised: #f6f7f9;
-  --surface-sunken: #eceef2;
-  --text-primary: #14181f;
-  --text-secondary: #4a5260;
-  --border-default: #767d8a;
-  --border-strong: #4a5260;
-  --action-primary: #0b5cd5;
+  --surface-base: #fdfcfa;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f4f2ee;
+  --text-primary: #1a1815;
+  --text-secondary: #57534c;
+  --border-subtle: #d8d2c8;
+  --border-default: #736e65;
+  --border-strong: #443f38;
+  --action-primary: #0a5ad4;
   --action-primary-text: #ffffff;
-  --focus-ring: #0b5cd5;
-  --status-success: #0f6b3d;
-  --status-warning: #7a4a00;
-  --status-error: #b3261e;
-  --status-info: #0b5cd5;
+  --focus-ring: #0a5ad4;
+  --status-success: #0e6b3c;
+  --status-warning: #78490a;
+  --status-error: #b0251d;
+  --status-info: #0a5ad4;
+  --status-success-surface: #e8f4ec;
+  --status-warning-surface: #faf0e2;
+  --status-error-surface: #fdeceb;
+  --status-info-surface: #e9f0fc;
 
   --space-0: 0;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
+  --space-5: 1.25rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
+  --space-10: 2.5rem;
   --space-12: 3rem;
   --space-16: 4rem;
+  --space-20: 5rem;
 
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+  --radius-full: 999rem;
+
+  --font-family-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -44,12 +60,18 @@
   --line-height-relaxed: 1.75;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
+  --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.01em;
+  --measure-prose: 65ch;
+  --measure-narrow: 48ch;
 
   --elevation-0: none;
-  --elevation-1: 0 1px 2px rgb(0 0 0 / 0.08);
-  --elevation-2: 0 2px 8px rgb(0 0 0 / 0.10);
-  --elevation-3: 0 8px 24px rgb(0 0 0 / 0.14);
+  --elevation-1: 0 1px 2px rgb(26 24 21 / 0.06), 0 1px 3px rgb(26 24 21 / 0.04);
+  --elevation-2: 0 2px 4px rgb(26 24 21 / 0.06), 0 6px 16px rgb(26 24 21 / 0.08);
+  --elevation-3: 0 4px 8px rgb(26 24 21 / 0.08), 0 16px 40px rgb(26 24 21 / 0.14);
 
   --motion-duration-instant: 0ms;
   --motion-duration-fast: 120ms;
@@ -62,38 +84,48 @@
 /* Dark theme. Applied by user preference, or forced with [data-theme="dark"]. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --surface-base: #101419;
-    --surface-raised: #181d24;
-    --surface-sunken: #0a0d11;
-    --text-primary: #f2f4f7;
-    --text-secondary: #b9c0cc;
-    --border-default: #79818f;
-    --border-strong: #b9c0cc;
-    --action-primary: #7fb2ff;
-    --action-primary-text: #101419;
-    --focus-ring: #7fb2ff;
-    --status-success: #5cc98e;
-    --status-warning: #e0a33a;
-    --status-error: #ff9d94;
-    --status-info: #7fb2ff;
+    --surface-base: #15130f;
+    --surface-raised: #1e1b16;
+    --surface-sunken: #0e0c0a;
+    --text-primary: #f5f2ec;
+    --text-secondary: #bdb6ab;
+    --border-subtle: #38332b;
+    --border-default: #7d766b;
+    --border-strong: #bdb6ab;
+    --action-primary: #84b4ff;
+    --action-primary-text: #15130f;
+    --focus-ring: #84b4ff;
+    --status-success: #63cd93;
+    --status-warning: #e3a842;
+    --status-error: #ffa198;
+    --status-info: #84b4ff;
+    --status-success-surface: #16241c;
+    --status-warning-surface: #251c0e;
+    --status-error-surface: #2a1613;
+    --status-info-surface: #141d2c;
   }
 }
 
 :root[data-theme="dark"] {
-  --surface-base: #101419;
-  --surface-raised: #181d24;
-  --surface-sunken: #0a0d11;
-  --text-primary: #f2f4f7;
-  --text-secondary: #b9c0cc;
-  --border-default: #79818f;
-  --border-strong: #b9c0cc;
-  --action-primary: #7fb2ff;
-  --action-primary-text: #101419;
-  --focus-ring: #7fb2ff;
-  --status-success: #5cc98e;
-  --status-warning: #e0a33a;
-  --status-error: #ff9d94;
-  --status-info: #7fb2ff;
+  --surface-base: #15130f;
+  --surface-raised: #1e1b16;
+  --surface-sunken: #0e0c0a;
+  --text-primary: #f5f2ec;
+  --text-secondary: #bdb6ab;
+  --border-subtle: #38332b;
+  --border-default: #7d766b;
+  --border-strong: #bdb6ab;
+  --action-primary: #84b4ff;
+  --action-primary-text: #15130f;
+  --focus-ring: #84b4ff;
+  --status-success: #63cd93;
+  --status-warning: #e3a842;
+  --status-error: #ffa198;
+  --status-info: #84b4ff;
+  --status-success-surface: #16241c;
+  --status-warning-surface: #251c0e;
+  --status-error-surface: #2a1613;
+  --status-info-surface: #141d2c;
 }
 
 /* High contrast is a DISTINCT palette held to AAA, not dark mode intensified.
@@ -106,6 +138,7 @@
     --surface-sunken: #000000;
     --text-primary: #ffffff;
     --text-secondary: #ffffff;
+    --border-subtle: #ffffff;
     --border-default: #ffffff;
     --border-strong: #ffffff;
     --action-primary: #ffff00;
@@ -115,6 +148,10 @@
     --status-warning: #ffd400;
     --status-error: #ff8080;
     --status-info: #7fdfff;
+    --status-success-surface: #000000;
+    --status-warning-surface: #000000;
+    --status-error-surface: #000000;
+    --status-info-surface: #000000;
   }
 }
 
@@ -164,6 +201,7 @@
   --surface-sunken: #000000;
   --text-primary: #ffffff;
   --text-secondary: #ffffff;
+  --border-subtle: #ffffff;
   --border-default: #ffffff;
   --border-strong: #ffffff;
   --action-primary: #ffff00;
@@ -173,6 +211,10 @@
   --status-warning: #ffd400;
   --status-error: #ff8080;
   --status-info: #7fdfff;
+  --status-success-surface: #000000;
+  --status-warning-surface: #000000;
+  --status-error-surface: #000000;
+  --status-info-surface: #000000;
 }
 
 /* Reduced motion SUPPRESSES animation rather than shortening it — vestibular
