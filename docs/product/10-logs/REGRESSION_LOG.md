@@ -67,6 +67,52 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-004.01 — 2026-08-11 — Global API conventions
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `f50d854` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **405 Python** (up from 335) + 61 web + 307 UI + 40 browser |
+| R2 contract compatibility | **N/A → now baselined** | `contracts/openapi.yaml` is created here and becomes authoritative (`ADR-001`). No operations declared, so nothing can break; from `.02` onward R2 has a real baseline to diff against |
+| R3 graph diff as expected | **PASS** | New `conventions/` package and `tools/` generators; one modified test. **`impact(opaque_denial)` traced 2 callers and 1 execution flow — the first useful graph answer here** |
+| R4 untested requirements | **PASS** | REQ-PLAT-005 newly covered; REQ-SEC-004 gains a signature-level assertion |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `contracts/` and the new package |
+| R6 closed-bug tests | **PASS** | BUG-001…019; meta-suite 43/43 |
+| **R7 tenant isolation** | **PASS — 12/12** | Plus a new assertion: a cursor may not carry a tenant, checked on decode |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Parser refused to run | `tenant.isolation_violation` is written `"500 + **SEV1 alert**"` | **Correct behaviour.** Resolved explicitly with the reasoning, rather than loosening the regex |
+| `opaque_denial` returned **403** | The register writes "403/404"; the parser took the first, silently reversing STEP-002.02 | Forced to 404 at the call site. A test now pins the status, the body, the absent `detail` and the function signature |
+| Package named `http` | `apps/api/src` is on `pythonpath`, so it **shadowed the standard library** for the whole application — nothing fails at import, things fail later somewhere else | Renamed to `conventions` before anything imported it |
+| Cross-tenant ratchet fired on "cache" | The word `redis` appears inside a leak-**prohibition** regex; the detector searched raw source | Detector now strips comments and literals and matches usage. A new test proves the narrowing did not disable it |
+| Money test passed for the wrong reason, then failed for the right one | `"float" not in json.dumps(money)` matched the schema's own warning about floats | Asserts on declared types and `additionalProperties: false` |
+| `ruff` autofix + my sed removed `.encode()` from the wrong line | `fingerprint` would have hashed a `str` and raised | Caught by the suite immediately |
+| mypy: no stubs for `yaml` | The contract tests parse the OpenAPI document | `types-PyYAML` added as a dev dependency |
+
+### Notes
+**Two error shapes now exist in the repository.** `auth/errors.py` still returns
+its STEP-002.02 body and is *not* RFC 9457. Migrating it means changing a function
+with two live callers inside a traced execution flow, with **no HTTP surface to
+verify the migration against** — `apps/api` has no routes. Carried to STEP-004.04
+and stated in `BR-028` §7 rather than left to be discovered.
+
+**A third graph limitation surfaced.** `gitnexus_query` returned nothing and
+warned that its full-text indexes are missing. The concept search `CLAUDE.md`
+directs contributors to has been silently degraded for an unknown number of
+sub-steps — it did not fail, it returned an empty result, which reads exactly like
+"no such concept exists". Not repaired here, because re-indexing mid-change would
+invalidate the pre-change state `BR-028` is written against. Carried to STEP-026.
+
+---
+
 ## STEP-003.09 — 2026-08-11 — Visual design language
 
 | Field | Value |

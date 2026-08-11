@@ -274,16 +274,47 @@ def _table_exists(name: str) -> bool:
 
 
 def _code_matches(pattern: str) -> bool:
-    """True if application code references a subsystem, ignoring tests and docs."""
+    """True if application code USES a subsystem, ignoring tests, docs and mentions.
+
+    MENTION IS NOT USE, AND THE DISTINCTION IS NOT PEDANTIC.
+        The first version searched raw source for a keyword and fired on the word
+        `redis` appearing inside a *prohibition* pattern in
+        `conventions/problem.py` — a regex whose entire purpose is to stop a
+        connection string reaching a client. The ratchet reported that a cache
+        layer had landed because the code said the word while forbidding it.
+
+        A keyword search finds the warning as readily as the violation. So
+        comments and string literals are stripped before matching, leaving code:
+        an import, a call, an attribute access. A cache layer is something you
+        import and call, not something you name.
+
+    The ratchet stays deliberately eager. Stripping literals narrows it, so each
+    pattern below also matches the *shape* of use — `import x`, `x(`, `x.` — and
+    `test_the_detector_can_still_fire` proves it has not been narrowed into
+    uselessness.
+    """
+    import io
     import pathlib
     import re
+    import tokenize
 
     needle = re.compile(pattern, re.IGNORECASE)
     for root in ("apps", "services"):
         for path in pathlib.Path(root).rglob("*.py"):
             if "node_modules" in str(path):
                 continue
-            if needle.search(path.read_text(encoding="utf-8", errors="ignore")):
+            source = path.read_text(encoding="utf-8", errors="ignore")
+            try:
+                code = "".join(
+                    token.string + " "
+                    for token in tokenize.generate_tokens(io.StringIO(source).readline)
+                    if token.type not in (tokenize.COMMENT, tokenize.STRING)
+                )
+            except tokenize.TokenError, IndentationError, SyntaxError:
+                # Unparseable file: fall back to the raw text rather than
+                # silently skipping it. An eager ratchet is the safe failure.
+                code = source
+            if needle.search(code):
                 return True
     return False
 
@@ -291,7 +322,7 @@ def _code_matches(pattern: str) -> bool:
 PENDING_VECTORS: list[tuple[str, Callable[[], bool], str]] = [
     (
         "cache",
-        lambda: _code_matches(r"\bredis\b|\bvalkey\b|cache_get|cache_set"),
+        lambda: _code_matches(r"import\s+redis|from\s+redis|redis\.|valkey\.|cache_get|cache_set"),
         "REQ-SEC-002 requires a cache key collision to be unable to serve foreign "
         "data. No cache layer exists yet (arrives with STEP-010 retrieval).",
     ),
@@ -319,6 +350,22 @@ PENDING_VECTORS: list[tuple[str, Callable[[], bool], str]] = [
         "inspect at its source. The domain graph arrives with STEP-026.",
     ),
 ]
+
+
+def test_the_detector_can_still_fire() -> None:
+    """The ratchet must not have been narrowed into uselessness.
+
+    `_code_matches` was tightened at STEP-004.01 to ignore comments and string
+    literals. That is a narrowing, and a narrowing to a detector that exists to
+    fail on purpose deserves its own proof — otherwise the fix for a false
+    positive quietly becomes a permanent false negative.
+    """
+    # Matches real application code: `conventions/problem.py` defines this class.
+    assert _code_matches(r"class\s+ProblemError"), (
+        "the detector no longer sees real code — it has been narrowed too far"
+    )
+    # Does NOT match a word that appears only inside a string literal.
+    assert not _code_matches(r"Mercury\s+is\s+retrograde")
 
 
 @pytest.mark.parametrize(

@@ -60,6 +60,143 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-025 — STEP-004.01 — Global API conventions: errors, pagination, idempotency, ETags
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-11 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PLAT-005 (and REQ-SEC-004, REQ-SEC-001, REQ-PRIV-004 in enforcement) |
+| Blast radius | [BR-028](blast-radius/BR-028-api-conventions.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `f50d854` — matched HEAD at pre-change |
+
+### What was built
+`contracts/openapi.yaml` (OpenAPI 3.1, conventions only), `contracts/schemas/`,
+and `apps/api/src/conventions/` — problem details, cursor pagination, idempotency
+and optimistic concurrency. 70 new assertions; the Python suite goes 335 → 405.
+
+### The register is generated, which is ADR-012 for the second time
+`ERROR_MODEL.md` §3 is a table of 21 error codes with, per row, the HTTP status,
+the meaning, the remediation and **the requirement the code exists to serve**.
+That last column is why the document is the source and the code is the output: an
+error code exists to satisfy a requirement, and the traceability belongs where a
+product owner reads it, not in a Python literal.
+
+One parser, two emitters — a Python module the API raises from, and a JSON Schema
+the contract publishes. 17 of the 21 are client-visible; the rest are internal
+conditions that surface as a fallback or a warning and **cannot be returned to a
+caller at all**, which the code enforces rather than notes.
+
+**The parser refuses to guess.** It rejected `"500 + **SEV1 alert**"` and made me
+resolve it explicitly, with the reason written down: the client gets a plain 500
+carrying a correlation ID, because telling a caller their request tripped a
+cross-tenant detector confirms the boundary they were probing. A regex grabbing
+the first number would have encoded that silently.
+
+### `problem()` takes a code, not strings
+The register is the only way in. A free-form constructor produces eighteen
+slightly different spellings of "not found" within a year, and clients that branch
+on prose.
+
+`safe_detail()` **raises** on a traceback, connection string, credential or email
+rather than redacting. Redaction is the friendlier behaviour and the wrong one: it
+turns a developer mistake into a silently-truncated message that still ships, and
+the next reader assumes the sanitiser covers cases it does not. Same reasoning as
+`redaction.py`, which fails closed.
+
+`retryable` is explicit, never inferred from the status — `ERROR_MODEL.md` is
+emphatic about it, and the tests pin two 5xx codes with opposite answers.
+
+### The parser silently undid a security decision, and a test caught it
+`ERROR_MODEL.md` writes the status of `authz.forbidden` as **"403/404"**, meaning
+the two are deliberately indistinguishable. It does not say which is sent. My
+parser took the first, so `opaque_denial()` returned **403** — quietly reversing
+STEP-002.02, whose entire point is that a 403 still confirms something is there to
+be forbidden.
+
+Forced to 404 at the single call site, with the reasoning in the code, so the
+register keeps documenting the pair while exactly one is sent. The test asserts
+the status, the byte-identical body, the absence of a `detail` field, and the
+function's **signature** — adding a `reason` parameter fails the build, because
+an optional detail argument is precisely how indistinguishability erodes.
+
+### Cursors are base64, not encryption
+So the module never pretends otherwise. A cursor carries a sort key and an
+identifier; 14 identity-shaped keys are rejected **on decode as well as encode**.
+Encode-side validation protects against our mistakes, decode-side against the
+client's, and only one of those is an attacker — a hand-crafted cursor never
+passes through `encode_cursor`.
+
+Every malformed cursor raises the identical message, so a caller learns nothing
+about why. Offset pagination is absent *structurally*: there is no such parameter
+anywhere, so a handler cannot accept one by copying the shape.
+
+### Idempotency and ETags answer different questions
+Constantly confused, so the module says so: `Idempotency-Key` asks "is this the
+same request I already handled?", `If-Match` asks "is the resource still in the
+state you read?". A command needs both — idempotency alone lets a stale editor
+clobber a newer version; ETags alone let a network retry create two trips.
+
+Two details worth their comments: header lookup is **case-insensitive**, because
+HTTP header names are and a dict is not, and a miss there creates duplicates. And
+a **missing** `If-Match` is refused rather than treated as consent, because
+treating absence as "no opinion" loses an update on the first request that forgets
+the header.
+
+### Two more of my own mistakes
+**I searched prose and found the warning.** The test asserting money is not a
+float did `"float" not in json.dumps(money)` and matched the schema's own
+description explaining why floats are forbidden. Fourth time in this repository.
+Now asserts on declared types and `additionalProperties: false`.
+
+**A ratchet fired on a word.** The cross-tenant pending-vector detector reported
+that a cache subsystem had landed, because `redis` appears inside a *prohibition*
+regex in `problem.py`. It searched raw source text, so it found the warning as
+readily as the violation. It now strips comments and string literals and matches
+the shape of use — and because narrowing a detector that exists to fail on purpose
+is dangerous, a new test proves it still sees real code, still ignores a literal,
+and still trips on a seeded `import redis`.
+
+### A third graph limitation, and this one is repairable
+`gitnexus_query` returned nothing and warned **"FTS indexes missing — keyword
+search degraded"**. The concept search `CLAUDE.md` tells contributors to use
+instead of grepping has been quietly degraded for an unknown number of sub-steps.
+It did not fail; it returned an empty result, which reads exactly like "no such
+concept exists".
+
+Not repaired here — re-indexing with `--repair-fts` mid-change would invalidate
+the pre-change state `BR-028` is written against. Carried to STEP-026 with the JSX
+and CSS gaps.
+
+The good news alongside it: `impact(opaque_denial)` returned **2 direct callers,
+1 execution flow, `epistemic: exact`** — the first genuinely useful graph answer
+in this repository. Python functions are called with parentheses, so the call
+graph traces them.
+
+### What is NOT met
+**`auth/errors.py` still returns the STEP-002.02 body.** It is not RFC 9457, and
+migrating it means changing a function with two live callers inside a traced flow
+with **no HTTP surface to verify the migration against** — `apps/api` has no
+routes yet. Carried to STEP-004.04, where the platform routes land.
+
+Until then **two error shapes exist in the repository**, which is stated in
+`BR-028` §7 rather than left to be discovered.
+
+**Rate-limit values.** The mechanism is declared; the numbers need capacity
+projections that do not exist (`ASM-002`). Declaring invented limits would be
+worse than declaring none.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Migrate `auth/errors.py` to problem details | STEP-004.04 |
+| Rate-limit values | After capacity projections (`ASM-002`) |
+| `gitnexus analyze --repair-fts` | STEP-026 |
+| Generated clients from this contract | STEP-004.07 |
+
+---
+
 ## IMPL-024 — STEP-003 closure — End-to-end smoke test and README accuracy
 
 | Field | Value |

@@ -1,0 +1,333 @@
+openapi: 3.1.0
+
+# JourneyLab API — global conventions.
+#
+# STEP-004.01 declares ONLY the conventions: the error shape, pagination, the
+# headers that govern idempotency and concurrency, and the responses every
+# operation reuses. Individual operations arrive in .02-.04 and reference what is
+# here rather than restating it.
+#
+# AUTHORITY (ADR-001)
+#   Once this file exists it is authoritative for schemas. `API_CONTRACTS.md`
+#   explains contracts and must not duplicate schema definitions. Where the two
+#   disagree, this file wins and the document is wrong.
+#
+# GENERATED FRAGMENTS
+#   `schemas/error-codes.json` is generated from `ERROR_MODEL.md` — never edit it,
+#   and never inline the enum here. A copy of the code list in this file would be
+#   a second source of truth, which is the exact failure ADR-012 exists to prevent.
+
+info:
+  title: JourneyLab API
+  version: 0.1.0
+  summary: Trip digital twin — compare feasible futures before and during travel.
+  description: |
+    Contract-first. Nothing in this document is implemented yet; every operation
+    is `PROPOSED` until its sub-step lands.
+
+    **Deterministic engines own feasibility; the model owns language** (`ADR-002`).
+    No endpoint returns a plan the constraint engine has not validated.
+  license:
+    name: UNLICENSED
+    identifier: LicenseRef-proprietary
+
+servers:
+  - url: https://api.journeylab.app/v1
+    description: Production
+  - url: https://localhost:5709/v1
+    description: Local development
+
+# The major version is in the path, not a header. `API_CONTRACTS.md` §1: a
+# breaking change means a new major version, and a version a caller can forget to
+# send is a version they will forget to send.
+
+tags:
+  - name: conventions
+    description: |
+      Shared components. This tag carries no operations — STEP-004.01 defines the
+      vocabulary that .02-.04 speak.
+
+paths: {}
+
+components:
+  # --- errors -----------------------------------------------------------------
+
+  schemas:
+    ErrorCode:
+      $ref: './schemas/error-codes.json'
+
+    Problem:
+      type: object
+      description: |
+        RFC 9457 problem details. Every failure the API reports has this shape and
+        is served as `application/problem+json`.
+
+        **What is never here:** another tenant's data, a stack trace, a provider
+        identity, or any request content. `ERROR_MODEL.md` §5 states these
+        prohibitions and `conventions/problem.py` enforces them — a detail string
+        containing a traceback, connection string, credential or email address
+        raises rather than being redacted, because a silently-truncated message
+        still ships.
+      required: [type, title, status, code, correlation_id, retryable]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          format: uri
+          description: |
+            Stable URI, derived from `code`. **Never changes meaning once
+            published** — changing it would require changing the code, which is
+            already a breaking change under CONTRACT_CHANGE_POLICY.
+          examples: ['https://journeylab.app/problems/solver.infeasible']
+        title:
+          type: string
+          description: Short, human-readable summary. Stable per code.
+          examples: ['No feasible schedule exists']
+        status:
+          type: integer
+          minimum: 100
+          maximum: 599
+          examples: [422]
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        detail:
+          type: string
+          description: |
+            Safe to display. Optional: an error with nothing specific to add omits
+            it rather than repeating the title.
+        instance:
+          type: string
+          description: The request path that produced this problem.
+          examples: ['/v1/trips/trp_01/scenarios:generate']
+        correlation_id:
+          type: string
+          description: |
+            Always present. `ERROR_MODEL.md` calls it "the single thing support
+            needs"; an optional correlation ID is absent from exactly the
+            responses anyone wants to investigate.
+          examples: ['corr_9f3c2a1b4d5e6f70']
+        retryable:
+          type: boolean
+          description: |
+            **Explicit, never inferred from the status.** A 503 from a degraded
+            provider is retryable; a 503 because the region is unsupported is not,
+            and only the register knows which.
+        remediation:
+          type: object
+          description: |
+            A structured, actionable next step where one exists. The design
+            principle behind the whole error model: an error must tell the user
+            what to do next. "Something went wrong" is not an error model, it is
+            an apology.
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              examples: ['relax_constraints']
+            conflict_set:
+              type: array
+              description: |
+                For infeasibility, the **minimal** set of constraints that
+                conflict (`REQ-CONS-005`). Never a plausible invalid plan.
+              items: { type: string }
+            relaxations:
+              type: array
+              items: { type: string }
+
+    # --- pagination -----------------------------------------------------------
+
+    Cursor:
+      type: string
+      maxLength: 2048
+      description: |
+        Opaque position marker. **Base64, not encryption** — a client can read and
+        rewrite it, so it carries a sort key and an identifier and nothing else.
+        Never a tenant or identity: those come from the token (`REQ-SEC-001`), and
+        the server rejects a cursor containing them.
+      examples: ['eyJjcmVhdGVkX2F0IjoiMjAyNi0wOC0xMVQwMDowMDowMFoiLCJpZCI6InRycF8wMSJ9']
+
+    Page:
+      type: object
+      description: |
+        One page of results. **Offset pagination is not supported** — it re-runs
+        the query per page, so a row inserted between page 1 and page 2 shifts
+        every later row and the caller silently skips records or sees one twice.
+
+        There is deliberately no `total`: counting costs a second query on every
+        request, and for a set that changes while the caller pages through it the
+        number is stale before it renders.
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {}
+        next_cursor:
+          oneOf:
+            - $ref: '#/components/schemas/Cursor'
+            - type: 'null'
+          description: Absent or null on the last page.
+
+    # --- money and time -------------------------------------------------------
+
+    Money:
+      type: object
+      description: |
+        **Integer minor units. Never floating point.** `0.1 + 0.2` is not `0.3` in
+        IEEE 754 and currency arithmetic is mostly addition, so a total summed
+        from float line items stops matching the sum of what is displayed.
+
+        The exponent is not always 2: JPY and KRW have none, BHD/KWD/TND have
+        three. `amount_minor` is the count of minor units, and only formatting
+        divides.
+      required: [amount_minor, currency]
+      additionalProperties: false
+      properties:
+        amount_minor:
+          type: integer
+          description: €12.34 is 1234. ¥100 is 100.
+          examples: [1234]
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217.
+          examples: ['EUR']
+
+    ZonedTimestamp:
+      type: object
+      description: |
+        An instant plus the IANA zone it should be read in. Both, because a trip
+        in Tokyo is read in Tokyo time by a traveller sitting in London, and
+        because a calendar day is not always 24 hours long — DST correctness is a
+        feasibility concern, not a formatting one.
+      required: [instant, time_zone]
+      additionalProperties: false
+      properties:
+        instant:
+          type: string
+          format: date-time
+          description: RFC 3339, UTC.
+          examples: ['2026-03-29T01:30:00Z']
+        time_zone:
+          type: string
+          description: IANA identifier.
+          examples: ['Europe/London']
+
+  # --- parameters ---------------------------------------------------------------
+
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema: { $ref: '#/components/schemas/Cursor' }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: |
+        Clamped to 1-100, **not rejected** when out of range: `limit` is a hint
+        about response size, not a semantic input, and failing a request because
+        someone asked for 500 teaches clients to guess the cap instead of reading
+        it.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+
+  # --- headers ------------------------------------------------------------------
+
+  headers:
+    ETag:
+      description: |
+        Strong entity tag. Strong rather than weak (`W/`) because `If-Match`
+        requires strong comparison — a weak tag makes the precondition succeed for
+        representations that are equivalent but not identical, which is exactly
+        the case a lost-update check must reject.
+      required: true
+      schema: { type: string }
+    CorrelationId:
+      description: Echoed from the request, or minted when absent or unusable.
+      required: true
+      schema: { type: string }
+    RetryAfter:
+      description: Seconds to wait. Present on every 429 and 503.
+      schema: { type: integer, minimum: 0 }
+    Deprecation:
+      description: Set when the operation is deprecated; paired with `Sunset`.
+      schema: { type: string }
+    Sunset:
+      description: RFC 8594 date after which the operation stops responding.
+      schema: { type: string }
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        OIDC/OAuth 2.1, short-lived. **Tenant context is derived from the token,
+        never from a client-supplied header or body field** (`REQ-SEC-001`).
+
+  # --- reusable responses ---------------------------------------------------------
+
+  responses:
+    Problem:
+      description: An error, as RFC 9457 problem details.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      headers:
+        X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+
+    NotFoundOrForbidden:
+      description: |
+        **The resource does not exist, or you may not see it — indistinguishably.**
+
+        Both cases return the same status, the same body and the same headers. If
+        they differed the API would be an existence oracle: an attacker enumerates
+        identifiers and learns which ones are real in another tenant. The resource
+        is protected; its existence is not (`REQ-SEC-004`).
+
+        The distinction survives only in the server-side audit record, where it is
+        needed for investigation and cannot be observed by the caller.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: 'https://journeylab.app/problems/authz.forbidden'
+            title: 'Not permitted'
+            status: 404
+            code: 'authz.forbidden'
+            correlation_id: 'corr_9f3c2a1b4d5e6f70'
+            retryable: false
+      headers:
+        X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+
+    Conflict:
+      description: |
+        Version conflict, or an `Idempotency-Key` reused with a different body.
+        The two are distinct codes — `concurrency.version_mismatch` and the
+        idempotency case — because the client action differs: refetch and re-apply
+        versus fix a defect.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      headers:
+        X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+
+    RateLimited:
+      description: |
+        Quota exceeded. Per-operation limits are declared with each operation in
+        `.02`-`.04`; the numbers need capacity projections that do not exist yet
+        (`ASM-002`), so this sub-step declares the mechanism and defers the values
+        rather than inventing them.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      headers:
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+        X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+
+security:
+  - bearerAuth: []
