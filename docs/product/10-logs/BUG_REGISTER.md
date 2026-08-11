@@ -39,6 +39,76 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-019 — The component gallery returned 500 in development, and nothing looked
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — the design-system review surface was unusable in the only mode a developer opens it in |
+| Found during | STEP-003.09 review — **by the owner asking to see the UI**, not by any test |
+| Date found | 2026-08-11 |
+| Affected requirements | REQ-A11Y-001 (the review surface), REQ-PLAT-001 |
+
+### Symptom
+```
+$ JOURNEYLAB_ENABLE_GALLERY=1 pnpm dev:web
+$ curl -k -o /dev/null -w '%{http_code}' https://localhost:5709/dev/gallery
+500
+
+⨯ Error: gallery: deliberate failure to render the contained-error state
+```
+
+The same route returns 200 from a production build, renders correctly, and passes
+all 40 accessibility assertions.
+
+### Root cause
+The error-containment specimen renders a component that throws on purpose, so that
+`FeatureErrorBoundary` can be seen containing it. It threw unconditionally —
+including during **server** rendering.
+
+React error boundaries are a client concept. A production build tolerates the
+server-side throw and recovers on the client; `next dev` treats a throw during
+server rendering as a route-level failure and returns 500.
+
+### Why nothing caught it — and this is the real finding
+**Every automated check in this repository runs against a production build.**
+
+| Check | Build |
+| --- | --- |
+| 40 browser accessibility tests | `next build && next start` |
+| `pnpm verify` | production |
+| `pnpm e2e` §5 | production |
+| `pnpm ci:local` | production |
+
+`next dev` renders on a different path — no minification, different hydration,
+and a different tolerance for server-side errors. **It had no coverage at all.**
+That is not a gap in one test; it is a whole rendering mode nobody was looking at.
+
+The bug survived an entire sub-step and was found by a human opening a URL.
+
+### Fix
+Two parts, and the second matters more.
+
+**1.** The specimen throws from an effect rather than during render, so the server
+render is clean and the boundary still catches a genuine error on the client. No
+hydration mismatch: the first client render matches the server's.
+
+**2.** `pnpm e2e` gained section 5b — it starts `next dev`, asserts `/`,
+`/dev/gallery` and the RTL variant each return 200, **and fails if the dev server
+logged a server-side exception while rendering**. A route that renders while
+logging an exception is half-broken, which is what this looked like in production.
+
+### Verification
+Gallery returns 200 in dev. The production path is unchanged: 40/40 still pass.
+
+### Prevention
+- **Test the mode people use, not only the mode you ship.** Both are real; only
+  one had coverage.
+- A defect that a production build tolerates and a development build rejects is
+  invisible to any pipeline that only builds for production — which is most
+  pipelines, including this one until now.
+
+---
+
 ## BUG-018 — The documented token-rebuild command had never worked
 
 | Field | Value |

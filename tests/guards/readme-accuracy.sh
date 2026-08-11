@@ -26,8 +26,12 @@ fail=0
 [ -f "$README" ] || { echo "FAIL: README.md missing"; exit 1; }
 
 echo "1. pnpm scripts referenced in README exist"
-for s in $(grep -oE 'pnpm [a-z][a-z:]*' "$README" | awk '{print $2}' | sort -u); do
-  case "$s" in install|dlx|exec|add|remove) continue ;; esac
+# Digits are part of a script name: `a11y` matched as `a` under the old
+# `[a-z][a-z:]*` pattern and was reported missing, which is a false failure and
+# the kind that gets a guard disabled rather than fixed. `--filter` invocations
+# are skipped: the script they name belongs to a workspace package, not the root.
+for s in $(grep -oE 'pnpm [a-z][a-z0-9:-]*' "$README" | awk '{print $2}' | sort -u); do
+  case "$s" in install|dlx|exec|add|remove|run|why) continue ;; esac
   if node -e "process.exit(require('./package.json').scripts['$s']?0:1)" 2>/dev/null; then
     printf "   ok   pnpm %s\n" "$s"
   else

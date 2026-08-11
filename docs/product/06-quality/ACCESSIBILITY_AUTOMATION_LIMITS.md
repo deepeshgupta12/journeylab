@@ -95,13 +95,31 @@ forced-colors run catch the crude failures. What they cannot catch is a chart
 where two series are distinguishable only by hue, or a status that technically
 has an icon which happens to be identical across three states.
 
-### 3.6 Core Web Vitals in the field
+### 3.6 Core Web Vitals in the field — and in CI
 
 The measurements in `a11y.spec.ts` are **lab numbers**: one machine, over
 loopback, no network. `FRONTEND_ARCHITECTURE` §7 specifies mid-tier mobile on
 4G. The lab run catches regressions; it cannot confirm the budget is met for a
 traveller on a ferry. Field measurement needs real-user monitoring, which is
 `STEP-024`.
+
+**A second limit surfaced when the suite first ran in a container.** LCP measured
+**10,760 ms** there against ~200 ms on the development machine — a 4 GB container
+running a browser per worker, not a slow page. So the two kinds of metric are now
+treated differently:
+
+| Metric | Enforced in CI | Why |
+| --- | --- | --- |
+| **CLS** | **Yes** | A ratio of movement to viewport. A page that shifts on a slow machine shifts on a fast one, so the number means the same thing everywhere |
+| LCP | No — measured and reported | A duration. On a contended runner it describes the runner |
+| Interaction latency | Relaxed to 1 s | Same. The 200 ms product budget is enforced locally, where the measurement means something |
+
+Enforcing a duration against a machine whose speed is not controlled produces a
+flaky gate, and `BUG-016` already established that a flaky gate is worse than a
+failing one — it teaches people that re-running is the fix.
+
+**None of this makes the budgets met.** They are unmet, owned by `STEP-024`, and
+listed in §4.
 
 ### 3.7 Zoom, reflow and text spacing beyond the tested points
 

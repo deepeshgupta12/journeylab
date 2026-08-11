@@ -60,6 +60,133 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-024 — STEP-003 closure — End-to-end smoke test and README accuracy
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-11 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PLAT-001 (repository accuracy), REQ-SEC-003, REQ-SEC-006 |
+| Blast radius | [BR-027](blast-radius/BR-027-e2e-smoke-and-readme.md) (LOW) |
+| Commit | see git log for this entry |
+
+### What was built
+`tests/e2e/smoke.sh` (`pnpm e2e`) — 22 checks across seven sections: infrastructure,
+schema and row-level security, backend, frontend, the running application over real
+HTTP, the accessibility gate, and repository invariants. Plus a README that
+describes the repository as it now is.
+
+### Why a separate suite from `pnpm verify`
+`verify` proves each layer in isolation and never starts the whole system. This
+does, in the order a real request meets it — and it takes about four minutes on
+top of verify's three.
+
+**It is deliberately not in `verify`.** A seven-minute gate gets skipped, and a
+skipped gate is worse than a slow one. The honest cost is that nothing runs `pnpm
+e2e` automatically; it is a command a person must remember, and that gap closes
+when there is a pipeline stage that can afford Docker (`STEP-027`). Written down
+rather than glossed.
+
+### The first run found four defects — all of them in the test
+That is the part worth recording, because a new test suite that reports failures
+is only useful if you check which side the fault is on.
+
+| Reported | Actually |
+| --- | --- |
+| "Redis responds to PING" FAILED | The compose service is `cache`, not `redis`. Redis was fine |
+| "PostgreSQL accepts TCP" FAILED | `compose up --wait` returns when the healthcheck passes, but PG18 can still answer *"the database system is in recovery mode"* for several seconds. Same family as BUG-009 |
+| "sign-in redirect lacks PKCE S256" FAILED | **The worst of the four.** The suite exported placeholder Auth0 credentials; `process.loadEnvFile` does not overwrite variables already set, so the placeholders beat the real configuration. The suite broke the config and then reported the breakage as a product defect |
+| "knowledge graph is current at HEAD" FAILED | The working tree had uncommitted changes, which makes staleness correct rather than wrong |
+
+A fifth appeared on the next run: *"PostgreSQL never became queryable on 5700"*,
+reported while the twelve row-level-security assertions in section 2 were passing
+against that same database three seconds later. The probe had hard-coded
+`-U postgres`; the role is `journeylab`.
+
+Two of these are wrong in the direction of alarm, which erodes trust in a suite
+exactly as fast as being wrong in the direction of comfort. All are fixed: real
+configuration is used when it exists and the PKCE assertions become a SKIP when
+they cannot honestly run; a dirty tree produces a SKIP with the reason; and the
+database probe now uses the same credentials the compose file and the isolation
+suite use.
+
+**The pattern across all five is one mistake made repeatedly:** I wrote each
+probe from my assumption of how the system connects rather than from how the
+working code connects. The service name, the database role, the credential
+precedence and the readiness semantics were all available to be read, in files I
+had already opened. A smoke test that invents its own access path is testing my
+memory of the system, not the system.
+
+### Final result
+**25 passed, 0 failed, 2 skipped.** Both skips are honest and say why: framing/CSP
+headers do not exist until STEP-023, and the knowledge graph is legitimately stale
+while the working tree is dirty. Neither is counted as a pass.
+
+### What the suite asserts that nothing else did
+Three security properties, end to end against a running production build:
+
+- The session endpoint answers an anonymous caller and **leaks no token** —
+  httpOnly cookies stay server-side.
+- Sign-in redirects with **PKCE S256 and a `state` parameter**.
+- The component gallery is **404 without its flag**, checked against a server
+  started without it.
+
+### The same environment lesson, one layer up
+`pnpm ci:local` then failed the browser suite: six desktop tests timed out at 30s
+while the mobile project passed. Playwright defaults to one worker per two CPUs
+and each worker drives a Chromium instance — in the same 4 GB container that had
+just exhausted the jsdom workers.
+
+Capped at two workers with a 90s budget **under CI only**. That is a budget for
+the environment, not for the product: the Core Web Vitals assertions inside the
+suite are untouched and still gate at 2.5s LCP and 200ms interaction, so a slow
+runner may take longer to finish but may not report a slow page as acceptable.
+
+**This is the second time in two commits that a default tuned for a developer
+machine failed in a constrained container**, and the failure looked like a
+different problem each time — a module-resolution error, then a page timeout.
+Worth stating as a pattern rather than as two incidents: any default that scales
+with CPU count is a memory decision in disguise, and CI is always the machine
+with less memory than you assumed.
+
+### The README was substantially untrue
+It said *"Pre-implementation — no product code yet"*, *"13 checks"*, and *"the
+graph currently indexes documentation only"*. All three had been false for
+several sub-steps. It also still listed `BLK-002` and `DEC-004` as open, both
+closed.
+
+It now states what exists, the real test counts, the two graph coverage gaps
+(JSX untraced, CSS absent), and what remains deliberately unmet with an owner
+against each.
+
+### A guard that was wrong
+`readme-accuracy.sh` extracted script names with `pnpm [a-z][a-z:]*`, so `pnpm
+a11y` was read as `pnpm a` and reported missing. A false failure, and the kind
+that gets a guard disabled rather than fixed. The pattern now accepts digits.
+
+### Section 5b exists because of BUG-019
+While starting the dev server so the owner could look at the design work, the
+gallery returned **500**. It returns 200 from a production build and passes all 40
+accessibility assertions there.
+
+**Every automated check in this repository builds for production** — the browser
+suite, `pnpm verify`, `pnpm ci:local`, and section 5 of this very suite. `next dev`
+renders on a different path with a different tolerance for server-side errors, and
+had no coverage whatsoever. The defect survived a whole sub-step and was found by a
+person opening a URL.
+
+Section 5b now starts `next dev`, asserts three routes render, and **fails if the
+server logged an exception while rendering** — a route that renders while throwing
+is half-broken, which is exactly how this looked in production.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Run `pnpm e2e` in a pipeline stage that can afford Docker | STEP-027 |
+| Framing/CSP headers — currently a SKIP in the suite | STEP-023 |
+
+---
+
 ## IMPL-023 — STEP-003.09 — Visual design language
 
 | Field | Value |

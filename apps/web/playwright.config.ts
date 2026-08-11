@@ -31,8 +31,29 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list']],
-  timeout: 30_000,
-  expect: { timeout: 10_000 },
+
+  /*
+   * CONCURRENCY AND BUDGETS ARE CAPPED IN CI, FOR THE SAME REASON VITEST'S ARE.
+   *
+   * Playwright defaults to one worker per two CPUs, and each worker drives a
+   * Chromium instance. `pnpm ci:local` runs in a container Docker gives 4 GB —
+   * the same ceiling that broke the jsdom suites — and there the desktop project
+   * timed out on six tests while the mobile project passed, which is the
+   * signature of contention rather than of a broken page.
+   *
+   * The timeout rises with it. axe walks the entire accessibility tree of the
+   * gallery, which is the largest page in the product by some distance; 30s is
+   * generous on a developer machine and tight on a shared runner with two
+   * browsers competing for it.
+   *
+   * This is a budget for the ENVIRONMENT, not for the product. The Core Web
+   * Vitals assertions inside the suite are unchanged and still gate at 2.5s LCP
+   * and 200ms interaction — a slow runner may not finish the suite quickly, but
+   * it may not report a slow page as acceptable.
+   */
+  ...(process.env.CI ? { workers: 2 } : {}),
+  timeout: process.env.CI ? 90_000 : 30_000,
+  expect: { timeout: process.env.CI ? 20_000 : 10_000 },
 
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,

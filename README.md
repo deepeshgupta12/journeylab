@@ -11,7 +11,7 @@ Deterministic solvers own feasibility; the model explains and parses language.
 
 | | |
 | --- | --- |
-| Status | **Pre-implementation** — foundation in place, no product code yet |
+| Status | **In implementation** — STEP-001 and STEP-003 `VERIFIED`, STEP-002 in progress |
 | Target release | Phase 1 MVP — one region, 3–7 day trips, deep-link booking handoff |
 | Owner | Deepesh Kumar Gupta (`@deepeshgupta12`) |
 | Documentation | **[docs/product/00-START-HERE.md](docs/product/00-START-HERE.md)** ← start here |
@@ -47,9 +47,37 @@ cp .env.example .env                                # local dev config
 pnpm verify                                         # must be green
 ```
 
-`pnpm verify` runs the full fast tier — 13 checks across guards, linting, formatting
-and typechecking, for both JavaScript and Python. **It must pass before you change
-anything**, so you know any later failure is yours.
+`pnpm verify` is the whole gate: 21 steps across 15 repository guards, linting,
+formatting, typechecking, the JavaScript and Python suites, a production build, and
+a **real-browser accessibility run**. **It must pass before you change anything**, so
+you know any later failure is yours.
+
+The last step launches Chromium, so the first run needs the browser once:
+
+```bash
+pnpm --filter @journeylab/web exec playwright install --with-deps chromium
+```
+
+| Command | What it does |
+| --- | --- |
+| `pnpm verify` | The full gate. Nothing merges without it |
+| `pnpm test` | Python + JavaScript suites only |
+| `pnpm a11y` | The 40 browser accessibility tests |
+| `pnpm ci:local` | **Runs CI's job on Linux, in a clean checkout, with a cold install.** Run it before pushing anything touching dependencies, generated files, or CI itself — it has caught seven failures that a macOS run could not |
+| `pnpm build` | Production build of every package |
+
+### Seeing the UI
+
+```bash
+JOURNEYLAB_ENABLE_GALLERY=1 pnpm dev:web
+```
+
+Then <https://localhost:5709/dev/gallery> — every design-system component in every
+quality state, on one page. Append `?dir=rtl` to check the right-to-left layout.
+
+The route is **off unless that flag is set**, and `tests/guards/gallery-gate.sh`
+proves it 404s without it: a page enumerating every internal component and error
+string does not belong in a deployment.
 
 ## Local services
 
@@ -87,16 +115,52 @@ Connection strings are in [`.env.example`](.env.example).
 ## Repository map
 
 ```
-apps/              web (Next.js) and api (FastAPI) surfaces          [STEP-002+]
-packages/          ui, contracts, authz, analytics, observability    [STEP-003+]
-services/          domain, data, retrieval, AI, ML, workflow         [STEP-005+]
-contracts/         OpenAPI, AsyncAPI, JSON Schema                    [STEP-004]
-db/                migrations, seeds, row-level security             [STEP-006]
+apps/web/          Next.js 16 — app shell, Auth0 sign-in, gallery     built
+apps/api/          FastAPI — auth, tenancy, authorization             built
+packages/ui/       design system: tokens, primitives, a11y            built
+services/audit/    append-only audit with redaction                   built
+db/migrations/     schema + row-level security                        built
+contracts/         OpenAPI, AsyncAPI, JSON Schema                     [STEP-004]
+services/          domain, data, retrieval, AI, ML, workflow          [STEP-005+]
 infra/local/       local development images
-tests/guards/      executable repository guards (run by pnpm verify)
+tests/guards/      15 executable repository guards (run by pnpm verify)
+tests/security/    cross-tenant isolation suite (R7)
 docs/product/      the documentation system — scope, architecture, contracts
 docs/adr/          architecture decision records
 ```
+
+### What actually exists today
+
+| Area | State |
+| --- | --- |
+| **Identity** | Auth0 OIDC with PKCE, refresh-token rotation, `__Host-` cookies, 7-day guest sessions. Proven against a live tenant |
+| **Tenancy** | PostgreSQL row-level security with `FORCE`, a `NOBYPASSRLS` application role, and a 12-assertion isolation suite including a meta-test that a weakened policy exposes both tenants |
+| **Authorization** | Deny-by-default matrix generated from markdown into both Python and TypeScript, so the server and the menu cannot disagree (`ADR-012`) |
+| **Audit** | Append-only **by privilege**, not by convention — `GRANT SELECT, INSERT` with `UPDATE` and `DELETE` revoked |
+| **Design system** | 40 components across 9 sub-steps: forms, table/list with CSV export, dialog, notifications, ten quality states, role-aware navigation, i18n with DST-correct durations, and money as integer minor units |
+| **Accessibility** | Gated, not aspirational — see below |
+
+### Tests
+
+| Suite | Count | Runs in |
+| --- | --- | --- |
+| Python | 335 | `pnpm verify` |
+| Design system (jsdom) | 307 | `pnpm verify` |
+| Web (unit) | 61 | `pnpm verify` |
+| **Real browser (Playwright + axe)** | **40** | `pnpm verify` |
+| Cross-tenant isolation (R7) | 12 | `pnpm test:security` |
+| Guard meta-tests | 43 | `pnpm guard:meta` |
+
+The browser suite is the one to know about. It runs axe over five surfaces in two
+device profiles and asserts keyboard traversal, focus visibility, 24×24 touch
+targets, no reflow at 320px, forced-colors rendering, right-to-left layout, and
+Core Web Vitals — with `retries: 0`, because a retry policy on an accessibility
+gate is a way of not fixing accessibility.
+
+**A green run is not accessibility.** Automation finds a third to a half of real
+defects; [ACCESSIBILITY_AUTOMATION_LIMITS](docs/product/06-quality/ACCESSIBILITY_AUTOMATION_LIMITS.md)
+lists what stays manual and why the screen-reader journeys are scheduled every
+release.
 
 Module import boundaries are **enforced**: a cross-package import that reaches into
 another package's `src/` fails the build (`ADR-003`).
@@ -137,10 +201,16 @@ npx gitnexus status     # must be current at HEAD before changing code
 npx gitnexus analyze    # refresh after every commit
 ```
 
-> The graph currently indexes **documentation only** — there is no application
-> source yet — so impact analysis on code is `BLOCKED` and the static fallback in
-> [CHANGE_IMPACT_PROTOCOL](docs/product/05-knowledge-graph/CHANGE_IMPACT_PROTOCOL.md)
-> applies. It does **not** satisfy the release gate.
+The graph indexes application code as well as documentation, so pre-change impact
+analysis is **runnable** — a `BLOCKED` result is now a real finding, not the
+expected default.
+
+> **Two coverage gaps are known and must not be papered over.** The graph records
+> `CALLS` edges from function calls, so a React component used only as JSX has
+> **zero** traced dependents (`impact(SkipLink)` returns 0 against 8 real
+> references), and CSS is not represented at all. Component-level impact analysis
+> is therefore established by the compiler and the browser suite, and said to be
+> so. See `BR-025` §3 and `BR-026` §3; owned by `STEP-026`.
 
 ## Key documents
 
@@ -159,10 +229,19 @@ npx gitnexus analyze    # refresh after every commit
 
 | ID | Blocker |
 | --- | --- |
-| `BLK-002` | No application code — contracts are `PROPOSED`, graph coverage gates unevaluable |
-| `DEC-002` | Phase 1 destination region undecided — blocks `STEP-005`/`STEP-010` (critical path) |
-| `DEC-004` | Identity provider undecided — blocks `STEP-002` |
+| `DEC-002` | **Phase 1 destination region undecided** — blocks `STEP-005`/`STEP-010`. The critical path |
+| `DEC-007` | Cloud provider, region and data residency — blocks `STEP-027` |
 | `RISK-001` | Provider licence viability unproven (highest exposure) |
+| — | Contracts remain `PROPOSED` until `STEP-004` |
+
+Closed since the last revision: `BLK-002` (application code exists),
+`DEC-004` (**Auth0**, `ADR-013`, proven against a live tenant), `RISK-014` (the
+graph indexes code).
+
+Carried and deliberately unmet, each with an owner: real-user Core Web Vitals
+(`STEP-024`), server-side denial tests against real routes (`STEP-004`), manual
+screen-reader journeys (every release), and a design review by someone who is
+not the implementer (before GA).
 
 Four-eyes approval (`REQ-ADMIN-002`) is **structurally unsatisfiable** with a single
 owner — see [ADR-010](docs/adr/ADR-010-repository-ownership.md). Must be resolved

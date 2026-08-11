@@ -52,7 +52,7 @@ import {
   TextInput,
   UnauthorizedState,
 } from '@journeylab/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Leg {
   id: string;
@@ -117,8 +117,28 @@ function Specimen({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
-function Boom(): never {
-  throw new Error('gallery: deliberate failure to render the contained-error state');
+/**
+ * Throws AFTER mount, not during server rendering — BUG-019.
+ *
+ * The first version threw unconditionally. `FeatureErrorBoundary` caught it in
+ * the browser and the production build rendered the page, so every screenshot
+ * looked right. But `next dev` treats a throw during server rendering as a
+ * route-level failure, so the whole gallery returned **500 in the one mode a
+ * developer actually opens it in** — and the production build masked that
+ * completely.
+ *
+ * Deferring the throw to an effect keeps the demonstration honest (the boundary
+ * still catches a real error and still contains it) while leaving the server
+ * render clean. No hydration mismatch either: the first client render matches
+ * the server's, and the throw happens on the render after it.
+ */
+function Boom() {
+  const [explode, setExplode] = useState(false);
+  useEffect(() => setExplode(true), []);
+  if (explode) {
+    throw new Error('gallery: deliberate failure to render the contained-error state');
+  }
+  return <p>Loading the map…</p>;
 }
 
 export function Gallery() {
