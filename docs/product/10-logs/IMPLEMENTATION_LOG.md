@@ -148,12 +148,22 @@ nobody chose.
 so nothing failed. A broken entry point stays invisible until the first consumer,
 which is the worst possible moment to discover it.
 
-**The graph exclusion could not be measured honestly.** Comparing indexes with and
-without `.gitnexusignore` gave a 3-node difference against 71 generated classes,
-because the files were staged but uncommitted and GitNexus did not parse them in
-that state. The exclusion is verified — a Cypher query returns no generated nodes —
-but its magnitude is not, and BR-034 §4 says so rather than quoting the meaningless
-number.
+**The graph exclusion works and my control is not what makes it work.** The
+requirement is met — at `7b1489e` a Cypher query returns no nodes under either
+generated path. But `.gitnexusignore` is not the cause: adding and removing the
+generated directories from it produces an identical index (353 files, 5,702 nodes,
+7,993 edges), because **GitNexus already skips `generated/` by default**.
+
+The file is not broken. A control probe — ignoring `tools/gen_clients.py` instead —
+removed 16 nodes, so the mechanism is functional and the null result is real rather
+than a mis-written pattern. That probe is the only reason the other two measurements
+mean anything.
+
+I nearly shipped this as "exclusion verified", which would have been true of the
+outcome and false about the cause, and the difference shows up the day somebody
+relies on the file to exclude something new. It is kept — a default is somebody
+else's decision and can change — but BR-034 §4 now says what it does and does not
+do.
 
 ### What was deliberately left undone
 

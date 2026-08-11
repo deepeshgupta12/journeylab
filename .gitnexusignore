@@ -17,6 +17,21 @@
 #   The contract documents themselves stay indexed. They are the source, they are
 #   hand-written, and a change to one is exactly what a pre-change check should
 #   surface.
+#
+# THESE TWO ENTRIES ARE CURRENTLY REDUNDANT — READ THIS BEFORE TRUSTING THEM
+#   Measured at 7b1489e: the index is identical with and without them (353 files,
+#   5,702 nodes, 7,993 edges). GitNexus already skips paths under a `generated/`
+#   directory by default, so these lines remove nothing today.
+#
+#   The file itself DOES work — a control probe listing `tools/gen_clients.py`
+#   removed 16 nodes. So a null result here means "already excluded", not "pattern
+#   ignored". If you add a path and see no change, check that before assuming the
+#   syntax is wrong.
+#
+#   They are kept because a default is somebody else's decision: it can change in a
+#   minor version, and `src/generated/` can be renamed to something the default does
+#   not recognise. Nothing asserts the absence of generated nodes, so either of those
+#   would go unnoticed. That gap is carried to STEP-026. See BR-034 §4.
 
 packages/contracts/src/generated/
 apps/api/src/generated/

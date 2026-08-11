@@ -128,9 +128,12 @@ argument for generating clients rather than hand-writing them.
 STEP-003 closure, and the skips are the Auth0-dependent checks that need a live
 tenant (`DEC-004`, still unverified against a real account).
 
-**The graph exclusion is verified but not sized.** BR-034 §4 states this plainly
-rather than quoting the 3-node difference the comparison produced, which measured
-nothing because the files were staged rather than committed at the time.
+**The graph exclusion is met; `.gitnexusignore` is not what meets it.** Measured at
+`7b1489e` after the re-index: the index is identical with and without the generated
+paths listed (353 files, 5,702 nodes, 7,993 edges), because GitNexus skips
+`generated/` by default. A control probe ignoring `tools/gen_clients.py` removed 16
+nodes, confirming the file works and the null result is real. Corrected in BR-034 §4;
+the residual gap — nothing asserts the absence — is carried to `STEP-026`.
 
 ---
 

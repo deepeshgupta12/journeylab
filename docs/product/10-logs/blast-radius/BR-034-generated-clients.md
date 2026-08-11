@@ -43,10 +43,16 @@ Plus `tests/guards/generated-clients.sh`, which regenerates and diffs, and
 `packages/contracts/src/contract.assert.ts`, which asserts at compile time that
 the emitted types did not silently degrade.
 
-## 4. Graph exclusion — measured, and the measurement is qualified
+## 4. Graph exclusion — the outcome is verified and my control is not what causes it
 
-`.gitnexusignore` now excludes both generated directories. The reasoning is in the
-file itself and is worth restating for the second reason rather than the obvious one:
+**Corrected after the post-commit re-index.** An earlier draft of this section
+claimed `.gitnexusignore` excludes the generated directories. It does not, and the
+distinction matters enough to state plainly.
+
+### The requirement, which is met
+
+The sub-step asks that generated paths not inflate graph coverage. Two reasons, and
+the second is the one that matters:
 
 - **It inflates coverage.** `REQ-KG-001`/`002` are gates on code a human maintains.
 - **It makes impact analysis wrong in the direction that matters.** 71 generated
@@ -54,15 +60,49 @@ file itself and is worth restating for the second reason rather than the obvious
   pre-change check on `Money` would report a blast radius in the hundreds. **A gate
   that always says HIGH is a gate that gets skipped.**
 
-**What was measured:** with the exclusion in place, a Cypher query for nodes under
-either generated path returns nothing.
+At `7b1489e`, with both clients committed, a Cypher query for nodes under either
+generated path returns **nothing**. The requirement is met.
 
-**What was NOT measured, and is stated rather than glossed:** the *size* of what is
-excluded. Comparing an index with and without the ignore file produced a difference
-of 3 nodes against 71 generated classes — the generated files were staged but
-uncommitted at the time, and GitNexus did not parse their symbols in that state. The
-comparison is therefore not evidence of anything. The real figure is taken at the
-post-commit re-index and recorded in the regression entry.
+### What actually causes it
+
+Not `.gitnexusignore`. Three measurements at the same commit:
+
+| Configuration | files | nodes | edges |
+| --- | --- | --- | --- |
+| `.gitnexusignore` listing both generated directories | 353 | 5,702 | 7,993 |
+| `.gitnexusignore` removed entirely | 353 | 5,702 | 7,993 |
+| `.gitnexusignore` listing `tools/gen_clients.py` (probe) | — | **5,686** | — |
+
+The third row is the control, and it is why the first two can be trusted. The
+mechanism **works** — ignoring one hand-written module removed 16 nodes. Listing the
+generated directories removes nothing, because **GitNexus already skips paths under
+a `generated/` directory by default.**
+
+### Why the file stays anyway
+
+It is redundant today and it is kept deliberately, on the understanding that it is
+documentation with a mechanism attached rather than the mechanism itself:
+
+- A default is somebody else's decision and can change in a minor version.
+- `packages/contracts/src/generated/` could be renamed to something the default does
+  not recognise, and the requirement would silently stop being met.
+- The reasoning above has to live somewhere a person will find it.
+
+**What is NOT claimed:** that this repository has demonstrated control over graph
+coverage of generated code. It has demonstrated that the coverage is currently
+correct, and that the tool it would use to enforce that is functional. If GitNexus
+changed its defaults tomorrow, nothing here would fail — there is no assertion on
+the absence of generated nodes. That is a real gap, it is small, and it is carried
+to `STEP-026` with the other graph limitations rather than papered over.
+
+### An earlier measurement that was worthless
+
+Before the commit, comparing indexes with and without the ignore file gave a 3-node
+difference against 71 generated classes. The files were staged but uncommitted and
+GitNexus did not parse them in that state. The number measured nothing, and the
+first draft of this record said so rather than quoting it — which was right, but the
+conclusion drawn alongside it (that the ignore file was doing the work) was still
+wrong. **A correctly hedged measurement does not make the surrounding claim true.**
 
 ## 5. Change inventory
 
