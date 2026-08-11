@@ -67,6 +67,50 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-004.05 — 2026-08-11 — AsyncAPI event contracts
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `d2f950b` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **552 Python** (up from 492) + 61 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | A second contract document; `openapi.yaml` untouched |
+| R3 graph diff as expected | **PASS** | One YAML document, one test module. **No symbol-level query was applicable and that is recorded rather than substituted for** |
+| R4 untested requirements | **PASS — improved** | REQ-PLAT-006, REQ-DATA-008 newly covered; REQ-SEC-001 and REQ-PRIV-006/007 gain stream-level assertions |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `contracts/` |
+| R6 closed-bug tests | **PASS** | BUG-001…019; meta-suite 43/43 |
+| **R7 tenant isolation** | **PASS — 12/12** | Plus: `tenant_id` required on **every** envelope, and no payload may carry content |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| mypy: two `no-any-return` | Helpers returning `Any` out of an untyped YAML tree | Annotated at the boundary rather than silenced |
+
+Only one failure, and a trivial one — the first sub-step in a while where the
+contract did not catch me out. Worth noting *why*: this document had a complete
+register to work from (`EVENT_CONTRACTS.md` lists all eight events with payload,
+delivery, retention and replay), whereas `.02` and `.03` were reconciling two
+documents that had drifted.
+
+### Notes
+**The payload rule is the tenancy boundary for the entire stream**, and it is
+worth restating as a rule rather than a schema detail: an event is read by
+consumers that never authenticated the user who caused it. A payload carrying
+content hands them data nobody checked they may see, and the check cannot be
+added later because the data is already in the log.
+
+**`exactly-once-effect`, not `exactly-once`.** No transport gives exactly-once
+delivery. The contract names the consumer's obligation instead of implying the
+transport absorbs it — and a test asserts the description says so, because this
+is the guarantee most often written down wrongly.
+
+---
+
 ## STEP-004.04 — 2026-08-11 — Privacy, admin, coverage and job operations
 
 | Field | Value |

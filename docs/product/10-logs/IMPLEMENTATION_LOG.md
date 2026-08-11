@@ -60,6 +60,92 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-029 — STEP-004.05 — AsyncAPI event contracts (EVT-001…008)
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-11 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PLAT-006, REQ-DATA-008 (enforcing REQ-SEC-001, REQ-PRIV-006/007, REQ-CONS-006) |
+| Blast radius | [BR-032](blast-radius/BR-032-asyncapi-events.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `d2f950b` — matched HEAD at pre-change |
+
+### What was built
+`contracts/asyncapi.yaml` — eight events, one shared envelope, and an explicit
+delivery guarantee, partition key, retention and replay note on each. 60
+assertions. Python suite 492 → **552**.
+
+### "No content in payloads" is a tenancy control, not privacy tidiness
+`EVENT_CONTRACTS.md` §1 requires payloads to carry IDs, versions and
+classifications only. That reads like a preference. It is not.
+
+**An event is read by consumers that never authenticated the user who caused
+it.** `EVT-001` alone reaches evidence assembly, the knowledge graph and
+analytics. A payload carrying constraint values hands all three data nobody
+checked they may see — and the check cannot be retrofitted, because the data is
+already in the log and in every replica of it.
+
+So payloads carry IDs, and a consumer needing content reads it back through an
+authorized API where the boundary is applied per request. Asserted by scanning
+every payload property against 24 content-shaped names across all eight events,
+plus a meta-test proving the scan finds a seeded `accessibility_needs`. Payloads
+are additionally closed.
+
+`EVT-001` is the clearest case. A constraint is the traveller's own words about
+their accessibility needs, their budget and who they travel with. **The event
+carries four integers.**
+
+### The guarantee that is usually stated wrongly
+`exactly-once-effect`, not `exactly-once`. No transport gives exactly-once
+delivery; anything claiming to is deduplicating somewhere and calling it a
+guarantee. What is required is that the **effect** happens once, which is the
+consumer's obligation — so the contract names the obligation rather than implying
+the transport absorbs it.
+
+Three events carry it, and they are the three where a duplicate does real damage:
+a second booking handoff, a repair applied twice, a corrupted audit trail.
+Everywhere else a duplicate is merely wasteful.
+
+### Two events are deliberately not keyed by trip
+A deletion request spans every trip a subject has; provider health is not a
+property of a trip at all. Keying either by `trip_id` would look consistent and
+be wrong — and the failure would be a rare, load-dependent ordering bug.
+
+### The deletion event outlives what it describes
+`EVT-007` is the proof artifact for `REQ-PRIV-006`, retained for a legally
+required minimum — longer than the data whose destruction it records. So
+`subject_ref` is **pseudonymous**, and a test asserts no `user_id` or `email`
+appears: a proof of deletion carrying the person's identity defeats the act it
+proves.
+
+Failure reasons are codes, not prose, because a prose reason eventually contains
+the row it failed on. And failure **emits** rather than staying silent — silence
+is indistinguishable from a crashed producer.
+
+### DEC-009 confirmed rather than assumed
+The sub-step asked to confirm that queue-versus-Kafka changes the transport and
+not the contract. It does, and that is now **enforced**: no `servers` block, no
+channel `bindings` — the two places AsyncAPI lets a transport leak in — with a
+test asserting both absences. Answering DEC-009 later cannot quietly bind the
+contract to the answer.
+
+### A pre-change check with no applicable query
+This sub-step adds one YAML document and one test module and changes no Python
+symbol. I ran `detect_changes()` and recorded that **no symbol-level query was
+applicable**, rather than running an irrelevant one to produce a LOW. The protocol
+asks for a pre-change check, not for a query, and a number obtained by asking the
+wrong question is worse than an honest absence.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Transactional outbox that refuses an unstamped envelope | STEP-006 |
+| Consumer implementations | Their own steps |
+| `DEC-009` — managed queue or Kafka | Before STEP-006 |
+
+---
+
 ## IMPL-028 — STEP-004.04 — Privacy, admin, coverage and job operations (API-015…018)
 
 | Field | Value |

@@ -1,0 +1,524 @@
+asyncapi: 3.0.0
+
+# JourneyLab domain events — STEP-004.05.
+#
+# Eight events, one envelope, and an EXPLICIT delivery guarantee each. Declared
+# before the outbox exists (STEP-006) so consumers are written against a stable
+# shape rather than whatever the first producer happened to emit.
+#
+# THE RULE THAT GOVERNS EVERY PAYLOAD BELOW
+#   `EVENT_CONTRACTS.md` §1: payloads carry "IDs, versions and classifications.
+#   **Never trip content, evidence prose, personal data or precise location**."
+#
+#   That is not privacy tidiness — it is what keeps tenancy enforceable. An event
+#   is read by consumers that did not authenticate the user who caused it. A
+#   payload carrying trip content hands those consumers data no one checked they
+#   may see, and the check cannot be added later because the data is already in
+#   the log. Consumers needing content read it back through an authorized API,
+#   where the tenant boundary is applied.
+#
+#   `tests/api/test_event_contracts.py` asserts this by scanning every payload
+#   property against content-shaped names, rather than by review.
+#
+# DEC-009 IS NOT A BLOCKER HERE, AND THAT WAS WORTH CONFIRMING
+#   The sub-step asked to confirm that the queue-versus-Kafka decision changes
+#   the transport and not the contract. It does. Nothing in this document names a
+#   broker, a topic layout or a client library; `x-journeylab-delivery` states the
+#   guarantee a transport must provide, which is the thing a consumer depends on.
+
+info:
+  title: JourneyLab domain events
+  version: 0.1.0
+  description: |
+    All events are `PROPOSED` until their producing step lands. The outbox that
+    publishes them is STEP-006; consumers are their own steps.
+
+defaultContentType: application/json
+
+channels:
+  journeyEvents:
+    address: journey.events
+    title: Domain event stream
+    description: |
+      **Partitioned by `trip_id`. Per-trip ordering is the only guarantee.**
+
+      Cross-trip ordering is explicitly not offered, and a consumer that infers
+      it will be wrong under any partitioned transport — the failure is rare,
+      load-dependent and extremely hard to reproduce, which is why it is stated
+      here rather than discovered later.
+    messages:
+      tripBriefConfirmed:
+        $ref: '#/components/messages/TripBriefConfirmed'
+      evidencePackReady:
+        $ref: '#/components/messages/EvidencePackReady'
+      scenarioSetGenerated:
+        $ref: '#/components/messages/ScenarioSetGenerated'
+      scenarioSelected:
+        $ref: '#/components/messages/ScenarioSelected'
+      impactDetected:
+        $ref: '#/components/messages/ImpactDetected'
+      replanAccepted:
+        $ref: '#/components/messages/ReplanAccepted'
+      privacyDeletionCompleted:
+        $ref: '#/components/messages/PrivacyDeletionCompleted'
+      providerHealthChanged:
+        $ref: '#/components/messages/ProviderHealthChanged'
+
+operations:
+  receiveJourneyEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/journeyEvents'
+    title: Consume domain events
+    description: |
+      **Consumer obligations** (`EVENT_CONTRACTS.md` §3), restated here because a
+      consumer author reads the contract, not the prose:
+
+      1. **Idempotent by `event_id`.** At-least-once means you WILL see a
+         duplicate; the question is only whether it costs anything.
+      2. **Tolerate additive fields.** An unknown field is ignored, never fatal —
+         otherwise every additive change becomes a breaking one.
+      3. **Never infer ordering across aggregates.** Only per-`trip_id`.
+      4. **Handle replay explicitly**, or document why you cannot and provide a
+         manual recovery path.
+      5. **No enrichment from the event alone.** Payloads carry IDs; read content
+         back through an authorized API so tenancy is enforced.
+      6. **Dead-letter with the envelope intact**, or the failure is undiagnosable.
+
+components:
+  schemas:
+    Actor:
+      type: object
+      required: [type, id]
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+          enum: [user, service]
+        id:
+          type: string
+          description: |
+            An identifier, never a name or an address. A log is read by more
+            people and systems than a database row.
+
+    Envelope:
+      type: object
+      description: |
+        Shared by every event. `payload` is the only part that differs.
+      required:
+        - event_id
+        - event_type
+        - occurred_at
+        - recorded_at
+        - tenant_id
+        - correlation_id
+        - actor
+        - schema_version
+        - payload
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: |
+            The idempotency key for every consumer. At-least-once delivery makes
+            duplicates a certainty rather than a risk.
+        event_type:
+          type: string
+          pattern: '^journey\.[a-z_]+\.[a-z_]+\.v[0-9]+$'
+          description: |
+            `journey.<aggregate>.<past-tense-fact>.v<major>`. **Past tense**,
+            because an event is a fact that already happened — a command in the
+            stream is an instruction someone can decline, and the two get handled
+            very differently.
+        occurred_at:
+          type: string
+          format: date-time
+          description: When the fact became true.
+        recorded_at:
+          type: string
+          format: date-time
+          description: |
+            When we wrote it down. Distinct from `occurred_at`, and the gap is
+            the outbox lag — a consumer reasoning about freshness needs both.
+        tenant_id:
+          type: string
+          description: |
+            **On every event, no exceptions** (`REQ-SEC-001`). An unstamped
+            envelope is one a consumer cannot route safely, and STEP-006's outbox
+            is specified to refuse it.
+        correlation_id:
+          type: string
+          description: Ties the event to the request that caused it.
+        causation_id:
+          type: string
+          description: |
+            The `event_id` that caused this one. Absent on an event caused by a
+            user action rather than another event — that is the chain's root.
+        actor:
+          $ref: '#/components/schemas/Actor'
+        schema_version:
+          type: integer
+          minimum: 1
+          description: |
+            Bumped for **additive** changes. A breaking change bumps the major
+            version in `event_type` instead and both run side by side, per
+            `CONTRACT_CHANGE_POLICY`.
+        payload:
+          type: object
+
+  messages:
+    # --- EVT-001 -----------------------------------------------------------
+    TripBriefConfirmed:
+      name: journey.trip_brief.confirmed.v1
+      title: A structured brief was confirmed
+      summary: Starts evidence assembly.
+      x-journeylab-event-id: EVT-001
+      x-journeylab-delivery: at-least-once
+      x-journeylab-order-key: trip_id
+      x-journeylab-retention: 90 days operational; aggregated indefinitely
+      x-journeylab-replay: |
+        Safe. Triggers an idempotent pack build — re-delivery must not start a
+        second one.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                required: [trip_id, brief_version, constraint_counts]
+                additionalProperties: false
+                properties:
+                  trip_id: { type: string }
+                  brief_version: { type: integer, minimum: 1 }
+                  constraint_counts:
+                    type: object
+                    description: |
+                      **Counts by class, never the constraints themselves.** A
+                      constraint is the traveller's own words about their
+                      accessibility needs, their budget and who they are
+                      travelling with — sensitive under
+                      `SECURITY_PRIVACY_RESPONSIBLE_AI`, and not something to put
+                      in a stream read by four consumers.
+                    required: [hard, soft, inferred, unresolved]
+                    additionalProperties: false
+                    properties:
+                      hard: { type: integer, minimum: 0 }
+                      soft: { type: integer, minimum: 0 }
+                      inferred: { type: integer, minimum: 0 }
+                      unresolved: { type: integer, minimum: 0 }
+
+    # --- EVT-002 -----------------------------------------------------------
+    EvidencePackReady:
+      name: journey.evidence_pack.ready.v1
+      title: An evidence pack finished assembling
+      x-journeylab-event-id: EVT-002
+      x-journeylab-delivery: at-least-once
+      x-journeylab-order-key: trip_id
+      x-journeylab-retention: 90 days
+      x-journeylab-replay: Safe.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                required: [pack_id, trip_id, coverage_score]
+                additionalProperties: false
+                properties:
+                  pack_id: { type: string }
+                  trip_id: { type: string }
+                  coverage_score: { type: number, minimum: 0, maximum: 1 }
+                  freshness_warnings:
+                    type: array
+                    description: |
+                      Field classes whose data is older than their freshness
+                      policy allows. Named by class, not by provider — provider
+                      identity is commercially confidential.
+                    items: { type: string }
+                  source_versions:
+                    type: object
+                    additionalProperties: { type: string }
+                  blocked_option_count:
+                    type: integer
+                    minimum: 0
+                    description: |
+                      How many options were excluded for insufficient evidence.
+                      A pack that blocked forty options is a coverage problem the
+                      stream should make visible (`REQ-EVID-006`).
+
+    # --- EVT-003 -----------------------------------------------------------
+    ScenarioSetGenerated:
+      name: journey.scenario_set.generated.v1
+      title: A scenario set was generated
+      summary: Carries everything needed to reproduce the run.
+      x-journeylab-event-id: EVT-003
+      x-journeylab-delivery: at-least-once
+      x-journeylab-order-key: trip_id
+      x-journeylab-retention: 180 days
+      x-journeylab-replay: Safe.
+      description: |
+        **`REQ-CONS-006` reproducibility is auditable from the stream alone.**
+
+        Seed, solver version, model versions and the pack ID are all here, so the
+        question "why did this run produce that answer?" is answerable six months
+        later from the event log — without the database, and without trusting
+        that nobody changed a default in between.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                required:
+                  - trip_id
+                  - scenario_ids
+                  - evidence_pack_id
+                  - solver_version
+                  - random_seed
+                additionalProperties: false
+                properties:
+                  trip_id: { type: string }
+                  scenario_ids:
+                    type: array
+                    items: { type: string }
+                  evidence_pack_id: { type: string }
+                  objective_labels:
+                    type: array
+                    items: { type: string }
+                  solver_version: { type: string }
+                  model_versions:
+                    type: object
+                    additionalProperties: { type: string }
+                  random_seed: { type: integer }
+                  optimality_gap: { type: number, minimum: 0 }
+                  generation_duration_ms: { type: integer, minimum: 0 }
+
+    # --- EVT-004 -----------------------------------------------------------
+    ScenarioSelected:
+      name: journey.scenario.selected.v1
+      title: The canonical scenario was chosen
+      x-journeylab-event-id: EVT-004
+      x-journeylab-delivery: exactly-once-effect
+      x-journeylab-order-key: trip_id
+      x-journeylab-retention: Lifetime of the trip
+      x-journeylab-replay: |
+        Safe only for a consumer that guarantees a single canonical transition.
+        This is the event where a duplicate does real damage.
+      description: |
+        **Exactly-once EFFECT, not exactly-once delivery**, and the distinction is
+        the whole point.
+
+        No transport gives exactly-once delivery; anything claiming to is doing
+        deduplication somewhere and calling it a guarantee. What is required here
+        is that the *effect* happens once — a second delivery must not start a
+        second booking handoff or a second live activation. Consumers achieve
+        that by keying on `event_id`, and the contract states the obligation
+        rather than implying the transport will handle it.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                required: [trip_id, scenario_id, scenario_version]
+                additionalProperties: false
+                properties:
+                  trip_id: { type: string }
+                  scenario_id: { type: string }
+                  scenario_version: { type: integer, minimum: 1 }
+                  decision_context:
+                    type: object
+                    description: |
+                      Which objective won and how many alternatives were
+                      considered. **Counts and labels, not the alternatives** —
+                      the scenarios themselves are trip content.
+                    additionalProperties: false
+                    properties:
+                      objective_chosen: { type: string }
+                      alternatives_considered: { type: integer, minimum: 0 }
+
+    # --- EVT-005 -----------------------------------------------------------
+    ImpactDetected:
+      name: journey.impact.detected.v1
+      title: A provider event was matched to itinerary nodes (Phase 3)
+      x-journeylab-event-id: EVT-005
+      x-journeylab-delivery: deduplicated-stream
+      x-journeylab-dedupe-key: source + subject + window
+      x-journeylab-order-key: trip_id
+      x-journeylab-retention: 30 days
+      x-journeylab-replay: Safe — detection never mutates a plan.
+      description: |
+        **An unverified source may appear here and must never trigger an
+        automatic plan change** (`REQ-LIVE-004`). `confidence` is required so a
+        consumer cannot treat a rumour as a fact, and repair remains a separate,
+        user-accepted operation.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                required: [trip_id, severity, confidence, affected_node_ids]
+                additionalProperties: false
+                properties:
+                  trip_id: { type: string }
+                  source_kind:
+                    type: string
+                    description: |
+                      The class of source, not its identity — `transit_operator`,
+                      not the operator's name.
+                  severity:
+                    type: string
+                    enum: [low, medium, high]
+                  confidence: { type: number, minimum: 0, maximum: 1 }
+                  affected_node_ids:
+                    type: array
+                    items: { type: string }
+                  minutes_to_impact: { type: integer }
+                  evidence_refs:
+                    type: array
+                    description: References, never the evidence prose itself.
+                    items: { type: string }
+
+    # --- EVT-006 -----------------------------------------------------------
+    ReplanAccepted:
+      name: journey.replan.accepted.v1
+      title: A repair was accepted (Phase 3)
+      x-journeylab-event-id: EVT-006
+      x-journeylab-delivery: exactly-once-effect
+      x-journeylab-order-key: trip_id
+      x-journeylab-retention: Lifetime of the trip
+      x-journeylab-replay: Safe only for consumers keyed on event_id.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                required: [trip_id, previous_version, new_version, preserved_percent]
+                additionalProperties: false
+                properties:
+                  trip_id: { type: string }
+                  previous_version: { type: integer, minimum: 1 }
+                  new_version: { type: integer, minimum: 1 }
+                  preserved_percent: { type: number, minimum: 0, maximum: 100 }
+                  deltas:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      cost_minor: { type: integer }
+                      currency: { type: string, pattern: '^[A-Z]{3}$' }
+                      minutes: { type: integer }
+                      effort:
+                        type: string
+                        enum: [low, medium, high]
+
+    # --- EVT-007 -----------------------------------------------------------
+    PrivacyDeletionCompleted:
+      name: journey.privacy.deletion_completed.v1
+      title: A deletion traversal finished
+      x-journeylab-event-id: EVT-007
+      x-journeylab-delivery: exactly-once-effect
+      x-journeylab-order-key: request_id
+      x-journeylab-retention: Legally required audit minimum
+      x-journeylab-replay: |
+        Safe. This is an audit fact, and re-delivering a fact does not change it.
+      description: |
+        **The proof artifact for `REQ-PRIV-006`.**
+
+        The subject reference is **pseudonymous**: this event outlives the data it
+        describes, by design — it is the record that deletion happened, retained
+        for a legally required minimum. An event proving someone's data was
+        deleted must not itself carry their identity, or the proof defeats the act.
+
+        Failure emits with `status: failed` rather than not emitting. Silence is
+        indistinguishable from a producer that crashed, and `REQ-PRIV-007`
+        requires the failure to be visible and queued for retry.
+
+        **This is the one event NOT keyed by `trip_id`** — a deletion request
+        spans every trip a subject has, so ordering is per request.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                required: [request_id, subject_ref, stores_traversed, status]
+                additionalProperties: false
+                properties:
+                  request_id: { type: string }
+                  subject_ref:
+                    type: string
+                    description: |
+                      **Pseudonymous.** Never a user id, an email or anything that
+                      resolves to a person once the record it points at is gone.
+                  stores_traversed:
+                    type: array
+                    items:
+                      type: string
+                      enum: [primary, object, vector, graph, cache, export, token]
+                  status:
+                    type: string
+                    enum: [complete, partially_failed, failed]
+                  failures:
+                    type: array
+                    items:
+                      type: object
+                      required: [store, reason_code]
+                      additionalProperties: false
+                      properties:
+                        store: { type: string }
+                        reason_code:
+                          type: string
+                          description: |
+                            A code, not a message. A failure reason written as
+                            prose eventually contains the row it failed on.
+
+    # --- EVT-008 -----------------------------------------------------------
+    ProviderHealthChanged:
+      name: journey.provider.health_changed.v1
+      title: A provider circuit breaker or quota threshold changed
+      x-journeylab-event-id: EVT-008
+      x-journeylab-delivery: deduplicated-stream
+      x-journeylab-dedupe-key: provider_id + new_state
+      x-journeylab-order-key: provider_id
+      x-journeylab-retention: 30 days
+      x-journeylab-replay: Safe — state is absolute, not incremental.
+      description: |
+        Drives the coverage refusal path (`REQ-TRIP-002`) and the disclosure in
+        `REQ-EVID-006`.
+
+        **`provider_id` appears here and never leaves the platform.** This is an
+        internal stream; the public coverage endpoint publishes one aggregate
+        health value precisely because this event's contents must not reach a
+        client. The two are deliberately different shapes.
+
+        Not keyed by `trip_id` — provider health is not a property of a trip.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              payload:
+                type: object
+                required: [provider_id, previous_state, new_state, reason]
+                additionalProperties: false
+                properties:
+                  provider_id: { type: string }
+                  previous_state:
+                    type: string
+                    enum: [healthy, degraded, unavailable]
+                  new_state:
+                    type: string
+                    enum: [healthy, degraded, unavailable]
+                  reason: { type: string }
+                  affected_regions:
+                    type: array
+                    items: { type: string }
