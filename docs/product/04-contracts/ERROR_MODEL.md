@@ -61,6 +61,8 @@ Navigation: [API contracts](API_CONTRACTS.md) · [Frontend](../03-architecture/F
 
 | Code | Status | Meaning | Remediation | Requirement |
 | --- | --- | --- | --- | --- |
+| `validation.invalid_request` | 400 | Request does not satisfy its schema | Show the offending fields inline; do not retry unchanged | REQ-PLAT-005 |
+| `validation.invalid_party` | 422 | Party composition is well-formed but impossible | State which combination cannot be planned for | REQ-PLAT-005 |
 | `coverage.unsupported_region` | 422 | Region not in the destination pack | Show supported regions; offer waitlist | REQ-TRIP-002 |
 | `coverage.unsupported_dates` | 422 | Dates outside coverage or planning window | Show supported bounds | REQ-TRIP-002 |
 | `coverage.provider_degraded` | 503 | Provider health insufficient for reliable planning | **Refuse rather than produce a partial simulation** | REQ-EVID-006 |
@@ -82,6 +84,14 @@ Navigation: [API contracts](API_CONTRACTS.md) · [Frontend](../03-architecture/F
 | `privacy.deletion_failed` | 202 + tracked | Deletion incomplete | Monitored retry queue visible to privacy owner | REQ-PRIV-007 |
 | `authz.forbidden` | 403/404 | Not permitted | Identical to not-found | REQ-SEC-004 |
 | `tenant.isolation_violation` | 500 + **SEV1 alert** | Cross-tenant access attempted | Halt, incident response | REQ-SEC-002 |
+
+**On the `validation.*` family.** §2 has declared a Validation class since this
+document was written, and until STEP-004.02 no code existed for it — so the
+operation register referenced `validation.invalid_party` against nothing. Two
+codes are registered, not a taxonomy: one for "this does not match the schema"
+and one for "this matches the schema and is still impossible". More will be added
+when an operation needs one and names it. A register that anticipates codes
+nobody raises rots, because nothing fails when a speculative entry is wrong.
 
 ---
 

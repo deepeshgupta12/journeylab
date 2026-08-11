@@ -108,7 +108,7 @@ Nine-step fan-in. Every subsequent contract change inherits [CONTRACT_CHANGE_POL
 | Sub-step | Outcome |
 | --- | --- |
 | STEP-004.01 | Global conventions: errors, pagination, idempotency, ETags, correlation — ✅ **VERIFIED** 2026-08-11 (BR-028, IMPL-025) |
-| STEP-004.02 | Trip, brief and scenario operations (API-001…009) |
+| STEP-004.02 | Trip, brief and scenario operations (API-001…009) — ✅ **VERIFIED** 2026-08-11 (BR-029, IMPL-026) |
 | STEP-004.03 | Collaboration, booking, live, feedback operations (API-010…014) |
 | STEP-004.04 | Privacy, admin, coverage, jobs operations (API-015…018) |
 | STEP-004.05 | AsyncAPI events with delivery guarantees (EVT-001…008) |

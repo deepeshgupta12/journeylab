@@ -79,7 +79,7 @@ Read canonical trip, permissions and current version. Auth: trip member. Returns
 | Tests | TST-CONS-001/002, TST-TRIP-004 |
 
 ### API-004 — `POST /v1/trips/{tripId}/evidence-packs`
-Start evidence assembly; returns a **job handle within 500 ms**. Auth: owner/editor. `202` `{job_id, status, events_url}`. Emits EVT-002 on completion. Writes DATA-007/008. Errors: `provider.unavailable`, `coverage.insufficient_evidence`. Tests: TST-EVID-001/005/006.
+Start evidence assembly; returns a **job handle within 500 ms**. Auth: owner/editor. `202` `{job_id, status, events_url}`. Emits EVT-002 on completion. Writes DATA-007/008. Errors: `coverage.provider_degraded`, `evidence.insufficient_coverage`. Tests: TST-EVID-001/005/006.
 
 ### API-005 — `POST /v1/trips/{tripId}/scenarios:generate`
 | Field | Value |

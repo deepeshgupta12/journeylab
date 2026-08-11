@@ -60,6 +60,98 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-026 — STEP-004.02 — Trip, brief and scenario operations (API-001…009)
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-11 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PLAT-005, REQ-PLAT-008 (enforcing REQ-SEC-004, REQ-EVID-001/002/003, REQ-CONS-005/006/011, REQ-PRIV-003) |
+| Blast radius | [BR-029](blast-radius/BR-029-trip-scenario-operations.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `c524820` — matched HEAD at pre-change |
+
+### What was built
+Nine operations in `contracts/openapi.yaml` with 15 new schemas, 5 parameters and
+a shared infeasibility response. 40 assertions over the contract. Python suite
+405 → **440**. Nothing is implemented; that is the point.
+
+### The pre-change check found a contract defect before any code was written
+`API_CONTRACTS.md` declared three error codes `ERROR_MODEL.md` does not define:
+two transpositions (`coverage.insufficient_evidence` for
+`evidence.insufficient_coverage`, `provider.unavailable` for
+`coverage.provider_degraded`) and one — `validation.invalid_party` — with **no
+entry at all**, against a Validation class §2 has declared since the document was
+written.
+
+**None of it would have failed anything.** `API_CONTRACTS.md` is prose and nothing
+read it; a client branching on a code the server can never send does not error, it
+just never takes that branch. The drift only became visible because `.01` made the
+register generated. `TestTheTwoRegistersAgree` now gates it, mutation-tested with
+a seeded `provider.made_up`.
+
+Two `validation.*` codes were registered, not a family. A register that
+anticipates codes nobody raises rots, because nothing fails when a speculative
+entry is wrong.
+
+### Three defects the examples caught in my own contract
+This is the argument for contract-first, so it goes in full.
+
+**`PUT /brief` required `If-Match` but not `Idempotency-Key`.** My reasoning was
+that a conditional PUT is naturally idempotent. Not good enough: if the first
+attempt succeeds and the response is lost, the retry carries a stale `If-Match`
+and gets a 409, leaving the client unable to tell whether its change applied.
+`If-Match` prevents a lost update; the key prevents a lost **answer**.
+
+**`.01` guessed the remediation shape and `.02` proved it wrong.** It declared
+`conflict_set` and `relaxations` as arrays of strings before any operation needed
+one. A relaxation must name the constraint it relaxes — "depart at 15:00 instead"
+is not actionable unless the reader knows which of three constraints it addresses.
+`Problem.remediation` now fixes only `kind`.
+
+**`allOf` with `additionalProperties: false` rejected a field the same schema
+requires two lines later.** Each branch validates the whole instance
+independently, so a closed branch rejects a property another branch declares. A
+schema built for composition cannot be closed; `Party` and `Money` are leaves and
+are closed precisely because they are.
+
+### The requirements are enforced by types, not by convention
+| Requirement | How |
+| --- | --- |
+| REQ-EVID-001 | A volatile field's **type** is `Evidenced`, whose provenance members are all required. A bare number cannot be returned |
+| REQ-EVID-003 | `status` is required with **no default** — a caller cannot omit it and get `confirmed` for free |
+| REQ-EVID-002 | `conflicts[]` retains disagreeing sources. The mean of two departure times is a time no ferry leaves |
+| REQ-CONS-005 | The infeasible response **requires** remediation, and a conflict set needs **≥ 2** constraints. A one-item set means the solver failed to explain |
+| REQ-CONS-006 | `brief_version`, `evidence_pack_id` and `random_seed` are on the scenario, so a run can be repeated exactly |
+| REQ-SEC-004 | Every `{id}` operation reuses the shared denial; **no operation declares a 403** |
+| REQ-PRIV-003 | `accessibility_needs` is declared-only, and `Party` is closed so an undeclared sensitive attribute cannot arrive |
+
+### Also worth stating
+**`DATA-010` and `DATA-011` do not exist.** The operations reference them and
+`DATA_CONTRACTS.md` defines neither — along with 006, 009, 012, 014 and 015. That
+is the canonical data model, owned by STEP-006. Noted, not fixed: inventing data
+contracts here would put a second author on a document with an owner.
+
+**The 500 ms job-handle promise is declared, not met.** It is a contract
+obligation with no implementation to measure. Recorded as such.
+
+**`--repair-fts` does not exist.** `BR-028` recorded the degraded concept search
+and quoted the tool's own advice. Running it returns `error: unknown option`, and
+`--force` does not rebuild the indexes either. A warning now sits in the
+hand-maintained section of `CLAUDE.md`, because the working agreement tells
+contributors to use that query *instead of grepping* and it answers "nothing"
+rather than failing.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| `DATA-006/009/010/011/012/014/015` | STEP-006 |
+| Impact-preview token semantics | STEP-014 |
+| Collaboration and booking operations | STEP-004.03 |
+| Verify the 500 ms job handle against a real handler | STEP-010 / STEP-012 |
+
+---
+
 ## IMPL-025 — STEP-004.01 — Global API conventions: errors, pagination, idempotency, ETags
 
 | Field | Value |

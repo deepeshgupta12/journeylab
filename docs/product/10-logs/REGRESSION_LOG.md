@@ -67,6 +67,47 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-004.02 — 2026-08-11 — Trip, brief and scenario operations
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `c524820` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **440 Python** (up from 405) + 61 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | Purely additive to `.01`, which declared no paths. Nothing existed to break |
+| R3 graph diff as expected | **PASS** | `error_codes.py` regenerated; no Python behaviour changed |
+| R4 untested requirements | **PASS — materially improved** | REQ-EVID-001/002/003, REQ-CONS-005/006, REQ-SEC-004 and REQ-PRIV-003 gain contract-level assertions |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner covers `contracts/` |
+| R6 closed-bug tests | **PASS** | BUG-001…019; meta-suite 43/43 |
+| **R7 tenant isolation** | **PASS — 12/12** | Plus a structural one: **no operation accepts a tenant parameter** |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Three error codes declared by operations were unregistered | `API_CONTRACTS.md` is prose and nothing read it. Only visible once `.01` made the register generated | Two references corrected, two `validation.*` codes registered, and a **mutation-tested gate** added so the registers cannot drift again |
+| `PUT /brief` had no `Idempotency-Key` | I reasoned that a conditional PUT is naturally idempotent | Wrong: a lost response leaves the retry with a stale `If-Match` and a 409, so the client cannot tell whether its change applied |
+| Examples failed to validate — `Unresolvable` | The error-code enum is deliberately an **external** `$ref`, and the validator had no retriever | Resolver follows it. Without this the example tests would have passed while validating nothing |
+| Examples failed — `additionalProperties` on a required field | `allOf` branches validate independently; a closed branch rejects a property another branch declares | `ConflictSet` is built for composition and is open. Leaves stay closed |
+| Examples failed — relaxations were strings | `.01` guessed the remediation payload before an operation needed one | `Problem.remediation` fixes only `kind` |
+| A `.01` test failed | It asserted `paths == {}` — true of `.01`, wrong the moment `.02` declared an operation | Replaced with the durable property: the shared components exist and are reusable |
+
+### Notes
+**Five of the six failures above are the contract catching itself**, before a
+single handler exists. That is what contract-first is for, and it is measurably
+cheaper here than at STEP-012 with the solver already written against a wrong
+shape.
+
+The one that would have hurt most is the unregistered error codes. It is not a
+crash; it is a client branching on a code the server can never send, taking a
+branch that is simply never reached, and nobody noticing for a year.
+
+---
+
 ## STEP-004.01 — 2026-08-11 — Global API conventions
 
 | Field | Value |

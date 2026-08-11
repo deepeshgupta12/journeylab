@@ -5,6 +5,8 @@
   "description": "GENERATED from docs/product/04-contracts/ERROR_MODEL.md — do not edit by hand. Rebuild: uv run python tools/gen_error_codes.py. Only client-visible codes appear here; internal conditions surface as a fallback or a warning and are never returned to a caller.",
   "type": "string",
   "enum": [
+    "validation.invalid_request",
+    "validation.invalid_party",
     "coverage.unsupported_region",
     "coverage.unsupported_dates",
     "coverage.provider_degraded",
@@ -24,6 +26,20 @@
     "tenant.isolation_violation"
   ],
   "x-journeylab-codes": {
+    "validation.invalid_request": {
+      "status": 400,
+      "type": "https://journeylab.app/problems/validation.invalid_request",
+      "meaning": "Request does not satisfy its schema",
+      "remediation": "Show the offending fields inline; do not retry unchanged",
+      "requirement": "REQ-PLAT-005"
+    },
+    "validation.invalid_party": {
+      "status": 422,
+      "type": "https://journeylab.app/problems/validation.invalid_party",
+      "meaning": "Party composition is well-formed but impossible",
+      "remediation": "State which combination cannot be planned for",
+      "requirement": "REQ-PLAT-005"
+    },
     "coverage.unsupported_region": {
       "status": 422,
       "type": "https://journeylab.app/problems/coverage.unsupported_region",

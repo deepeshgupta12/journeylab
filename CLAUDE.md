@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (4945 symbols, 6866 relationships, 47 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (5219 symbols, 7260 relationships, 53 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -154,11 +154,20 @@ A failure means the sub-step is not done. Fix forward or revert; never proceed r
 
 ### Key queries
 
+> ⚠️ **`gitnexus_query` is currently degraded and returns nothing.** It reports
+> `FTS indexes missing — keyword search degraded` and advises
+> `gitnexus analyze --repair-fts`, which **is not a valid flag in the installed
+> version**; `--force` does not rebuild them either. It does not error — it
+> returns an empty result, which reads exactly like "no such concept exists".
+> **Do not conclude a concept is absent from this repository on its say-so.**
+> Use `gitnexus_impact` and `gitnexus_context`, which work, or grep. Found at
+> STEP-004.01, carried to `STEP-026`.
+
 | Need | Tool |
 | --- | --- |
 | What depends on this symbol | `gitnexus_impact({target, direction: "upstream"\|"downstream"})` |
 | Full symbol context | `gitnexus_context({name})` |
-| Find execution flows by concept | `gitnexus_query({query})` |
+| Find execution flows by concept | `gitnexus_query({query})` — **degraded, see above** |
 | Pre-commit scope check | `gitnexus_detect_changes()` |
 | Safe rename | `gitnexus_rename(...)` |
 | Security/privacy data flow | `gitnexus_trace(...)`, `gitnexus_pdg_query(...)` |

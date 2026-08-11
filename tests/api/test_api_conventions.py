@@ -96,6 +96,43 @@ class TestRegisterIsGenerated:
         assert set(published["enum"]) == CLIENT_VISIBLE
 
 
+class TestTheTwoRegistersAgree:
+    """The operation register and the error register must name the same codes.
+
+    STEP-004.02's pre-change check found three that did not: two transpositions
+    (`coverage.insufficient_evidence` for `evidence.insufficient_coverage`,
+    `provider.unavailable` for `coverage.provider_degraded`) and one code with no
+    entry at all (`validation.invalid_party`, against a Validation class that had
+    been declared since the document was written).
+
+    None of them would have failed anything. `API_CONTRACTS.md` is prose; nothing
+    read it. The drift only became visible when the error register started
+    generating code, and a client branching on a code the server can never send
+    fails silently — it just never takes that branch.
+    """
+
+    def test_every_error_an_operation_declares_exists_in_the_register(self) -> None:
+        import re
+
+        text = (REPO / "docs/product/04-contracts/API_CONTRACTS.md").read_text()
+        declared: set[str] = set()
+        for line in text.splitlines():
+            # Only rows that declare ERRORS. Audit rows name events like
+            # `trip.created`, which are not error codes and must not be required
+            # to exist in the register.
+            if line.strip().startswith("| Errors |") or "Errors:" in line:
+                declared |= set(re.findall(r"`([a-z][a-z0-9_]*\.[a-z0-9_.]+)`", line))
+
+        assert declared, "found no error declarations — the parser is wrong, not the document"
+        unregistered = sorted(declared - set(ERROR_CODES))
+        assert not unregistered, (
+            f"API_CONTRACTS.md declares error codes that ERROR_MODEL.md does not "
+            f"define: {unregistered}. Either add the row to the register or "
+            f"correct the operation — a client cannot branch on a code the server "
+            f"can never send."
+        )
+
+
 # --- problem details ----------------------------------------------------------
 
 
@@ -394,10 +431,20 @@ class TestPublishedContract:
         doc = yaml.safe_load((REPO / "contracts/openapi.yaml").read_text())
         assert doc["openapi"].startswith("3.1")
 
-    def test_it_declares_no_operations_yet(self) -> None:
-        """STEP-004.01 is conventions only; operations are .02-.04."""
+    def test_the_conventions_exist_independently_of_any_operation(self) -> None:
+        """STEP-004.01 defined the vocabulary; .02 onward speak it.
+
+        This asserted `paths == {}` while .01 was the only sub-step, which was
+        true and became wrong the moment .02 declared an operation. The durable
+        property is not "there are no operations" — it is that the shared
+        components exist and are reusable, which is what made .02 cheap.
+        """
         doc = yaml.safe_load((REPO / "contracts/openapi.yaml").read_text())
-        assert doc["paths"] == {}
+        components = doc["components"]
+        for name in ("Problem", "Page", "Money", "ZonedTimestamp", "Cursor"):
+            assert name in components["schemas"], f"{name} missing"
+        for name in ("Problem", "NotFoundOrForbidden", "Conflict", "RateLimited"):
+            assert name in components["responses"], f"{name} missing"
 
     def test_the_error_enum_is_referenced_not_inlined(self) -> None:
         """A copy of the code list here would be a second source of truth."""

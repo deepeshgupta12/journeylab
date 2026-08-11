@@ -34,6 +34,20 @@ class ErrorCodeSpec(NamedTuple):
 
 
 ERROR_CODES: Final[dict[str, ErrorCodeSpec]] = {
+    "validation.invalid_request": ErrorCodeSpec(
+        code="validation.invalid_request",
+        status=400,
+        meaning="Request does not satisfy its schema",
+        remediation="Show the offending fields inline; do not retry unchanged",
+        requirement="REQ-PLAT-005",
+    ),
+    "validation.invalid_party": ErrorCodeSpec(
+        code="validation.invalid_party",
+        status=422,
+        meaning="Party composition is well-formed but impossible",
+        remediation="State which combination cannot be planned for",
+        requirement="REQ-PLAT-005",
+    ),
     "coverage.unsupported_region": ErrorCodeSpec(
         code="coverage.unsupported_region",
         status=422,

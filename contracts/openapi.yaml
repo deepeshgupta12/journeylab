@@ -44,10 +44,368 @@ servers:
 tags:
   - name: conventions
     description: |
-      Shared components. This tag carries no operations — STEP-004.01 defines the
-      vocabulary that .02-.04 speak.
+      Shared components. STEP-004.01 defined the vocabulary the operations speak.
+  - name: trips
+    description: Create and read a trip; replace its structured brief.
+  - name: scenarios
+    description: |
+      Generate, compare and select feasible futures. **Deterministic engines own
+      feasibility** (`ADR-002`) — no operation here returns a plan the constraint
+      engine has not validated.
 
-paths: {}
+paths:
+  # ==========================================================================
+  # API-001 — create a trip
+  # ==========================================================================
+  /trips:
+    post:
+      operationId: createTrip
+      tags: [trips]
+      summary: Create a trip and its initial planning context.
+      description: |
+        Authenticated user **or a valid guest session**; creates ownership.
+
+        A guest can plan. That is a product decision, not an oversight: requiring
+        an account before a traveller has seen anything useful is the most
+        reliable way to lose them. The guest session lasts 7 days (`ADR-013`).
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTripRequest' }
+            example:
+              origin: { name: 'London', time_zone: 'Europe/London' }
+              destination_region: 'gr-cyclades'
+              date_range: { start: '2026-09-12', end: '2026-09-19' }
+              party: { adults: 2, children: [8], accessibility_needs: [] }
+              currency: 'EUR'
+              locale: 'en-GB'
+      responses:
+        '201':
+          description: Trip created.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trip' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: |
+            Outside coverage. **A product state, not a failure** — the response
+            names the supported regions or date bounds so the traveller can act.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: 'https://journeylab.app/problems/coverage.unsupported_region'
+                title: 'Region not in the destination pack'
+                status: 422
+                code: 'coverage.unsupported_region'
+                correlation_id: 'corr_9f3c2a1b4d5e6f70'
+                retryable: false
+                detail: 'The Cyclades are not in the Phase 1 destination pack.'
+                remediation:
+                  kind: 'choose_supported_region'
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  # ==========================================================================
+  # API-002 — read a trip
+  # ==========================================================================
+  /trips/{tripId}:
+    get:
+      operationId: getTrip
+      tags: [trips]
+      summary: Read the canonical trip, permissions and current version.
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: The trip.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trip' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-003 — replace the brief
+  # ==========================================================================
+  /trips/{tripId}/brief:
+    put:
+      operationId: replaceTripBrief
+      tags: [trips]
+      summary: Replace the validated structured brief.
+      description: |
+        The brief is **immutable per version** (`DATA-005`). This creates a new
+        version rather than editing one, because an in-place edit would silently
+        invalidate every scenario that referenced it — and reproducibility
+        (`REQ-CONS-006`) depends on a scenario being able to name the exact brief
+        it was solved against.
+
+        **Both `If-Match` and `Idempotency-Key` are required, and that is not
+        redundant.** A first version of this operation had only `If-Match`, on the
+        reasoning that a conditional PUT is naturally idempotent. It is not
+        good enough: if the first attempt succeeds and the response is lost, the
+        retry carries a now-stale `If-Match` and gets a 409 — leaving the client
+        unable to tell whether its change applied. With an idempotency key the
+        replay returns the original result. `If-Match` prevents a lost update;
+        the key prevents a lost *answer*.
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TripBrief' }
+      responses:
+        '200':
+          description: A new brief version.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripBrief' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422':
+          $ref: '#/components/responses/Infeasible'
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-004 — build an evidence pack
+  # ==========================================================================
+  /trips/{tripId}/evidence-packs:
+    post:
+      operationId: buildEvidencePack
+      tags: [trips]
+      summary: Start evidence assembly.
+      description: |
+        Returns a job handle **within 500 ms**. Assembly itself takes as long as
+        the providers take; what is bounded is the acknowledgement, so the
+        interface can show progress instead of a spinner with no end.
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '202':
+          description: Accepted; assembly is running.
+          headers:
+            X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobHandle' }
+              example:
+                job_id: 'job_18'
+                status: 'queued'
+                events_url: '/v1/jobs/job_18/events'
+        '422':
+          description: |
+            Evidence is insufficient to plan against. **Refused rather than
+            partial** — `REQ-EVID-006`: a partial simulation presented as a plan
+            is the false confidence this product exists to remove.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-005 — generate scenarios
+  # ==========================================================================
+  /trips/{tripId}/scenarios:generate:
+    post:
+      operationId: generateScenarios
+      tags: [scenarios]
+      summary: Generate a diverse set of feasible scenarios.
+      description: |
+        `If-Match` carries the **brief version**, not the trip's. Generating
+        against a brief that changed while the request was in flight would
+        produce scenarios for constraints the traveller has already replaced.
+
+        `random_seed` is part of the request because a scenario run must be
+        reproducible from inputs, config, model versions and seed
+        (`REQ-CONS-006`).
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GenerateScenariosRequest' }
+            example:
+              objectives: ['balanced', 'low_cost', 'weather_resilient']
+              scenario_count: 3
+              evidence_pack_id: 'ep_09'
+              random_seed: 4172
+      responses:
+        '202':
+          description: Accepted; generation is running.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobHandle' }
+        '409':
+          description: The brief changed since you read it, or the pack is stale.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Infeasible' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+        '504':
+          description: |
+            The solver exceeded its budget. The last valid state is preserved —
+            `REQ-NFR-004`. A timeout must never discard work the traveller can
+            still use.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  # ==========================================================================
+  # API-006 / API-007 — list and read scenarios
+  # ==========================================================================
+  /trips/{tripId}/scenarios:
+    get:
+      operationId: listScenarios
+      tags: [scenarios]
+      summary: List scenario summaries and comparison metrics.
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: A page of scenario summaries.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/ScenarioSummary' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  /scenarios/{scenarioId}:
+    get:
+      operationId: getScenario
+      tags: [scenarios]
+      summary: Read a complete itinerary with its evidence.
+      description: |
+        **Every volatile value carries source, observed time, effective window
+        and confidence** (`REQ-EVID-001`), and every value states whether it is
+        `confirmed` or `estimated` (`REQ-EVID-003`). That is enforced by the
+        `Evidenced` schema rather than by convention — a bare number cannot be
+        returned for a volatile field.
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: The scenario.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-008 — select the canonical scenario
+  # ==========================================================================
+  /scenarios/{scenarioId}:select:
+    post:
+      operationId: selectScenario
+      tags: [scenarios]
+      summary: Set the canonical plan.
+      description: |
+        **Owner only.** `AUTHORIZATION_MATRIX` gives `select_canonical_scenario`
+        to `trip_owner` and denies it to `trip_editor` — an editor may shape the
+        plan and may not decide it.
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: This scenario is now canonical.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+        '409':
+          description: Another selection won, or the scenario is no longer current.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422':
+          description: The scenario is stale or no longer feasible.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-009 — typed what-if edit (Phase 2)
+  # ==========================================================================
+  /scenarios/{scenarioId}/edits:
+    post:
+      operationId: editScenario
+      tags: [scenarios]
+      summary: Create a new scenario version from a typed edit. (Phase 2)
+      description: |
+        **Phase 2.** Declared now so the conventions it needs are fixed before
+        anything depends on them.
+
+        `impact_preview_token` is the unresolved design question this sub-step
+        carries: the token must prove the user saw the consequences of the edit
+        before it is applied, and its semantics are designed alongside STEP-014.
+        Declared as an opaque required string so the shape cannot change later
+        without a version bump.
+      parameters:
+        - $ref: '#/components/parameters/ScenarioId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScenarioEdit' }
+      responses:
+        '201':
+          description: A new scenario version.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+        '409':
+          description: |
+            The edit targets a protected or booked item, or the version moved.
+            A booked item requires **explicit unlock by the user**
+            (`REQ-CONS-011`) — the API will not quietly re-plan around something
+            already paid for.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '422': { $ref: '#/components/responses/Infeasible' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
 
 components:
   # --- errors -----------------------------------------------------------------
@@ -119,20 +477,23 @@ components:
             principle behind the whole error model: an error must tell the user
             what to do next. "Something went wrong" is not an error model, it is
             an apology.
+
+            **Only `kind` is fixed here; the rest is the specific error's shape.**
+            STEP-004.01 declared this with a guessed payload — `conflict_set` and
+            `relaxations` as arrays of strings — before any operation needed one.
+            STEP-004.02 then needed relaxations that name the constraint they
+            relax, because "depart at 15:00 instead" is not actionable unless the
+            reader knows which of three constraints it addresses. The guess was
+            wrong and the example caught it.
+
+            Composing responses narrow this: see `ConflictSet` and the
+            `Infeasible` response.
           required: [kind]
+          additionalProperties: true
           properties:
             kind:
               type: string
               examples: ['relax_constraints']
-            conflict_set:
-              type: array
-              description: |
-                For infeasibility, the **minimal** set of constraints that
-                conflict (`REQ-CONS-005`). Never a plausible invalid plan.
-              items: { type: string }
-            relaxations:
-              type: array
-              items: { type: string }
 
     # --- pagination -----------------------------------------------------------
 
@@ -192,6 +553,370 @@ components:
           description: ISO 4217.
           examples: ['EUR']
 
+    # --- evidence ---------------------------------------------------------------
+
+    Evidenced:
+      type: object
+      description: |
+        A volatile value together with the evidence for it.
+
+        **`REQ-EVID-001`: every volatile fact shows source, observed time,
+        effective time and confidence.** This schema is how that stops being a
+        promise — a bare number cannot be returned for a volatile field, because
+        the field's type is this object and every provenance member is required.
+
+        **`REQ-EVID-003`: an estimate is never rendered as confirmed.** `status`
+        is required and has no default. A caller that ignores it renders an
+        estimate as fact, which is the specific failure this product exists to
+        remove, so it is not optional and not inferable.
+      required: [value, status, source, observed_at, confidence]
+      additionalProperties: false
+      properties:
+        value: {}
+        status:
+          type: string
+          enum: [confirmed, estimated]
+          description: |
+            `confirmed` means a provider stated it. `estimated` means we derived
+            it. The interface must never present the second as the first.
+        source:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: string }
+            name:
+              type: string
+              description: |
+                Display name, safe to show. **Not the provider's internal
+                identity** — that is commercially confidential and is never
+                returned (`ERROR_MODEL.md` §5).
+        observed_at:
+          type: string
+          format: date-time
+          description: When the source stated it. Not when we fetched it.
+        effective_from:
+          type: string
+          format: date-time
+        effective_to:
+          type: string
+          format: date-time
+          description: |
+            Absent means open-ended. A ferry timetable observed in March and
+            effective until October is not stale in June.
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        conflicts:
+          type: array
+          description: |
+            Other sources that disagree. **Retained, never averaged**
+            (`REQ-EVID-002`) — the mean of two conflicting departure times is a
+            time no ferry leaves.
+          items:
+            type: object
+            required: [source, value]
+            properties:
+              source: { type: object }
+              value: {}
+
+    ConflictSet:
+      type: object
+      description: |
+        Why no feasible plan exists, and what would restore one.
+
+        **`REQ-CONS-005`: infeasibility returns a minimal conflict set, never a
+        plausible invalid plan.** Minimal matters: "these seventeen constraints
+        conflict" is not actionable, and a traveller cannot tell which one to
+        relax. The set is the smallest subset that is still contradictory.
+      required: [conflicts]
+      # NOT `additionalProperties: false`, and the reason is a JSON Schema trap
+      # rather than a loosening.
+      #
+      # `ConflictSet` is composed with `allOf` into the infeasible response, which
+      # adds `kind: relax_constraints`. Each `allOf` branch validates the whole
+      # instance independently, so a closed branch rejects a property another
+      # branch declares — the example failed with `additionalProperties` against a
+      # field the same schema requires two lines later.
+      #
+      # A schema built for composition cannot be closed. `Party` and `Money` are
+      # closed precisely because they are leaves.
+      properties:
+        kind:
+          type: string
+          description: |
+            Set by the composing response. Declared here so the composition is
+            legible from this schema alone.
+        conflicts:
+          type: array
+          minItems: 2
+          description: |
+            At least two. A single constraint cannot conflict with itself — a
+            one-item set means the solver failed to explain, not that it found a
+            minimal cause.
+          items:
+            type: object
+            required: [constraint_id, statement]
+            properties:
+              constraint_id: { type: string }
+              statement:
+                type: string
+                description: The constraint in the traveller's own words.
+        relaxations:
+          type: array
+          description: |
+            Concrete alternatives, each of which alone restores feasibility.
+            Optional because the solver cannot always find one, and inventing a
+            suggestion it has not verified would be worse than offering none.
+          items:
+            type: object
+            required: [constraint_id, suggestion]
+            properties:
+              constraint_id: { type: string }
+              suggestion: { type: string }
+
+    # --- trips --------------------------------------------------------------------
+
+    Place:
+      type: object
+      required: [name, time_zone]
+      additionalProperties: false
+      properties:
+        name: { type: string, maxLength: 200 }
+        time_zone:
+          type: string
+          description: IANA identifier. Required — see `ZonedTimestamp`.
+        place_id: { type: string }
+
+    LocalDateRange:
+      type: object
+      description: |
+        **Local dates, not timestamps** (`DATA-004`). A trip starting "12
+        September" starts on the 12th wherever the traveller is; converting it to
+        an instant at creation would shift it for anyone in another zone.
+      required: [start, end]
+      additionalProperties: false
+      properties:
+        start: { type: string, format: date }
+        end: { type: string, format: date }
+
+    Party:
+      type: object
+      required: [adults]
+      additionalProperties: false
+      properties:
+        adults: { type: integer, minimum: 1, maximum: 20 }
+        children:
+          type: array
+          description: Ages at the time of travel, which is what affects eligibility.
+          items: { type: integer, minimum: 0, maximum: 17 }
+          maxItems: 20
+        accessibility_needs:
+          type: array
+          description: |
+            **Declared, never inferred** (`REQ-PRIV-003`). Nothing in this product
+            derives an accessibility need from behaviour; it appears here only
+            because the traveller stated it.
+          items: { type: string }
+
+    CreateTripRequest:
+      type: object
+      required: [destination_region, date_range, party, currency, locale]
+      additionalProperties: false
+      properties:
+        origin: { $ref: '#/components/schemas/Place' }
+        destination_region: { type: string }
+        date_range: { $ref: '#/components/schemas/LocalDateRange' }
+        party: { $ref: '#/components/schemas/Party' }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        locale: { type: string }
+
+    Trip:
+      type: object
+      required: [trip_id, destination_region, date_range, party, currency, locale, version]
+      properties:
+        trip_id: { type: string }
+        origin: { $ref: '#/components/schemas/Place' }
+        destination_region: { type: string }
+        date_range: { $ref: '#/components/schemas/LocalDateRange' }
+        party: { $ref: '#/components/schemas/Party' }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        locale: { type: string }
+        version: { type: integer, minimum: 1 }
+        canonical_scenario_id:
+          oneOf:
+            - { type: string }
+            - { type: 'null' }
+          description: |
+            Exactly zero or one (`DATA-004`). A trip with two canonical plans is
+            a trip nobody has decided.
+        permissions:
+          type: array
+          description: |
+            What the CALLER may do. Presentation only — the server enforces
+            regardless, and a client that hides a button has hidden a button, not
+            prevented an action.
+          items: { type: string }
+
+    Constraint:
+      type: object
+      required: [constraint_id, statement, priority]
+      properties:
+        constraint_id: { type: string }
+        statement: { type: string }
+        unit:
+          type: string
+          description: |
+            Required by `DATA-005` for every entry. "Under two hours" and "under
+            120" are the same constraint only if the unit is stated.
+        priority: { type: integer, minimum: 1 }
+        provenance:
+          type: string
+          description: Required on every `inferred` entry (`DATA-005`).
+
+    TripBrief:
+      type: object
+      description: |
+        **Four separate collections, never a single typed-union list**
+        (`DATA-005`). A union invites code that forgets to branch; four arrays
+        make "did you handle unresolved constraints?" a question the type system
+        asks.
+      required: [version, hard, soft, inferred, unresolved]
+      additionalProperties: false
+      properties:
+        version: { type: integer, minimum: 1 }
+        hard:
+          type: array
+          items: { $ref: '#/components/schemas/Constraint' }
+        soft:
+          type: array
+          items: { $ref: '#/components/schemas/Constraint' }
+        inferred:
+          type: array
+          description: Every entry carries a provenance reference.
+          items: { $ref: '#/components/schemas/Constraint' }
+        unresolved:
+          type: array
+          description: |
+            Ambiguities that block solving. A brief with a blocking unresolved
+            entry is not solvable, and saying so is better than guessing
+            (`REQ-CONS-002`).
+          items: { $ref: '#/components/schemas/Constraint' }
+        confirmed_at: { type: string, format: date-time }
+
+    # --- scenarios ------------------------------------------------------------------
+
+    JobHandle:
+      type: object
+      description: |
+        Returned within 500 ms by any operation that cannot complete in a request.
+        `events_url` is a `text/event-stream` endpoint, so progress is pushed
+        rather than polled.
+      required: [job_id, status, events_url]
+      additionalProperties: false
+      properties:
+        job_id: { type: string }
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        events_url: { type: string }
+
+    GenerateScenariosRequest:
+      type: object
+      required: [objectives, scenario_count, evidence_pack_id]
+      additionalProperties: false
+      properties:
+        objectives:
+          type: array
+          minItems: 1
+          items: { type: string }
+        scenario_count: { type: integer, minimum: 1, maximum: 10 }
+        evidence_pack_id:
+          type: string
+          description: |
+            The immutable pack this run is solved against (`DATA-008`,
+            `ADR-004`). Naming it is what makes the run reproducible.
+        random_seed:
+          type: integer
+          description: |
+            Supplied by the caller so a run can be repeated exactly
+            (`REQ-CONS-006`). Omitted means the server chooses and returns it.
+
+    ScenarioSummary:
+      type: object
+      required: [scenario_id, label, feasible, metrics]
+      properties:
+        scenario_id: { type: string }
+        label: { type: string }
+        feasible:
+          type: boolean
+          description: |
+            Always true for a returned scenario. Present so the field exists in
+            the contract before STEP-019 introduces a scenario that becomes
+            infeasible after a condition change.
+        metrics:
+          type: object
+          description: Comparison metrics. Money is always `Money`, never a number.
+          additionalProperties: true
+        total_cost: { $ref: '#/components/schemas/Money' }
+
+    ItineraryItem:
+      type: object
+      required: [item_id, kind, starts_at, ends_at]
+      properties:
+        item_id: { type: string }
+        kind: { type: string }
+        title: { type: string }
+        starts_at: { $ref: '#/components/schemas/ZonedTimestamp' }
+        ends_at: { $ref: '#/components/schemas/ZonedTimestamp' }
+        cost: { $ref: '#/components/schemas/Money' }
+        opening_hours: { $ref: '#/components/schemas/Evidenced' }
+        travel_minutes: { $ref: '#/components/schemas/Evidenced' }
+        protected:
+          type: boolean
+          description: |
+            Booked or pinned. An edit touching a protected item is refused until
+            the user explicitly unlocks it (`REQ-CONS-011`).
+
+    Scenario:
+      type: object
+      required: [scenario_id, trip_id, version, brief_version, evidence_pack_id, items]
+      properties:
+        scenario_id: { type: string }
+        trip_id: { type: string }
+        version: { type: integer, minimum: 1 }
+        brief_version:
+          type: integer
+          description: |
+            The exact brief this was solved against. Reproducibility needs it
+            (`REQ-CONS-006`), and a scenario whose brief has moved on is stale
+            rather than wrong.
+        evidence_pack_id: { type: string }
+        random_seed: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ItineraryItem' }
+        score_components:
+          type: object
+          additionalProperties: true
+
+    ScenarioEdit:
+      type: object
+      required: [edit_type, impact_preview_token]
+      additionalProperties: false
+      properties:
+        edit_type: { type: string }
+        target_item_id: { type: string }
+        payload:
+          type: object
+          additionalProperties: true
+        impact_preview_token:
+          type: string
+          description: |
+            Proof that the caller was shown the consequences of this edit before
+            applying it. Semantics are designed with STEP-014; declared required
+            and opaque now so the shape cannot change without a version bump.
+
     ZonedTimestamp:
       type: object
       description: |
@@ -215,6 +940,47 @@ components:
   # --- parameters ---------------------------------------------------------------
 
   parameters:
+    TripId:
+      name: tripId
+      in: path
+      required: true
+      schema: { type: string }
+    ScenarioId:
+      name: scenarioId
+      in: path
+      required: true
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        **Required on every state-changing command.** Optional idempotency is
+        idempotency nobody uses until after the duplicate-charge incident.
+        Generate one per user intent and reuse it for every retry of that intent;
+        a replay returns the original result, and reuse with a different body is
+        a client defect and returns 409.
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9._:\-]{8,255}$'
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: |
+        **Required, not optional.** RFC 9110 permits a server to require it, and
+        here the point is that an editor states which version they are replacing.
+        Treating absence as "no opinion" loses an update on the first request
+        that forgets the header.
+      schema: { type: string }
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      description: Echoed back. Minted when absent or unusable.
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9._:\-]{8,128}$'
     Cursor:
       name: cursor
       in: query
@@ -313,6 +1079,54 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+      headers:
+        X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+
+    Infeasible:
+      description: |
+        **No feasible plan exists — a product state, not a failure.**
+
+        `REQ-CONS-005`: the response carries a **minimal conflict set**, never a
+        plausible invalid plan. `ERROR_MODEL.md` §4 is explicit that this must not
+        be rendered as an error toast: the correct presentation is a first-class
+        screen saying "these three constraints conflict — relaxing any one
+        restores feasibility".
+      content:
+        application/problem+json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Problem'
+              - type: object
+                required: [remediation]
+                properties:
+                  remediation:
+                    allOf:
+                      - $ref: '#/components/schemas/ConflictSet'
+                      - type: object
+                        required: [kind]
+                        properties:
+                          kind:
+                            type: string
+                            const: relax_constraints
+          example:
+            type: 'https://journeylab.app/problems/solver.infeasible'
+            title: 'No feasible schedule exists'
+            status: 422
+            code: 'solver.infeasible'
+            correlation_id: 'corr_9f3c2a1b4d5e6f70'
+            retryable: false
+            remediation:
+              kind: 'relax_constraints'
+              conflicts:
+                - constraint_id: 'c_arrive_sifnos'
+                  statement: 'Arrive Sifnos before 18:00 on Wednesday'
+                - constraint_id: 'c_depart_antiparos'
+                  statement: 'Depart Antiparos after 16:30 on Wednesday'
+              relaxations:
+                - constraint_id: 'c_arrive_sifnos'
+                  suggestion: 'Arrive by 19:30 instead'
+                - constraint_id: 'c_depart_antiparos'
+                  suggestion: 'Depart at 15:00 instead'
       headers:
         X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
 
