@@ -60,6 +60,106 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-027 — STEP-004.03 — Collaboration, booking, live and feedback (API-010…014)
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-11 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PLAT-005 (enforcing REQ-BOOK-004, REQ-SEC-008, REQ-CONS-011, REQ-PRIV-003, REQ-EVID-003) |
+| Blast radius | [BR-030](blast-radius/BR-030-collab-booking-live-feedback.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `dd01499` — matched HEAD at pre-change |
+
+### What was built
+Seven operations and 11 schemas covering invitations, booking handoff,
+activation, repair generation and acceptance, and feedback. 29 assertions.
+Python suite 440 → **469**. Phase 2–3 surfaces, specified now so later steps
+implement against a stable shape instead of inventing one.
+
+### The absence of a field is the control
+`TST-BOOK-002` asks that no schema permit a payment credential. The assertion
+scans **every property name in the whole document** against 21 payment-shaped
+names, rather than reviewing the booking schemas — review is what fails on the
+eighteenth operation added two years from now.
+
+A test that searches for something absent passes identically when the search is
+broken, so a second test seeds `card_number` into a synthetic document and
+requires the same walk to find it. `BookingHandoff` is also a **closed** object,
+because an open one is somewhere a credential arrives undeclared.
+
+**PCI scope you never enter is scope you cannot leak.** JourneyLab deep-links and
+records attribution; it never sees a card, and now it has nowhere to put one.
+
+### Estimated and confirmed are states, not a flag
+A boolean `is_confirmed` makes an estimate and a confirmation the same field with
+different values, which is how a default of `false` becomes a default of `true`
+in somebody's mapper — and `REQ-EVID-003` exists precisely to stop an estimate
+being rendered as confirmed. Three named states also express `cancelled`, which a
+boolean cannot. A test forbids the boolean spellings from reappearing anywhere.
+
+### Repair generation is separated from acceptance by shape, not by rule
+`generateRepairs` returns options and changes nothing; `acceptRepair` is the only
+operation in the contract that alters a live plan in response to a disruption.
+
+The separation is enforced by their signatures: generation does **not** take
+`If-Match` and acceptance does. Requiring a version precondition on a read-only
+projection would imply it mutates, and the next person to touch it would make
+that true.
+
+The product reason: a traveller mid-trip must be able to look at what a
+disruption costs without committing. A single operation that generated and
+applied would replan their afternoon while they were still reading option one.
+
+### Invitations, where a link is a credential
+`expires_at` is required with no default. `role` excludes `trip_owner` —
+transferring a trip is a deliberate act, not something you can forward. The token
+is returned **once** and a test asserts no read operation can return it, because
+a collaboration link an API hands back is a link an attacker asks for. Revocation
+is immediate and irreversible; reissuing is cheap, and a reversible revocation is
+one the holder can wait out.
+
+### Silence is not dissatisfaction
+`consent_scope` is required on feedback, with the narrowest option first, because
+feedback is training signal and using it without a stated scope uses someone's
+trip to improve a model they did not agree to improve.
+
+**No field can record that feedback was not given.** The moment one exists,
+something treats silence as a negative label — and a traveller who simply got on
+with their holiday is not an unhappy one. Asserted against five spellings.
+
+### A conflict I recorded rather than resolved
+The register lists `collaboration.invitation_expired` at **403**, described as
+"fail closed, leak nothing". Those are in tension: an attacker guessing tokens
+learns which guesses are real if "expired" is distinguishable from "never
+existed".
+
+No operation here returns it — redemption is not declared — so nothing is wrong
+today. When redemption is designed it must use the indistinguishable denial and
+the 403 will need revisiting. Flagged for `.04` rather than changed now: altering
+a security-relevant status with no operation to test it against is a change
+nothing exercises.
+
+### One more graph observation
+`impact(ERROR_CODES)` returns **ambiguous** — the same declaration indexed twice,
+as `Property` and as `Variable`, both at line 35 — and both candidates report 0
+impacted, which is also wrong, since the constant is imported by three modules.
+Minor beside the JSX, CSS and FTS gaps, recorded for the same reason: a tool that
+answers confidently and wrongly is worse than one that declines.
+
+### What is NOT met
+`DATA-013` and `DATA-015` are referenced and undefined, joining `DATA-006`,
+`009`, `010`, `011`, `012`, `014`. STEP-006 owns the canonical data model.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Invitation redemption + the `invitation_expired` 403 conflict | STEP-004.04 |
+| Offline manifest shape against real device constraints | STEP-017 |
+| `DATA-013`, `DATA-015` | STEP-006 |
+
+---
+
 ## IMPL-026 — STEP-004.02 — Trip, brief and scenario operations (API-001…009)
 
 | Field | Value |

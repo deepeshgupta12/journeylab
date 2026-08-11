@@ -67,6 +67,46 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-004.03 — 2026-08-11 — Collaboration, booking, live and feedback
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `dd01499` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **469 Python** (up from 440) + 61 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | Purely additive — 7 operations, 11 schemas, nothing changed |
+| R3 graph diff as expected | **PASS** | Contract and tests only; no Python behaviour changed |
+| R4 untested requirements | **PASS — improved** | REQ-BOOK-004, REQ-SEC-008, REQ-CONS-011, REQ-PRIV-003 gain contract assertions |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…019; meta-suite 43/43 |
+| **R7 tenant isolation** | **PASS — 12/12** | Still no operation accepts a tenant parameter |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `test_all_nine_operations_are_declared` failed | It asserted **set equality** against exactly the nine operations `.02` added; `.03` correctly added five more | Changed to a subset assertion. An exhaustive check on a growing surface fails on every legitimate addition, which teaches whoever hits it to edit the test without reading it. A uniqueness check was added instead — duplicate `operationId`s generate one client method that silently calls the wrong endpoint |
+| mypy: `seeded` needed an annotation | A synthetic document literal in the meta-test | Annotated |
+
+### Notes
+**Two stale assertions in two consecutive sub-steps** — `paths == {}` in `.02`,
+and the exhaustive operation set in `.03`. Both were correct when written and
+became wrong as the surface grew. The pattern is asserting the *current extent*
+of something designed to extend; the fix in both cases was to assert the durable
+property instead.
+
+The most valuable assertion added here is the payment-field scan, and the second
+most valuable is the test that proves the scan works. A test searching for
+something absent passes identically when the search is broken — that is how a
+"no credentials anywhere" guarantee quietly becomes a "no credentials in the
+three schemas I remembered to check".
+
+---
+
 ## STEP-004.02 — 2026-08-11 — Trip, brief and scenario operations
 
 | Field | Value |

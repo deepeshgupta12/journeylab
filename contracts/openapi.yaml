@@ -47,6 +47,15 @@ tags:
       Shared components. STEP-004.01 defined the vocabulary the operations speak.
   - name: trips
     description: Create and read a trip; replace its structured brief.
+  - name: collaboration
+    description: Invite collaborators with scoped, expiring permissions.
+  - name: booking
+    description: |
+      Deep-link handoff to providers. **JourneyLab never takes a payment.**
+  - name: live
+    description: Activation, monitoring and controlled replanning. (Phase 3)
+  - name: feedback
+    description: Explicit outcome and preference feedback. (Phase 3)
   - name: scenarios
     description: |
       Generate, compare and select feasible futures. **Deterministic engines own
@@ -360,6 +369,273 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-010 — invite a collaborator (Phase 2)
+  # ==========================================================================
+  /trips/{tripId}/invitations:
+    post:
+      operationId: createInvitation
+      tags: [collaboration]
+      summary: Invite a collaborator with scoped, expiring permissions. (Phase 2)
+      description: |
+        **Owner only**, and every invitation expires.
+
+        `expires_at` is required with no default. An invitation link that never
+        expires is a credential the recipient can forward, lose or keep after
+        leaving the trip — and `REQ-SEC-008` requires this to fail closed.
+
+        The token itself is returned **once**, in this response, and is never
+        readable again. A collaboration link retrievable from an API is a
+        collaboration link an attacker retrieves too.
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateInvitationRequest' }
+            example:
+              role: 'trip_editor'
+              expires_at: '2026-09-01T00:00:00Z'
+      responses:
+        '201':
+          description: |
+            Invitation created. `token` appears here and nowhere else, ever.
+          headers:
+            X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvitationCreated' }
+        '422': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  /trips/{tripId}/invitations/{invitationId}:
+    delete:
+      operationId: revokeInvitation
+      tags: [collaboration]
+      summary: Revoke an invitation. (Phase 2)
+      description: |
+        Revocation is immediate and irreversible. There is no "un-revoke": issuing
+        a new invitation is cheap, and a reversible revocation is one an attacker
+        who still holds the link can wait out.
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - name: invitationId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '204':
+          description: Revoked. Idempotent — revoking twice is not an error.
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-011 — booking handoff
+  # ==========================================================================
+  /trips/{tripId}/booking-handoffs:
+    post:
+      operationId: createBookingHandoff
+      tags: [booking]
+      summary: Create a provider deep link and attribution record.
+      description: |
+        **No schema in this contract accepts or returns a payment credential**, and
+        that is asserted by a test that scans the whole document rather than
+        trusting review (`TST-BOOK-002`).
+
+        JourneyLab hands off to the provider and records attribution. It never
+        sees a card number, and the absence of a field to put one in is what makes
+        that true rather than intended — PCI scope you never enter is scope you
+        cannot leak.
+
+        When the affiliate is unreachable the response is **not** a dead end: the
+        client shows copyable booking details so the traveller can complete the
+        booking directly (`REQ-BOOK-004`).
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBookingHandoffRequest' }
+      responses:
+        '201':
+          description: Deep link and attribution record.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingHandoff' }
+              example:
+                handoff_id: 'bh_04'
+                item_id: 'it_11'
+                booking_status: 'estimated'
+                deep_link: 'https://partner.example/booking?ref=jl_04'
+                price: { amount_minor: 12400, currency: 'EUR' }
+                copyable_details:
+                  provider_name: 'Cyclades Ferries'
+                  reference_hint: 'Naxos to Paros, 12 Sept, 09:40'
+        '503':
+          description: |
+            The affiliate is unreachable. The response still carries
+            `copyable_details` so the traveller is not blocked.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-012 — activate live monitoring (Phase 3)
+  # ==========================================================================
+  /trips/{tripId}:activate:
+    post:
+      operationId: activateTrip
+      tags: [live]
+      summary: Activate live monitoring and produce the offline manifest. (Phase 3)
+      description: |
+        Owner only. Returns the offline pack manifest and a readiness indicator.
+
+        The manifest is **deliberately extensible**: its exact shape depends on
+        device constraints that STEP-017 has not yet established, and freezing a
+        guess now would mean a breaking change later. `entries` carries typed
+        members; anything else the device needs can arrive additively.
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Activated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivationResult' }
+        '422':
+          description: |
+            Not ready to activate — for example an unbooked protected item. The
+            readiness indicator says what is missing rather than refusing blankly.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-013 — generate repairs, and accept one (Phase 3)
+  # ==========================================================================
+  /impacts/{impactId}/repairs:generate:
+    post:
+      operationId: generateRepairs
+      tags: [live]
+      summary: Generate protected partial-replan alternatives. (Phase 3)
+      description: |
+        **Generation never mutates the canonical plan.** Acceptance is a separate
+        explicit call (`acceptRepair`), and the separation is structural rather
+        than a rule someone must remember.
+
+        The reason is that a traveller mid-trip must be able to *look* at what a
+        disruption would cost them without committing to it. An operation that
+        generated and applied in one step would replan someone's afternoon while
+        they were still reading the first option.
+      parameters:
+        - name: impactId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: |
+            Alternatives with their deltas. The canonical plan is unchanged.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [repairs]
+                properties:
+                  repairs:
+                    type: array
+                    items: { $ref: '#/components/schemas/RepairOption' }
+        '422': { $ref: '#/components/responses/Infeasible' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  /impacts/{impactId}/repairs/{repairId}:accept:
+    post:
+      operationId: acceptRepair
+      tags: [live]
+      summary: Apply a generated repair to the canonical plan. (Phase 3)
+      description: |
+        The **only** operation in this contract that changes a live plan in
+        response to a disruption. Separate from generation by design.
+      parameters:
+        - name: impactId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: repairId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: The repaired scenario.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Scenario' }
+        '409':
+          description: |
+            The plan moved, or the repair targets a protected item that has not
+            been unlocked (`REQ-CONS-011`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
+
+  # ==========================================================================
+  # API-014 — feedback (Phase 3)
+  # ==========================================================================
+  /trips/{tripId}/feedback:
+    post:
+      operationId: recordFeedback
+      tags: [feedback]
+      summary: Record explicit outcome and preference feedback. (Phase 3)
+      description: |
+        `consent_scope` is **required**. Feedback is training signal, and using it
+        without a stated scope is using someone's trip to improve a model they did
+        not agree to improve.
+
+        **Absence of feedback never creates a negative label.** There is no field
+        for "the user did not respond", because the moment such a field exists
+        something will treat silence as dissatisfaction — and a traveller who
+        simply got on with their holiday is not an unhappy one.
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FeedbackRequest' }
+            example:
+              subject: { kind: 'itinerary_item', id: 'it_11' }
+              sentiment: 'positive'
+              consent_scope: 'improve_my_trips'
+      responses:
+        '201':
+          description: Recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeedbackRecord' }
         '404': { $ref: '#/components/responses/NotFoundOrForbidden' }
 
   # ==========================================================================
@@ -916,6 +1192,222 @@ components:
             Proof that the caller was shown the consequences of this edit before
             applying it. Semantics are designed with STEP-014; declared required
             and opaque now so the shape cannot change without a version bump.
+
+    # --- collaboration ---------------------------------------------------------
+
+    CreateInvitationRequest:
+      type: object
+      required: [role, expires_at]
+      additionalProperties: false
+      properties:
+        role:
+          type: string
+          enum: [trip_editor, trip_viewer]
+          description: |
+            **Not `trip_owner`.** Ownership is not something an owner can hand out
+            through an invitation link; transferring it is a separate, deliberate
+            act. An invitation that could confer ownership is an invitation that
+            can lose you your trip.
+        expires_at:
+          type: string
+          format: date-time
+          description: |
+            **Required, no default.** A link that never expires is a credential
+            the recipient can forward, lose, or keep after leaving the trip.
+        email:
+          type: string
+          description: |
+            Optional. When present the invitation is delivered rather than
+            returned as a bare link. Not required, because a traveller sharing a
+            plan with a friend should not have to surrender the friend's address.
+
+    InvitationCreated:
+      type: object
+      required: [invitation_id, role, expires_at, token]
+      additionalProperties: false
+      properties:
+        invitation_id: { type: string }
+        role: { type: string }
+        expires_at: { type: string, format: date-time }
+        token:
+          type: string
+          description: |
+            **Returned once, here, and never readable again.** A collaboration
+            link retrievable from an API is a collaboration link an attacker
+            retrieves too. Losing it means revoking and reissuing, which is cheap.
+
+    # --- booking ------------------------------------------------------------------
+
+    BookingStatus:
+      type: string
+      enum: [estimated, confirmed, cancelled]
+      description: |
+        **Distinct states, not a boolean.** `REQ-EVID-003` forbids rendering an
+        estimate as confirmed, and a boolean `is_confirmed` makes the two the same
+        field with different values — which is how a default of `false` becomes a
+        default of `true` in someone's mapper. Three named states also leave room
+        for `cancelled`, which a boolean cannot express at all.
+
+    CreateBookingHandoffRequest:
+      type: object
+      required: [item_id]
+      additionalProperties: false
+      properties:
+        item_id: { type: string }
+        preferred_provider_id: { type: string }
+
+    CopyableBookingDetails:
+      type: object
+      description: |
+        What the traveller needs to complete the booking **themselves** when the
+        affiliate is unreachable (`REQ-BOOK-004`). A dead deep link must never be
+        a dead end.
+      required: [provider_name]
+      additionalProperties: false
+      properties:
+        provider_name:
+          type: string
+          description: |
+            Display name only. The provider's internal identity is commercially
+            confidential and is never returned (`ERROR_MODEL.md` §5).
+        reference_hint: { type: string }
+        booking_url: { type: string }
+
+    BookingHandoff:
+      type: object
+      description: |
+        **There is no payment field here, and there is none anywhere in this
+        contract.** JourneyLab deep-links to the provider; it never takes a
+        payment. PCI scope you never enter is scope you cannot leak, and the
+        absence of a field is what makes that structural rather than intended.
+      required: [handoff_id, item_id, booking_status]
+      additionalProperties: false
+      properties:
+        handoff_id: { type: string }
+        item_id: { type: string }
+        booking_status: { $ref: '#/components/schemas/BookingStatus' }
+        deep_link: { type: string }
+        price: { $ref: '#/components/schemas/Money' }
+        copyable_details: { $ref: '#/components/schemas/CopyableBookingDetails' }
+        booking_reference:
+          type: string
+          description: |
+            The provider's own reference, once they confirm. An opaque string we
+            store and display — never a credential, and never anything that could
+            be used to act on the traveller's behalf.
+
+    # --- live -----------------------------------------------------------------------
+
+    OfflineManifestEntry:
+      type: object
+      required: [kind, uri]
+      properties:
+        kind: { type: string }
+        uri: { type: string }
+        bytes: { type: integer, minimum: 0 }
+
+    ActivationResult:
+      type: object
+      description: |
+        The offline manifest is **extensible on purpose**. Its exact shape depends
+        on device constraints STEP-017 has not established, and freezing a guess
+        now would make the correction a breaking change. Typed entries plus room
+        to grow.
+      required: [activated, readiness, manifest]
+      properties:
+        activated: { type: boolean }
+        readiness:
+          type: object
+          description: |
+            What is and is not ready, itemised. A blank refusal to activate tells
+            a traveller at an airport nothing they can act on.
+          required: [ready]
+          properties:
+            ready: { type: boolean }
+            blocking:
+              type: array
+              items: { type: string }
+        manifest:
+          type: object
+          required: [entries]
+          properties:
+            entries:
+              type: array
+              items: { $ref: '#/components/schemas/OfflineManifestEntry' }
+
+    RepairOption:
+      type: object
+      description: |
+        One alternative, with what it costs. **Generating this changes nothing** —
+        acceptance is a separate call.
+      required: [repair_id, preserved_plan_percent, deltas]
+      properties:
+        repair_id: { type: string }
+        summary: { type: string }
+        preserved_plan_percent:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: |
+            How much of the existing plan survives. The number a traveller
+            actually cares about mid-trip: "you keep 80% of your afternoon" is a
+            decision they can make in thirty seconds.
+        deltas:
+          type: object
+          required: [cost, minutes]
+          properties:
+            cost: { $ref: '#/components/schemas/Money' }
+            minutes: { type: integer }
+            effort:
+              type: string
+              enum: [low, medium, high]
+        touches_protected_items:
+          type: boolean
+          description: |
+            True when applying this needs an explicit unlock first
+            (`REQ-CONS-011`). Surfaced on the option so the traveller learns it
+            before choosing, not after.
+
+    # --- feedback ---------------------------------------------------------------------
+
+    FeedbackRequest:
+      type: object
+      description: |
+        **No field records the absence of feedback.** The moment one exists,
+        something treats silence as dissatisfaction — and a traveller who simply
+        got on with their holiday is not an unhappy one.
+      required: [subject, sentiment, consent_scope]
+      additionalProperties: false
+      properties:
+        subject:
+          type: object
+          required: [kind, id]
+          additionalProperties: false
+          properties:
+            kind: { type: string }
+            id: { type: string }
+        sentiment:
+          type: string
+          enum: [positive, negative, mixed]
+          description: |
+            Explicit only. Every value here was chosen by a person; nothing infers
+            one from behaviour (`REQ-PRIV-003`).
+        comment: { type: string, maxLength: 2000 }
+        consent_scope:
+          type: string
+          enum: [this_trip_only, improve_my_trips, improve_the_product]
+          description: |
+            **Required.** Feedback is training signal, and using it without a
+            stated scope is using someone's trip to improve a model they did not
+            agree to improve. The narrowest option is the first one.
+
+    FeedbackRecord:
+      type: object
+      required: [feedback_id, recorded_at, consent_scope]
+      properties:
+        feedback_id: { type: string }
+        recorded_at: { type: string, format: date-time }
+        consent_scope: { type: string }
 
     ZonedTimestamp:
       type: object

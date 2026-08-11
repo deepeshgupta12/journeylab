@@ -47,9 +47,20 @@ def param_names(op: dict[str, Any]) -> set[str]:
 
 
 class TestEveryOperationIsWellFormed:
-    def test_all_nine_operations_are_declared(self) -> None:
+    def test_the_planning_operations_are_declared(self) -> None:
+        """A SUBSET assertion, not an exhaustive one.
+
+        The first version asserted set equality against exactly the nine
+        operations STEP-004.02 added, and STEP-004.03 broke it by adding five
+        more — correctly. An exhaustive assertion on a growing surface fails on
+        every legitimate addition, which teaches whoever hits it to edit the test
+        without reading it.
+
+        What is durable is that these nine exist. The conventions tests below
+        cover whatever else arrives.
+        """
         ids = {op["operationId"] for _, _, op in operations()}
-        assert ids == {
+        assert {
             "createTrip",
             "getTrip",
             "replaceTripBrief",
@@ -59,7 +70,13 @@ class TestEveryOperationIsWellFormed:
             "getScenario",
             "selectScenario",
             "editScenario",
-        }
+        } <= ids
+
+    def test_operation_ids_are_unique(self) -> None:
+        """Two operations sharing an id generate one client method that silently
+        calls the wrong endpoint (STEP-004.07 generates from this document)."""
+        ids = [op["operationId"] for _, _, op in operations()]
+        assert len(ids) == len(set(ids)), f"duplicate operationIds: {sorted(ids)}"
 
     @pytest.mark.parametrize(("path", "method", "op"), operations(), ids=lambda v: str(v)[:40])
     def test_has_an_operation_id_and_a_summary(
@@ -310,3 +327,227 @@ class TestExamplesAreValid:
         raw = (REPO / "contracts/openapi.yaml").read_text()
         for code in re.findall(r"code: '([a-z][a-z0-9_.]+)'", raw):
             assert code in CLIENT_VISIBLE, f"example uses unregistered code {code!r}"
+
+
+# ============================================================================
+# STEP-004.03 — collaboration, booking, live and feedback
+# ============================================================================
+
+
+class TestNoPaymentCredentialAnywhere:
+    """TST-BOOK-002 — and this is the assertion I would keep if I could keep one.
+
+    JourneyLab deep-links to providers and never takes a payment. The way that
+    stops being an intention and becomes a fact is that **no schema in the
+    contract has anywhere to put a card number.** PCI scope you never enter is
+    scope you cannot leak.
+
+    Scanned across the whole document rather than reviewed, because review is
+    what fails on the eighteenth operation added two years from now.
+    """
+
+    #: Field names that would mean a payment credential had entered the contract.
+    FORBIDDEN = (
+        "card_number",
+        "cardnumber",
+        "pan",
+        "cvv",
+        "cvc",
+        "card_cvc",
+        "security_code",
+        "expiry_month",
+        "expiry_year",
+        "cardholder",
+        "card_holder",
+        "iban",
+        "bic",
+        "swift",
+        "sort_code",
+        "account_number",
+        "routing_number",
+        "payment_token",
+        "payment_method_id",
+        "stripe_token",
+        "billing_address",
+    )
+
+    def _all_property_names(self, node: Any, found: set[str] | None = None) -> set[str]:
+        found = set() if found is None else found
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "properties" and isinstance(value, dict):
+                    found |= set(value)
+                self._all_property_names(value, found)
+        elif isinstance(node, list):
+            for item in node:
+                self._all_property_names(item, found)
+        return found
+
+    def test_no_schema_declares_a_payment_field(self) -> None:
+        names = {n.lower() for n in self._all_property_names(SPEC)}
+        assert names, "found no properties at all — the walk is broken, not the contract"
+        offenders = sorted(names & set(self.FORBIDDEN))
+        assert not offenders, (
+            f"the contract declares payment-credential fields: {offenders}. "
+            f"JourneyLab hands off to the provider and never takes a payment; the "
+            f"absence of a field is what keeps that true."
+        )
+
+    def test_the_walk_would_actually_find_one(self) -> None:
+        """Proves the scan above is not vacuous.
+
+        A test that searches for something absent passes identically when the
+        search is broken. This one seeds a payment field into a copy of the
+        document and requires the same walk to find it.
+        """
+        seeded: dict[str, Any] = {
+            "components": {"schemas": {"Evil": {"properties": {"card_number": {}}}}}
+        }
+        assert "card_number" in {n.lower() for n in self._all_property_names(seeded)}
+
+    def test_the_booking_handoff_is_a_closed_object(self) -> None:
+        """An open object is somewhere a card number can arrive undeclared."""
+        assert SPEC["components"]["schemas"]["BookingHandoff"]["additionalProperties"] is False
+
+
+class TestBookingStates:
+    def test_estimated_and_confirmed_are_states_not_a_boolean(self) -> None:
+        """REQ-EVID-003.
+
+        A boolean `is_confirmed` makes an estimate and a confirmation the same
+        field with different values, which is how a default of `false` becomes a
+        default of `true` in somebody's mapper. Three named states also express
+        `cancelled`, which a boolean cannot.
+        """
+        status = SPEC["components"]["schemas"]["BookingStatus"]
+        assert status["type"] == "string"
+        assert set(status["enum"]) == {"estimated", "confirmed", "cancelled"}
+
+    def test_no_boolean_confirmation_flag_exists(self) -> None:
+        names = {n.lower() for n in TestNoPaymentCredentialAnywhere()._all_property_names(SPEC)}
+        for flag in ("is_confirmed", "confirmed", "is_estimated"):
+            assert flag not in names, f"{flag!r} reintroduces the boolean this forbids"
+
+    def test_an_unreachable_affiliate_is_not_a_dead_end(self) -> None:
+        """REQ-BOOK-004: the traveller can still complete the booking."""
+        assert "copyable_details" in SPEC["components"]["schemas"]["BookingHandoff"]["properties"]
+        details = SPEC["components"]["schemas"]["CopyableBookingDetails"]
+        assert "provider_name" in details["required"]
+
+
+class TestRepairGenerationIsSeparateFromAcceptance:
+    """TST-LIVE-005."""
+
+    def test_they_are_two_operations(self) -> None:
+        ids = {op["operationId"] for _, _, op in operations()}
+        assert {"generateRepairs", "acceptRepair"} <= ids
+
+    def test_generation_does_not_require_if_match(self) -> None:
+        """Because it changes nothing.
+
+        Requiring a version precondition on a read-only projection would imply it
+        mutates — and the next person to touch it would make that true.
+        """
+        gen = next(o for _, _, o in operations() if o["operationId"] == "generateRepairs")
+        assert "IfMatch" not in param_names(gen)
+
+    def test_acceptance_does_require_if_match(self) -> None:
+        """Because it is the one operation that changes a live plan."""
+        accept = next(o for _, _, o in operations() if o["operationId"] == "acceptRepair")
+        assert "IfMatch" in param_names(accept)
+
+    def test_a_repair_option_declares_what_it_costs(self) -> None:
+        option = SPEC["components"]["schemas"]["RepairOption"]
+        assert set(option["required"]) >= {"repair_id", "preserved_plan_percent", "deltas"}
+        assert option["properties"]["deltas"]["properties"]["cost"]["$ref"].endswith("Money")
+
+    def test_a_repair_says_when_it_needs_an_unlock(self) -> None:
+        """REQ-CONS-011 — surfaced before the choice, not after."""
+        assert (
+            "touches_protected_items" in SPEC["components"]["schemas"]["RepairOption"]["properties"]
+        )
+
+
+class TestInvitations:
+    def test_expiry_is_required_with_no_default(self) -> None:
+        """A link that never expires is a credential someone keeps after leaving."""
+        req = SPEC["components"]["schemas"]["CreateInvitationRequest"]
+        assert "expires_at" in req["required"]
+        assert "default" not in req["properties"]["expires_at"]
+
+    def test_an_invitation_cannot_confer_ownership(self) -> None:
+        """Transferring a trip is a deliberate act, not a link you can forward."""
+        roles = SPEC["components"]["schemas"]["CreateInvitationRequest"]["properties"]["role"]
+        assert "trip_owner" not in roles["enum"]
+
+    def test_the_token_is_returned_once(self) -> None:
+        """It appears in the creation response and in no read operation."""
+        assert "token" in SPEC["components"]["schemas"]["InvitationCreated"]["required"]
+        read_ops = [op for _, method, op in operations() if method == "get"]
+        for op in read_ops:
+            body = str(op.get("responses", {}))
+            assert "InvitationCreated" not in body, (
+                f"{op['operationId']} can return an invitation token — a link an "
+                f"API will hand back is a link an attacker asks for"
+            )
+
+    def test_revocation_exists_and_is_idempotent(self) -> None:
+        revoke = next(o for _, _, o in operations() if o["operationId"] == "revokeInvitation")
+        assert "204" in revoke["responses"]
+        assert "IdempotencyKey" in param_names(revoke)
+
+
+class TestFeedbackConsent:
+    def test_consent_scope_is_required(self) -> None:
+        """Feedback is training signal. Using it without a stated scope uses
+        someone's trip to improve a model they did not agree to improve."""
+        req = SPEC["components"]["schemas"]["FeedbackRequest"]
+        assert "consent_scope" in req["required"]
+        scope = req["properties"]["consent_scope"]
+        assert scope["enum"][0] == "this_trip_only", "the narrowest scope should be first"
+
+    def test_absence_of_feedback_cannot_be_recorded(self) -> None:
+        """The moment a field exists for 'did not respond', something treats
+        silence as dissatisfaction."""
+        names = {
+            n.lower()
+            for n in TestNoPaymentCredentialAnywhere()._all_property_names(
+                SPEC["components"]["schemas"]["FeedbackRequest"]
+            )
+        }
+        for forbidden in ("no_response", "did_not_respond", "declined", "ignored", "dismissed"):
+            assert forbidden not in names
+
+    def test_sentiment_is_explicit_not_inferred(self) -> None:
+        sentiment = SPEC["components"]["schemas"]["FeedbackRequest"]["properties"]["sentiment"]
+        assert set(sentiment["enum"]) == {"positive", "negative", "mixed"}
+        assert "inferred" not in str(sentiment).lower()
+
+
+class TestPhase3OperationsStillObeyTheConventions:
+    """The later operations are the ones most likely to drift from the rules.
+
+    They are written furthest from the sub-step that set them, by whoever picks
+    up Phase 3 — so the conventions are asserted across ALL operations, not
+    re-checked per batch.
+    """
+
+    def test_every_operation_including_phase_3_uses_the_shared_denial(self) -> None:
+        for path, method, op in operations():
+            if "{" not in path:
+                continue
+            assert op["responses"]["404"].get("$ref", "").endswith("NotFoundOrForbidden"), (
+                f"{method} {path} defines its own 404"
+            )
+
+    def test_no_operation_anywhere_declares_a_403(self) -> None:
+        offenders = [f"{m.upper()} {p}" for p, m, op in operations() if "403" in op["responses"]]
+        assert not offenders, offenders
+
+    def test_every_mutating_operation_still_requires_idempotency(self) -> None:
+        missing = [
+            f"{m.upper()} {p}"
+            for p, m, op in operations()
+            if m in MUTATING and "IdempotencyKey" not in param_names(op)
+        ]
+        assert not missing, missing
