@@ -11,6 +11,7 @@ conflict set, a volatile value returned as a bare number.
 
 from __future__ import annotations
 
+import json
 import pathlib
 from typing import Any
 
@@ -202,9 +203,25 @@ class TestEvidence:
     """REQ-EVID-001 and REQ-EVID-003."""
 
     def test_a_volatile_value_cannot_be_returned_bare(self) -> None:
-        """Provenance is required by the TYPE, not by convention."""
+        """Provenance is required by the TYPE, not by convention.
+
+        STEP-004.06 recomposed `Evidenced` from the shared `Provenance` and
+        `TemporalValidity` schemas rather than restating source, confidence and
+        the time axes inline. The requirement is unchanged and the enforcement is
+        stronger: three schemas cannot drift apart when there is one of each.
+        """
         ev = SPEC["components"]["schemas"]["Evidenced"]
-        assert set(ev["required"]) == {"value", "status", "source", "observed_at", "confidence"}
+        assert set(ev["required"]) == {"value", "status", "provenance", "validity"}
+
+        provenance = json.loads(
+            (REPO / "contracts" / ev["properties"]["provenance"]["$ref"][2:]).read_text()
+        )
+        assert {"source", "confidence", "access_label"} <= set(provenance["required"])
+
+        validity = json.loads(
+            (REPO / "contracts" / ev["properties"]["validity"]["$ref"][2:]).read_text()
+        )
+        assert {"observed_at", "effective_from"} <= set(validity["required"])
 
     def test_status_has_no_default(self) -> None:
         """REQ-EVID-003: an estimate is never rendered as confirmed.

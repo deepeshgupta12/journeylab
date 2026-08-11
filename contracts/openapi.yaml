@@ -1025,28 +1025,22 @@ components:
 
     # --- money and time -------------------------------------------------------
 
+    # STEP-004.06 moved these to `contracts/jsonschema/`. They were defined inline
+    # here first, which was correct while nothing else needed them and became
+    # duplication the moment the model-output schemas did. Two copies of a money
+    # type diverge silently: one gains a `precision` field, the other does not,
+    # and no test compares them.
     Money:
-      type: object
-      description: |
-        **Integer minor units. Never floating point.** `0.1 + 0.2` is not `0.3` in
-        IEEE 754 and currency arithmetic is mostly addition, so a total summed
-        from float line items stops matching the sum of what is displayed.
+      $ref: './jsonschema/money.json'
 
-        The exponent is not always 2: JPY and KRW have none, BHD/KWD/TND have
-        three. `amount_minor` is the count of minor units, and only formatting
-        divides.
-      required: [amount_minor, currency]
-      additionalProperties: false
-      properties:
-        amount_minor:
-          type: integer
-          description: €12.34 is 1234. ¥100 is 100.
-          examples: [1234]
-        currency:
-          type: string
-          pattern: '^[A-Z]{3}$'
-          description: ISO 4217.
-          examples: ['EUR']
+    TemporalValidity:
+      $ref: './jsonschema/temporal-validity.json'
+
+    Provenance:
+      $ref: './jsonschema/provenance.json'
+
+    ConstraintClass:
+      $ref: './jsonschema/constraint-class.json'
 
     # --- evidence ---------------------------------------------------------------
 
@@ -1064,7 +1058,7 @@ components:
         is required and has no default. A caller that ignores it renders an
         estimate as fact, which is the specific failure this product exists to
         remove, so it is not optional and not inferable.
-      required: [value, status, source, observed_at, confidence]
+      required: [value, status, provenance, validity]
       additionalProperties: false
       properties:
         value: {}
@@ -1074,34 +1068,14 @@ components:
           description: |
             `confirmed` means a provider stated it. `estimated` means we derived
             it. The interface must never present the second as the first.
-        source:
-          type: object
-          required: [id, name]
-          properties:
-            id: { type: string }
-            name:
-              type: string
-              description: |
-                Display name, safe to show. **Not the provider's internal
-                identity** — that is commercially confidential and is never
-                returned (`ERROR_MODEL.md` §5).
-        observed_at:
-          type: string
-          format: date-time
-          description: When the source stated it. Not when we fetched it.
-        effective_from:
-          type: string
-          format: date-time
-        effective_to:
-          type: string
-          format: date-time
-          description: |
-            Absent means open-ended. A ferry timetable observed in March and
-            effective until October is not stale in June.
-        confidence:
-          type: number
-          minimum: 0
-          maximum: 1
+        provenance:
+          # Composed, not restated. STEP-004.06 — source, confidence and access
+          # label are one shared concept used by evidence, events and model output.
+          $ref: './jsonschema/provenance.json'
+        validity:
+          # The three time axes. Restating observed_at and the effective window
+          # here is how one of the three quietly goes missing.
+          $ref: './jsonschema/temporal-validity.json'
         conflicts:
           type: array
           description: |

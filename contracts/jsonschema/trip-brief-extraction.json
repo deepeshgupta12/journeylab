@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://journeylab.app/schemas/v1/trip-brief-extraction.json",
+  "title": "TripBriefExtraction",
+  "description": "AI-001 model output: free text becomes an auditable typed constraint document.\n\nTHIS SCHEMA IS THE DETERMINISTIC BOUNDARY, AND THAT IS ITS ONLY JOB.\n\n`ADR-002`: deterministic engines own feasibility; the model owns language. `REQ-AI-001`: model output can never mutate trip state without validation and user authorization. This file is where 'never' becomes enforceable rather than aspirational — output that does not validate is rejected before anything reads it, and `REQ-AI-002` requires that rejection to fail closed to the structured form.\n\nWHAT THE SCHEMA CANNOT DO, STATED PLAINLY\nA schema checks shape, not truth. It cannot tell whether '2 hours' was really said, whether 'step-free' meant the hotel or the ferry, or whether the model invented a constraint nobody mentioned. Those need the deterministic validators (date, currency, unit, coverage, satisfiability) and then a human — `AI-001` requires the user to confirm the interpretation before solving. The schema is the first gate of three, not the gate.\n\nEVERY FIELD CARRIES ITS OWN CLASS AND CONFIDENCE\nNot one confidence for the whole extraction. A model can be certain about the dates and guessing about the accessibility requirement, and a single number averages those into something that is true of neither — then the interface shows one badge and the traveller cannot tell which half to check.",
+  "type": "object",
+  "required": ["schema_version", "locale", "constraints", "abstained"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Pinned. A model that returns a different version is returning something this validator was not written for, and accepting it would be accepting an unknown shape."
+    },
+    "locale": {
+      "type": "string",
+      "description": "The locale the text was interpreted in. '12/09' is September in one and December in another, and an extraction that does not say which cannot be checked."
+    },
+    "constraints": {
+      "type": "array",
+      "description": "May be empty. An extraction that found nothing is a valid result and must not be forced to invent one.",
+      "items": { "$ref": "#/$defs/ExtractedConstraint" }
+    },
+    "abstained": {
+      "type": "boolean",
+      "description": "REQ-AI-004: low evidence means abstain, never backfill from model memory. `true` sends the user to the structured form, which AI-001 requires to remain fully usable. Required with no default — a model that omits it is not permitted to have the safer value chosen for it."
+    },
+    "abstention_reason": {
+      "type": "string",
+      "description": "Present when `abstained`. For the log and for the interface to explain itself; never a reason the user must decode."
+    }
+  },
+  "$defs": {
+    "ExtractedConstraint": {
+      "type": "object",
+      "required": ["statement", "constraint_class", "confidence", "source_span"],
+      "additionalProperties": false,
+      "properties": {
+        "statement": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "The constraint in the traveller's own words, normalised."
+        },
+        "constraint_class": {
+          "$ref": "https://journeylab.app/schemas/v1/constraint-class.json"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Per field, not per extraction. See the schema description."
+        },
+        "source_span": {
+          "type": "object",
+          "description": "WHERE IN THE USER'S TEXT THIS CAME FROM. Required, and it is the single most useful field here: it makes a hallucinated constraint visible. A model that invents 'travelling with a dog' must point at the characters that say so, and an extraction whose span does not contain what it claims is caught by a deterministic check rather than by a reader's memory of what they typed.",
+          "required": ["start", "end"],
+          "additionalProperties": false,
+          "properties": {
+            "start": { "type": "integer", "minimum": 0 },
+            "end": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "unit": {
+          "type": "string",
+          "description": "Required by DATA-005 for every stored entry. 'Under two hours' and 'under 120' are the same constraint only if the unit is stated."
+        },
+        "value": {
+          "description": "The parsed value, when there is one. DELIBERATELY UNTYPED HERE: the deterministic validators own parsing, and a schema that accepted the model's own idea of a date would be trusting the thing it exists to check."
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Ordering among soft constraints. Meaningless for `hard`, which cannot be traded off."
+        },
+        "clarification_question": {
+          "type": "string",
+          "description": "Required in practice for `unresolved`: a blocking ambiguity the product cannot act on must come with the specific question that would resolve it (REQ-CONS-002). Not expressible as a conditional requirement without a `dependentRequired` that generated clients render badly — asserted by TST-AI-002 instead, and stated here rather than left looking optional by accident."
+        }
+      }
+    }
+  }
+}

@@ -60,6 +60,91 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-030 — STEP-004.06 — Shared JSON Schemas including model-output schemas
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-11 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PLAT-005, REQ-AI-002 (enforcing REQ-AI-001, REQ-AI-004, ADR-002) |
+| Blast radius | [BR-033](blast-radius/BR-033-json-schema-library.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `e1d3194` — matched HEAD at pre-change |
+
+### What was built
+Five shared schemas in `contracts/jsonschema/`, `openapi.yaml` refactored to
+reference four of them, and the AI-001 model-output schema. 40 assertions.
+Python suite 552 → **592**.
+
+### The sub-step was a refactor and I nearly missed it
+§5 asks for "reuse enforced — no duplicate inline definitions". Creating the
+library alone would have **produced** the duplication it forbids: `Money` and the
+provenance and time fields were already inline in `openapi.yaml`, put there by
+`.01` and `.02` when nothing else needed them.
+
+So `.06` had to change contracts already marked `VERIFIED`. `Evidenced` moved
+from restating `source`, `confidence` and the three time fields to composing
+`Provenance` and `TemporalValidity`. Equivalent in shape, but its required set
+changed — which under `CONTRACT_CHANGE_POLICY` is **breaking the moment a
+consumer exists**. Nothing consumes it yet, and `.07` generates clients next.
+Doing it now rather than after was the whole difference between a refactor and a
+migration.
+
+**One of the two broken tests would have gone vacuous rather than red** had I only
+added the library. It read `schemas["Money"]["properties"]`, and after a bare
+`$ref` there are no `properties` — so the assertion would have iterated an empty
+set and passed. It now asserts the `$ref` exists first, then follows it.
+
+### The model-output schema is where "never" becomes enforceable
+`ADR-002` gives feasibility to deterministic engines and language to the model.
+`REQ-AI-001` says model output can never mutate trip state without validation.
+`trip-brief-extraction.json` is where that stops being a sentence.
+
+**`source_span` is required, and it is the most useful field in the file.** A
+model claiming the traveller is "travelling with a dog" must point at the
+characters that say so. An extraction whose span does not contain its claim is
+caught by a deterministic check rather than by the reader's memory of what they
+typed — which is the only defence against a fluent hallucination that nobody
+actively disbelieves.
+
+`additionalProperties: false` everywhere, so an unexpected `tool_call` is
+rejected rather than ignored: a model returning a field we did not ask for is a
+model doing something we did not design, and ignoring it means never finding out.
+
+**Confidence is per field, not per extraction.** A model can be certain about the
+dates and guessing about the accessibility requirement; one number averages those
+into something true of neither, and the interface then shows one badge while the
+traveller cannot tell which half to check.
+
+`value` is deliberately untyped. The deterministic validators own date, currency
+and unit parsing — a schema that accepted the model's own idea of a date would be
+trusting the thing it exists to check.
+
+### What the schema cannot do, written into the schema
+It checks shape, not truth. It cannot tell whether "2 hours" was really said or
+whether "step-free" meant the hotel or the ferry. It is the **first gate of
+three**: schema, then deterministic validators, then the human confirmation
+`AI-001` requires.
+
+A test asserts that sentence is present in the description, because a reader who
+believes the schema validates meaning will skip the two gates that follow it.
+
+### The three time axes, kept apart
+`observed_at` (the source said it), the effective window (it is true in the
+world), `recorded_at` (we wrote it down). A ferry timetable observed in March,
+effective until October, recorded in April is not stale in June — and a system
+with one timestamp cannot express that. It will either discard good data or serve
+expired data, depending on which meaning the single field happened to get.
+
+### Follow-ups
+| Item | Owner step |
+| --- | --- |
+| Generate clients from these schemas | STEP-004.07 |
+| Unify the AsyncAPI envelope with this library — **not claimed here** | STEP-004.08 or STEP-006 |
+| Prompt content and retrieval configuration | STEP-009 |
+
+---
+
 ## IMPL-029 — STEP-004.05 — AsyncAPI event contracts (EVT-001…008)
 
 | Field | Value |

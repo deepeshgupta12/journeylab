@@ -67,6 +67,48 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-004.06 — 2026-08-11 — Shared JSON Schemas including model-output schemas
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `e1d3194` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **592 Python** (up from 552) + 61 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS — but only because of the timing** | `Evidenced` changed its required set. Nothing consumes it, so nothing breaks; after `.07` generates clients the same change would be **breaking** |
+| R3 graph diff as expected | **PASS** | Five JSON documents, one YAML refactor, one test module |
+| R4 untested requirements | **PASS — improved** | REQ-AI-002 newly covered; REQ-AI-001 and REQ-AI-004 gain schema-level enforcement |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…019; meta-suite 43/43 |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Two contract tests broke | They read the inline shapes the refactor moved | Both now assert the `$ref` exists and follow it |
+| `NameError: json` | I used `json.loads` in a module that only imported `yaml` | Import added |
+| mypy: `seeded` needed an annotation | A synthetic document in a meta-test — the same annotation I needed in `.03` | Annotated |
+
+### Notes
+**One of the two broken tests would have gone vacuous instead of red**, and that
+is the finding worth keeping. It read `schemas["Money"]["properties"]`; after a
+bare `$ref` there are no `properties`, so it would have iterated an empty set and
+passed. Had I only added the library without refactoring, the duplication gate
+would have been the only thing standing between the repository and two silently
+diverging `Money` types — and the test that appeared to check `Money` would have
+been checking nothing.
+
+**R2 passes on timing, not on design.** `Evidenced` changing its required set is
+harmless today because no consumer exists, and would be a breaking change after
+`.07`. Doing the library before client generation rather than after was the
+difference between a refactor and a migration.
+
+---
+
 ## STEP-004.05 — 2026-08-11 — AsyncAPI event contracts
 
 | Field | Value |

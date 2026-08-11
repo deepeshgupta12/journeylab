@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://journeylab.app/schemas/v1/temporal-validity.json",
+  "title": "TemporalValidity",
+  "description": "THREE TIME AXES, and conflating any two is a class of bug this product cannot afford (`DATA-007`).\n\n  observed_at    when the source stated it\n  effective_*    when the fact is true in the world\n  recorded_at    when we wrote it down\n\nA ferry timetable observed in March, effective until October, recorded in our database in April is not stale in June — but a system with one timestamp cannot express that, and will either discard good data or serve expired data. Which of the two depends on which meaning the single field happened to get.",
+  "type": "object",
+  "required": ["observed_at", "effective_from"],
+  "additionalProperties": false,
+  "properties": {
+    "observed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the source stated it. Not when we fetched it."
+    },
+    "effective_from": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the fact starts being true in the world."
+    },
+    "effective_to": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Absent means open-ended. Absent is not the same as expired, and a consumer must not treat it as such."
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When we persisted it. The gap from `observed_at` is our ingestion lag, which is ours to fix and not the source's fault."
+    }
+  }
+}

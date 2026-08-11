@@ -464,7 +464,13 @@ class TestPublishedContract:
         repository, and the fix is always to assert on structure instead.
         """
         doc = yaml.safe_load((REPO / "contracts/openapi.yaml").read_text())
-        money = doc["components"]["schemas"]["Money"]
+        # STEP-004.06 moved Money into `contracts/jsonschema/`, so the assertion
+        # follows the reference. Reading the OpenAPI node directly would now pass
+        # vacuously against a `$ref` with no `properties` at all — which is how a
+        # test survives a refactor while checking nothing.
+        node = doc["components"]["schemas"]["Money"]
+        assert "$ref" in node, "Money should be shared, not inline (STEP-004.06)"
+        money = json.loads((REPO / "contracts" / node["$ref"][2:]).read_text())
         assert money["properties"]["amount_minor"]["type"] == "integer"
         declared = {p.get("type") for p in money["properties"].values()}
         assert "number" not in declared, "money must never be declared as a float"
