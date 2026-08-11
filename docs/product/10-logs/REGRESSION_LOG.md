@@ -67,6 +67,73 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-004.07 — 2026-08-11 — Client generation and no-hand-edit enforcement
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `73a2780` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 592 Python + 61 web + 307 UI + 40 browser. `pnpm verify` green across all 22 steps |
+| R2 contract compatibility | **PASS — and this was the last free moment** | `Evidenced.conflicts[]` narrowed: two required members added, object closed (BUG-020). `.06` recorded that such a change becomes breaking once clients exist. The fix and the **first ever generation** are in the same commit, so no client was ever produced from the defective shape. A week later this would have been a migration |
+| R3 graph diff as expected | **PASS** | `detect_changes(staged)`: 58 symbols, 23 files, 1 affected process — `main → generate_typescript → run`, the generator's own flow. **No symbol from either generated client appears**, which is the exclusion doing its job |
+| R4 untested requirements | **PASS — improved** | REQ-PLAT-007 newly covered by a mutation-tested guard |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner; `guard:codeowners` green on the new `packages/contracts/` tree |
+| R6 closed-bug tests | **PASS** | BUG-001…020. Guard meta-suite **47/47** (up from 43: 4 new cases for the drift guard) |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched. No generated model has a tenant field, because no operation declares a tenant parameter |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `openapi-typescript` v7 crashed in the TypeScript compiler API | ADR-009 — TS 7 is the native compiler and ships no JavaScript API. **Third tool to assume one exists** | Pinned to v6, with the reason recorded at the pin rather than in a changelog |
+| Generated Python failed at import: `SyntaxError: invalid character '—'` | `--custom-file-header` is inserted **verbatim**; a prose header is not a comment | Header pre-commented before being passed. The generator does not check that its own output parses |
+| `TS2688: Cannot find type definition file for 'node'` | I copied `packages/ui`'s tsconfig into a package with no components, no tooling and no `@types/node` | Config rewritten from what the package actually contains |
+| `pnpm lint` — 2 errors, 1 warning | An unnecessary `biome-ignore`, plus formatting and export ordering in the two hand-written files | Suppression removed and replaced with a comment explaining why the aliases are unused **by design**; `biome check --write` for the rest |
+| `ruff S105` on generated `token = 'token'` | Ruff was linting generated output | `apps/api/src/generated` added to `extend-exclude`, matching biome's existing `!**/generated`. **A linter that rewrites generated output fights the generator through the drift guard, forever** |
+| `ruff S603` on `subprocess.run` | A genuine security lint on a real subprocess call | Suppressed with justification at the call site — fixed argv from module constants, no shell, no caller-reachable parameter |
+| One meta-test failed on the first full run | `typecheck.sh` — the new package's broken tsconfig | Fixed above. **The baseline loop caught a defect I had introduced, in a file the meta-suite does not know about** |
+
+### Mutation testing
+
+Every property claimed by this sub-step was seeded with a violation and confirmed to fail.
+
+| Seeded | Result |
+| --- | --- |
+| Hand edit appended to the generated TypeScript | **killed** — exit 1, `DRIFT` |
+| Field added to `openapi.yaml` without regenerating | **killed** — exit 1, `DRIFT` |
+| `Money.amount_minor` retyped to `string` | **killed** at compile time |
+| `Evidenced.status` widened with a third member | **killed** |
+| `Evidenced` losing `validity` | **killed** |
+| Conflict entry losing `validity` | **killed** |
+| `access_label` losing `internal_only` | **killed** |
+| Internal-code check inverted | **killed** |
+| `ErrorCode` degraded to `string` | **killed** |
+| `conflicts[].source` restored to `{type: object}` | **killed** — the BUG-020 regression test |
+
+### Notes
+
+**The generator found a contract defect that 592 Python tests could not.** BUG-020:
+`Evidenced.conflicts[].source` was `{type: object}` and emitted as
+`Record<string, never>` — an object permitted to hold nothing. Every YAML assertion
+passed because they were all reading the document that was wrong. A second
+representation of the same contract is a second reader, and this is the concrete
+argument for generating clients rather than hand-writing them.
+
+**A skip is not a pass.** `pnpm e2e` reports 20 passed, 3 skipped — unchanged from
+STEP-003 closure, and the skips are the Auth0-dependent checks that need a live
+tenant (`DEC-004`, still unverified against a real account).
+
+**The graph exclusion is verified but not sized.** BR-034 §4 states this plainly
+rather than quoting the 3-node difference the comparison produced, which measured
+nothing because the files were staged rather than committed at the time.
+
+---
+
 ## STEP-004.06 — 2026-08-11 — Shared JSON Schemas including model-output schemas
 
 | Field | Value |

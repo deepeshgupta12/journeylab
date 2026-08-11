@@ -109,12 +109,17 @@ Nine-step fan-in. Every subsequent contract change inherits [CONTRACT_CHANGE_POL
 | --- | --- |
 | STEP-004.01 | Global conventions: errors, pagination, idempotency, ETags, correlation — ✅ **VERIFIED** 2026-08-11 (BR-028, IMPL-025) |
 | STEP-004.02 | Trip, brief and scenario operations (API-001…009) — ✅ **VERIFIED** 2026-08-11 (BR-029, IMPL-026) |
-| STEP-004.03 | Collaboration, booking, live, feedback operations (API-010…014) |
-| STEP-004.04 | Privacy, admin, coverage, jobs operations (API-015…018) |
-| STEP-004.05 | AsyncAPI events with delivery guarantees (EVT-001…008) |
-| STEP-004.06 | Shared JSON Schemas incl. model-output schemas |
-| STEP-004.07 | Client generation pipeline + no-hand-edit enforcement |
+| STEP-004.03 | Collaboration, booking, live, feedback operations (API-010…014) — ✅ **VERIFIED** 2026-08-11 (BR-030, IMPL-027) |
+| STEP-004.04 | Privacy, admin, coverage, jobs operations (API-015…018) — ✅ **VERIFIED** 2026-08-11 (BR-031, IMPL-028) |
+| STEP-004.05 | AsyncAPI events with delivery guarantees (EVT-001…008) — ✅ **VERIFIED** 2026-08-11 (BR-032, IMPL-029) |
+| STEP-004.06 | Shared JSON Schemas incl. model-output schemas — ✅ **VERIFIED** 2026-08-11 (BR-033, IMPL-030) |
+| STEP-004.07 | Client generation pipeline + no-hand-edit enforcement — ✅ **VERIFIED** 2026-08-11 (BR-034, IMPL-031, BUG-020) |
 | STEP-004.08 | Compatibility and consumer contract tests |
+
+> `.03`–`.06` were verified in their own commits but this checklist was not updated
+> with them. Corrected at `.07`. The sub-step records and `MASTER_TRACKER` were
+> current throughout — `MASTER_TRACKER` is the source of delivery status
+> (`CLAUDE.md` §1.10) and this table is a convenience view of it.
 
 ## 22. Test and evaluation plan
 `TST-PLAT-005` … `TST-PLAT-008`. Compatibility tests compare against the previous release; consumer-driven contract tests replay sanitized payloads.

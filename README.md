@@ -47,7 +47,7 @@ cp .env.example .env                                # local dev config
 pnpm verify                                         # must be green
 ```
 
-`pnpm verify` is the whole gate: 21 steps across 15 repository guards, linting,
+`pnpm verify` is the whole gate: 22 steps across 16 repository guards, linting,
 formatting, typechecking, the JavaScript and Python suites, a production build, and
 a **real-browser accessibility run**. **It must pass before you change anything**, so
 you know any later failure is yours.
@@ -65,6 +65,34 @@ pnpm --filter @journeylab/web exec playwright install --with-deps chromium
 | `pnpm a11y` | The 40 browser accessibility tests |
 | `pnpm ci:local` | **Runs CI's job on Linux, in a clean checkout, with a cold install.** Run it before pushing anything touching dependencies, generated files, or CI itself — it has caught seven failures that a macOS run could not |
 | `pnpm build` | Production build of every package |
+| `pnpm contracts:generate` | Rebuilds the API clients from `contracts/` — run it after **any** contract change |
+
+### Changing the API contract
+
+`contracts/openapi.yaml` is the source. The TypeScript and Python clients are
+built from it and **must never be edited by hand** (`REQ-PLAT-007`):
+
+```bash
+# 1. edit contracts/openapi.yaml (or contracts/jsonschema/*.json)
+pnpm contracts:generate     # 2. rebuild both clients
+pnpm verify                 # 3. the drift guard confirms they match
+```
+
+`pnpm verify` regenerates and diffs. If the committed client differs from what
+the contract produces, the build fails — whether that is because someone edited
+a generated file or because someone changed the contract and did not regenerate.
+The guard deliberately cannot tell those apart, since the remedy is the same.
+
+| Generated, do not edit | Built from |
+| --- | --- |
+| `packages/contracts/src/generated/openapi.ts` | `contracts/openapi.yaml` |
+| `apps/api/src/generated/models.py` | `contracts/openapi.yaml` |
+| `contracts/schemas/error-codes.json` | `docs/product/04-contracts/ERROR_MODEL.md` §3 |
+| `apps/api/src/conventions/error_codes.py` | `docs/product/04-contracts/ERROR_MODEL.md` §3 |
+
+`packages/contracts/src/index.ts` and `contract.assert.ts` are **hand-written** and
+outside the guard: the first is the package's public surface, the second holds
+compile-time assertions that the generated types did not silently degrade.
 
 ### Seeing the UI
 
@@ -120,10 +148,11 @@ apps/api/          FastAPI — auth, tenancy, authorization             built
 packages/ui/       design system: tokens, primitives, a11y            built
 services/audit/    append-only audit with redaction                   built
 db/migrations/     schema + row-level security                        built
-contracts/         OpenAPI, AsyncAPI, JSON Schema                     [STEP-004]
+contracts/         OpenAPI, AsyncAPI, JSON Schema — the source of truth  built
+packages/contracts/ generated TypeScript client (never hand-edited)   built
 services/          domain, data, retrieval, AI, ML, workflow          [STEP-005+]
 infra/local/       local development images
-tests/guards/      15 executable repository guards (run by pnpm verify)
+tests/guards/      16 executable repository guards (run by pnpm verify)
 tests/security/    cross-tenant isolation suite (R7)
 docs/product/      the documentation system — scope, architecture, contracts
 docs/adr/          architecture decision records
@@ -144,12 +173,12 @@ docs/adr/          architecture decision records
 
 | Suite | Count | Runs in |
 | --- | --- | --- |
-| Python | 335 | `pnpm verify` |
+| Python | 592 | `pnpm verify` |
 | Design system (jsdom) | 307 | `pnpm verify` |
 | Web (unit) | 61 | `pnpm verify` |
 | **Real browser (Playwright + axe)** | **40** | `pnpm verify` |
 | Cross-tenant isolation (R7) | 12 | `pnpm test:security` |
-| Guard meta-tests | 43 | `pnpm guard:meta` |
+| Guard meta-tests | 47 | `pnpm guard:meta` |
 
 The browser suite is the one to know about. It runs axe over five surfaces in two
 device profiles and asserts keyboard traversal, focus visibility, 24×24 touch

@@ -233,8 +233,37 @@ class TestEvidence:
         assert "default" not in status
 
     def test_conflicting_sources_are_retained_not_averaged(self) -> None:
-        """REQ-EVID-002. The mean of two departure times is a time no ferry leaves."""
-        assert "conflicts" in SPEC["components"]["schemas"]["Evidenced"]["properties"]
+        """REQ-EVID-002. The mean of two departure times is a time no ferry leaves.
+
+        BUG-020: this test used to assert only that the `conflicts` KEY existed.
+        It passed while each entry's source was `{type: object}` — an object with
+        no declared properties, which generated as `Record<string, never>`. A
+        retained conflict that cannot name its source or say when it was observed
+        satisfies the letter of REQ-EVID-002 and none of its purpose.
+
+        So the assertion is now about substance. Attribution and the time axes are
+        what make a disagreement actionable: without provenance nobody can weigh
+        it, and without validity a value that simply CHANGED is indistinguishable
+        from two sources that DISAGREE.
+        """
+        conflicts = SPEC["components"]["schemas"]["Evidenced"]["properties"]["conflicts"]
+        entry = conflicts["items"]
+
+        assert set(entry["required"]) == {"value", "provenance", "validity"}
+        assert entry["additionalProperties"] is False
+
+        # Composed from the same shared schemas as the primary claim, not restated.
+        # A conflicting source described by a different shape is one that drifts.
+        assert entry["properties"]["provenance"]["$ref"].endswith("provenance.json")
+        assert entry["properties"]["validity"]["$ref"].endswith("temporal-validity.json")
+
+        provenance = json.loads(
+            (REPO / "contracts" / entry["properties"]["provenance"]["$ref"][2:]).read_text()
+        )
+        assert "access_label" in provenance["required"], (
+            "a conflicting value may come from an internal_only source; the "
+            "interface must be able to plan with it without displaying it"
+        )
 
     def test_the_itinerary_uses_evidenced_for_volatile_fields(self) -> None:
         item = SPEC["components"]["schemas"]["ItineraryItem"]["properties"]

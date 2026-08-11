@@ -1,0 +1,30 @@
+{
+  // This package contains GENERATED TYPES AND NOTHING ELSE, and this config is
+  // deliberately narrower than packages/ui's rather than a copy of it.
+  //
+  //   no "types": ["node"]        — nothing here touches a Node global, and
+  //                                 declaring the library without depending on
+  //                                 @types/node is what broke the build first
+  //                                 time (TS2688).
+  //   no "jsx"                    — there are no components.
+  //   no allowImportingTsExtensions — there is no tooling entry point; BUG-018
+  //                                 does not apply to a package with no scripts.
+  //
+  // "DOM" stays in lib because openapi-typescript emits `Blob` and
+  // `ReadableStream` for binary media types.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
+}

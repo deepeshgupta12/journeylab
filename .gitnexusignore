@@ -1,0 +1,22 @@
+# Paths excluded from knowledge-graph indexing — STEP-004.07.
+#
+# WHY GENERATED CODE MUST NOT BE INDEXED
+#   Two reasons, and the second is the one that matters.
+#
+#   1. It inflates coverage. `REQ-KG-001` (≥95% files parsed) and `REQ-KG-002`
+#      (≥90% symbols owned) are gates on OUR code. Thousands of generated symbols
+#      that nobody wrote and nobody can change would make both look healthier
+#      while saying nothing about the code a human maintains.
+#
+#   2. It makes impact analysis wrong in the worst direction. Every generated
+#      model would appear as a dependent of every contract type, so a pre-change
+#      check on a shared schema would report a blast radius of hundreds — and a
+#      number that large is one nobody reads. A gate that always says "high" is a
+#      gate that gets skipped.
+#
+#   The contract documents themselves stay indexed. They are the source, they are
+#   hand-written, and a change to one is exactly what a pre-change check should
+#   surface.
+
+packages/contracts/src/generated/
+apps/api/src/generated/

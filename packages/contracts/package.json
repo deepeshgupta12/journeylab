@@ -1,0 +1,16 @@
+{
+  "name": "@journeylab/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Generated API clients. Every file under src/generated is a build artifact — never hand-edited (REQ-PLAT-007).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

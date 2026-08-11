@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Owner | Engineering (Deepesh Kumar Gupta) |
-| Status | `ACTIVE` — 2 bugs recorded, both closed with regression tests |
+| Status | `ACTIVE` — 20 bugs recorded, all closed with regression tests |
 | Rule | **Every fixed bug gets a regression test.** Check R6 verifies they all still pass at every sub-step |
-| Last reviewed | 2026-08-05 |
+| Last reviewed | 2026-08-11 |
 
 Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.md) · [Regression log](REGRESSION_LOG.md) · [Incident response](../07-operations/INCIDENT_RESPONSE.md)
 
@@ -28,6 +28,7 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BUG-020 | A retained evidence conflict could not name its own source | **S3** | STEP-004.07 | **The client generator** — `Record<string, never>` in the emitted TypeScript | `Evidenced.conflicts[].source` was `{type: object}`, so a conflicting claim carried no id, confidence, access label or observation time | The test asserted only that the `conflicts` KEY existed, which is true of an object that can hold nothing | *(this commit)* | `test_conflicting_sources_are_retained_not_averaged`, rewritten to assert substance; mutation-verified against the old shape | **CLOSED** | 2026-08-11 |
 | BUG-008 | Guards assumed macOS paths; failed in CI | **S2** | second CI run | Repository owner | verify failed: documented Node path not executable on ubuntu-latest | Guards encoded Homebrew paths and BSD sed; meta-tested on macOS only | *(this commit)* | all 11 guards verified in a Linux container | **CLOSED** | 2026-08-05 |
 | BUG-007 | Security suite passed while schema was absent | **S2** | STEP-002.01 | First R7 run | 3 write-denial assertions passed with no tables; migration had failed on missing citext | Migration not self-contained; assertions could not distinguish policy denial from query error | *(this commit)* | suite meta-test: weakened policy must expose both tenants | **CLOSED** | 2026-08-05 |
 | BUG-006 | CI failed: duplicate pnpm version | **S2** | first real CI run | Repository owner | verify pipeline failed in 7s, ERR_PNPM_BAD_PM_VERSION | `version:` in workflow duplicated `packageManager` in package.json | *(this commit)* | none possible locally — see entry | **CLOSED** | 2026-08-05 |
@@ -36,6 +37,100 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 | BUG-003 | Sub-step committed without required documentation | **S3** | STEP-001.04 close-out | Post-commit verification | `8a9af9b` shipped without IMPL-004, regression entry or status update | Log script failed; commit ran in the same shell invocation regardless | *(this commit)* | `tests/guards/substep-docs.sh` | **CLOSED** | 2026-08-05 |
 | BUG-002 | `node_modules/` tracked in git | **S3** | STEP-001.02 pre-change analysis | Pre-change inventory | 2 dependency files committed; `.gitignore` contained only `.gitnexus` | `.gitignore` written without dependency/build exclusions in STEP-001.01 | *(this commit)* | `tests/guards/no-tracked-artifacts.sh` | **CLOSED** | 2026-08-05 |
 | BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-020 — A retained evidence conflict could not name its own source
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — no runtime path exists yet; the contract would have propagated the defect into every consumer of `Evidenced` |
+| Found during | STEP-004.07 — **by generating the client**, which is the sub-step's entire argument |
+| Date found | 2026-08-11 |
+| Affected requirements | REQ-EVID-002 (conflicting evidence stays visible, never averaged) |
+
+### Symptom
+
+The generated TypeScript client rendered a conflicting source as an object that
+can hold nothing at all:
+
+```ts
+conflicts?: {
+    source: Record<string, never>;   // <- no property is permitted
+    value: unknown;
+  }[];
+```
+
+### Root cause
+
+`contracts/openapi.yaml` declared the entry as:
+
+```yaml
+required: [source, value]
+properties:
+  source: { type: object }
+  value: {}
+```
+
+`type: object` with no `properties` is an object with nothing in it. Every
+required-ness check passed — `source` **is** required — while the thing being
+required was empty.
+
+### Why it matters more than it looks
+
+`REQ-EVID-002` exists because averaging two disagreeing ferry departure times
+produces a time no ferry leaves. Retaining the disagreement is only half of that:
+a conflict a user cannot attribute is a number with no argument attached to it,
+and the interface has no basis on which to show one source over another.
+
+Two members were missing and each has a distinct consequence:
+
+| Missing | Consequence |
+| --- | --- |
+| `provenance.access_label` | A licensed source may be `internal_only` — usable for planning, **not displayable**. Without the label the interface cannot know that, and the safe default (hide everything) discards evidence the product paid for |
+| `validity` | Two observations hours apart look like a **disagreement** when they are one value that **changed**. Conflict and staleness have different remedies, and only the time axes separate them |
+
+### Fix
+
+The entry is now composed from the same shared schemas as the primary claim —
+`provenance.json` and `temporal-validity.json` — and closed with
+`additionalProperties: false`. A conflicting claim now carries exactly what the
+claim it disputes carries, which is the only defensible answer to "how much
+evidence does a disagreement need".
+
+### Why the tests missed it — the finding worth keeping
+
+```python
+assert "conflicts" in SPEC["components"]["schemas"]["Evidenced"]["properties"]
+```
+
+**The assertion tested for a key, not for a capability.** It would have passed if
+`conflicts` had been `{}`.
+
+This is the same shape as the stale assertions in `.02` and `.03` and the
+would-have-gone-vacuous test in `.06`: an assertion written against the existence
+of a thing rather than against the property the requirement actually names. A
+requirement that says conflicting evidence "stays visible" is not satisfied by a
+field being present — it is satisfied by the field carrying enough to act on.
+
+**It also took a second tool to find it.** 470 Python assertions read the YAML and
+all agreed it was fine, because they were reading the same document that was
+wrong. The generator produced a *different representation* of the same contract,
+and `Record<string, never>` is a shape a human notices immediately. Generating a
+client is not only a delivery mechanism; it is a second reader.
+
+### Regression test
+
+`test_conflicting_sources_are_retained_not_averaged` now asserts the exact
+required set, that the entry is closed, that both members are `$ref`s to the
+shared schemas rather than restatements, and that `access_label` survives into
+the resolved provenance. **Mutation-verified:** restoring `source: {type: object}`
+fails the test.
+
+The compile-time side is covered too —
+`packages/contracts/src/contract.assert.ts` asserts the emitted conflict shape,
+and that assertion was itself mutation-tested by removing `validity` from the
+expected key union.
 
 ---
 

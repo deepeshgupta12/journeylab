@@ -62,7 +62,9 @@ echo "=== baseline: every guard passes on a clean tree ==="
 for g in tests/guards/*.sh; do
   # gallery-gate.sh boots a production server and takes ~15s; it is exercised in
   # its own section below rather than in the fast baseline loop.
-  case "$(basename "$g")" in change-impact-record.sh|gallery-gate.sh) continue ;; esac
+  # generated-clients.sh regenerates both clients from the contract (~20s); it is
+  # exercised in its own section below rather than in the fast baseline loop.
+  case "$(basename "$g")" in change-impact-record.sh|gallery-gate.sh|generated-clients.sh) continue ;; esac
   assert_guard "$(basename "$g") clean" "$g" 0
 done
 
@@ -194,6 +196,47 @@ if [ -d apps/web/.next ]; then
   assert_guard "gallery-gate clean again" tests/guards/gallery-gate.sh 0
 else
   echo "  skip gallery-gate meta-test — no production build present (run pnpm build)"
+fi
+
+echo ""
+echo "=== STEP-004.07: generated clients must match the contract ==="
+# TWO FAILURE MODES, AND THE GUARD MUST CATCH BOTH.
+#   A hand edit means someone changed the client instead of the contract.
+#   A stale client means someone changed the contract and did not regenerate.
+# Both leave the same evidence — a diff — and the guard deliberately does not try
+# to tell them apart, because both mean the committed client is not what the
+# contract describes. This section proves each one independently.
+GEN_TS=packages/contracts/src/generated/openapi.ts
+if [ -f "$GEN_TS" ]; then
+  assert_guard "generated-clients passes on a clean tree" tests/guards/generated-clients.sh 0 "match the contract"
+
+  cp "$GEN_TS" /tmp/META_GEN_TS.bak
+  printf '\nexport type IWasHandEdited = string;\n' >> "$GEN_TS"
+  assert_guard "generated-clients catches a hand-edited client" tests/guards/generated-clients.sh 1 "DRIFT"
+  cp /tmp/META_GEN_TS.bak "$GEN_TS"; rm -f /tmp/META_GEN_TS.bak
+
+  # The second seed edits the CONTRACT and does not regenerate — the mistake a
+  # contributor actually makes, as opposed to the one they would have to go out of
+  # their way to make.
+  #
+  # Both clients are backed up around this seed, not just the contract. The guard
+  # regenerates IN PLACE, so a failing run leaves the drifted client on disk;
+  # restoring only the contract would carry the seed into the next assertion.
+  GEN_PY=apps/api/src/generated/models.py
+  cp contracts/openapi.yaml /tmp/META_GEN_OA.bak
+  cp "$GEN_TS" /tmp/META_GEN_TS.bak
+  cp "$GEN_PY" /tmp/META_GEN_PY.bak
+  sedi 's|        handoff_id: { type: string }|        handoff_id: { type: string }\
+        meta_seed_field: { type: string }|' contracts/openapi.yaml
+  assert_guard "generated-clients catches a contract change without regeneration" tests/guards/generated-clients.sh 1 "DRIFT"
+  cp /tmp/META_GEN_OA.bak contracts/openapi.yaml
+  cp /tmp/META_GEN_TS.bak "$GEN_TS"
+  cp /tmp/META_GEN_PY.bak "$GEN_PY"
+  rm -f /tmp/META_GEN_OA.bak /tmp/META_GEN_TS.bak /tmp/META_GEN_PY.bak
+
+  assert_guard "generated-clients clean again" tests/guards/generated-clients.sh 0
+else
+  echo "  skip generated-clients meta-test — no generated client present (run pnpm contracts:generate)"
 fi
 
 echo ""

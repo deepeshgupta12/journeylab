@@ -1083,11 +1083,31 @@ components:
             (`REQ-EVID-002`) — the mean of two conflicting departure times is a
             time no ferry leaves.
           items:
+            # SYMMETRIC WITH THE PARENT, AND THAT IS THE POINT (BUG-020).
+            #   This was `source: { type: object }` — an object with nothing
+            #   declared in it, which generated as `Record<string, never>`: a
+            #   conflicting source that cannot state who it is. Retaining a
+            #   disagreement nobody can attribute is not `REQ-EVID-002`.
+            #
+            #   A conflicting claim needs everything the primary claim needs.
+            #   `access_label` especially: a licensed source may be
+            #   `internal_only`, so the interface has to know it may plan with
+            #   the conflicting value and may not display it.
+            #
+            #   `validity` is required for a reason that is easy to miss —
+            #   without it, two sources observed hours apart look like a
+            #   disagreement when they are actually one value that changed.
+            #   Conflict and staleness are different problems with different
+            #   remedies, and only the time axes tell them apart.
             type: object
-            required: [source, value]
+            required: [value, provenance, validity]
+            additionalProperties: false
             properties:
-              source: { type: object }
               value: {}
+              provenance:
+                $ref: './jsonschema/provenance.json'
+              validity:
+                $ref: './jsonschema/temporal-validity.json'
 
     ConflictSet:
       type: object

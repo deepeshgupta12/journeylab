@@ -60,6 +60,109 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-031 — STEP-004.07 — Client generation and no-hand-edit enforcement
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-11 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PLAT-007 |
+| Blast radius | [BR-034](blast-radius/BR-034-generated-clients.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `73a2780` — matched HEAD at pre-change |
+| Bugs closed | [BUG-020](BUG_REGISTER.md) |
+
+### What was built
+
+`contracts/openapi.yaml` stopped being a document that tests read and became a
+source that code is built from. `tools/gen_clients.py` emits a TypeScript client
+(2,022 lines) and a Python one (71 Pydantic classes) from the single contract.
+
+Enforcement is `tests/guards/generated-clients.sh`: regenerate, then diff. It
+catches a hand-edited client and a stale one with the same check and **cannot tell
+them apart** — which is correct, because both mean the committed client is not what
+the contract describes, and the remedy is identical.
+
+### Why not a "DO NOT EDIT" header
+
+A header is advice. Somebody editing a generated file to fix an urgent bug keeps
+the header, and the next regeneration reverts their fix **silently** — worse than
+either failing or succeeding, because the fix disappears without a trace and the
+bug returns. The guard fails the build instead.
+
+### The generator found a contract defect that 470 assertions had read past
+
+`Evidenced.conflicts[].source` was `{type: object}` and emitted as
+`Record<string, never>` — a conflicting source that cannot state who it is.
+BUG-020, fixed here by composing the entry from the same shared schemas as the
+claim it disputes.
+
+Every Python test agreed the contract was fine, because they were reading the same
+document that was wrong. The generator produced a **different representation**, and
+`Record<string, never>` is a shape a human notices instantly. Generating a client
+is not only a delivery mechanism; it is a second reader of the contract.
+
+The test that missed it asserted `"conflicts" in properties` — a key, not a
+capability. That is now the fourth assertion in this step written against the
+existence of a thing rather than the property the requirement names (`.02`, `.03`,
+`.06`, and this one). It has stopped being a coincidence and is called out in the
+sub-step record as something `.08` should look for deliberately.
+
+### The TypeScript side had no tests, and `tsc` was not one
+
+`tsc --noEmit` proves the generated file parses. It would pass just as happily if
+every schema had collapsed to `unknown` — which is a live risk, because `.06` moved
+four schemas into external `$ref`s and an unresolved external ref **degrades rather
+than errors**. `Money` becoming `unknown` would typecheck cleanly here and then
+accept a float at every call site in the product.
+
+`packages/contracts/src/contract.assert.ts` holds 8 assertions written with an
+`Exact<>` helper rather than `extends`, because `extends` is satisfied by `unknown`
+on the right-hand side — precisely the degradation being guarded against. All 8
+were mutation-tested: each was seeded with a plausible wrong type and each failed
+the build.
+
+### Third time the missing compiler API has broken a tool
+
+`openapi-typescript` v7 builds output through `ts.factory.*`. TypeScript 7 ships
+no JavaScript compiler API (`ADR-009`). Pinned to v6, with the reason recorded at
+the pin. BUG-017 was Next's type-check step, BUG-018 the token generator. Three
+tools assuming a JavaScript compiler API exists is a property of the ecosystem, not
+bad luck — and the next generator added to this repository should be checked for it
+before it is chosen, not after.
+
+### What surprised me
+
+**The Python generator emits a header it never checks.** `--custom-file-header` is
+inserted verbatim, so a plain prose header produced a module that failed at import
+with `SyntaxError: invalid character '—'`. The generator does not verify that its
+own output parses.
+
+**I copied a tsconfig from a package with nothing in common with this one** —
+`types: ["node"]` without the dependency, `jsx` with no components, and
+`allowImportingTsExtensions` for tooling that does not exist here. `TS2688` on the
+first typecheck. Copying configuration is how a package acquires requirements
+nobody chose.
+
+**`package.json` exported a file that did not exist.** Nothing imported the package,
+so nothing failed. A broken entry point stays invisible until the first consumer,
+which is the worst possible moment to discover it.
+
+**The graph exclusion could not be measured honestly.** Comparing indexes with and
+without `.gitnexusignore` gave a 3-node difference against 71 generated classes,
+because the files were staged but uncommitted and GitNexus did not parse them in
+that state. The exclusion is verified — a Cypher query returns no generated nodes —
+but its magnitude is not, and BR-034 §4 says so rather than quoting the meaningless
+number.
+
+### What was deliberately left undone
+
+**AsyncAPI generates nothing.** `DEC-009` (queue versus Kafka) is open and the event
+client's delivery semantics depend on it. Generating one now would bake in an
+assumption this repository has explicitly refused to make. Carried to `STEP-006`.
+
+---
+
 ## IMPL-030 — STEP-004.06 — Shared JSON Schemas including model-output schemas
 
 | Field | Value |
