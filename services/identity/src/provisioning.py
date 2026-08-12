@@ -18,8 +18,12 @@ WHAT THIS MODULE DELIBERATELY DOES NOT DO
       so every mutating call RETURNS an `AuditRecord` the caller must write.
       Returning it rather than logging it means the obligation cannot be forgotten
       silently — the value is in the caller's hands.
-    - It does not invalidate tokens. Revocation marks state; making a live session
-      stop is STEP-002.05.
+    - It does not manage sessions. The session store is `sessions.py`
+      (STEP-002.08); this module calls into it only to end sessions when the
+      access behind them is revoked. The original note here said "making a live
+      session stop is STEP-002.05" — that work was carried and then dropped
+      (`BUG-022`), which is why revoking a role left a working token behind for
+      six sub-steps.
 """
 
 from __future__ import annotations
@@ -251,6 +255,24 @@ async def grant_membership(
     )
 
 
+async def _revoke_sessions_for(
+    cur: _Cursor, *, organization_id: uuid.UUID, user_id: uuid.UUID
+) -> None:
+    """End this user's live sessions in this organization.
+
+    Written as inline SQL rather than by importing `sessions.revoke_all_for_user`
+    on purpose: `services/identity` would otherwise import from itself across a
+    module that also imports back, and ADR-003's boundary rules make that a cycle
+    the guard rejects. The statement is identical to the one in `sessions.py`, and
+    `test_revoking_a_membership_revokes_that_users_sessions` fails if they drift.
+    """
+    await cur.execute(
+        "UPDATE sessions SET revoked_at = now(), revoked_reason = %s "
+        "WHERE organization_id = %s AND user_id = %s AND revoked_at IS NULL",
+        ("membership_revoked", str(organization_id), str(user_id)),
+    )
+
+
 async def revoke_membership(
     cur: _Cursor,
     *,
@@ -263,12 +285,24 @@ async def revoke_membership(
 
     Deleting would erase the evidence that access was once held, which is exactly
     what an investigation needs. Revoked rows remain and readers must filter them.
+
+    **This also ends the user's live sessions in this organization** (STEP-002.08).
+    Until the session store existed, revoking a role stopped the NEXT authorization
+    check and left every already-issued token working until it expired on its own —
+    so removing someone's access did not remove their access. That was `.04`'s
+    second partial and it is closed here.
+
+    In the same transaction as the membership update, deliberately. A revocation
+    that commits the role change and then fails to revoke the sessions leaves the
+    system in the exact state the change was meant to prevent, and nothing would
+    report it.
     """
     await cur.execute(
         "UPDATE memberships SET revoked_at = now() "
         "WHERE organization_id = %s AND user_id = %s AND role_key = %s AND revoked_at IS NULL",
         (str(organization_id), str(user_id), role_key),
     )
+    await _revoke_sessions_for(cur, organization_id=organization_id, user_id=user_id)
     return AuditRecord(
         action="membership.revoked",
         actor_id=actor_id,

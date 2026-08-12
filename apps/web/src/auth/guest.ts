@@ -37,6 +37,15 @@ export interface GuestSessionRecord {
   readonly tokenHash: string;
   readonly issuedAt: number;
   readonly expiresAt: number;
+  /**
+   * When the session was ended server-side, or null if it is still live.
+   *
+   * STEP-002.08. Required, not optional: an optional field would let a caller
+   * that has not yet learned about revocation omit it and get a valid session,
+   * which is the failure this exists to prevent. Making it required means every
+   * call site had to be visited, and the compiler found them.
+   */
+  readonly revokedAt: number | null;
 }
 
 export function issueGuestSession(now: number = Date.now()): GuestSession {
@@ -64,7 +73,10 @@ export async function hashGuestToken(token: string): Promise<string> {
 
 export type GuestValidity =
   | { readonly valid: true; readonly expiresInSeconds: number; readonly expiringSoon: boolean }
-  | { readonly valid: false; readonly reason: 'expired' | 'unknown_token' | 'malformed' };
+  | {
+      readonly valid: false;
+      readonly reason: 'expired' | 'unknown_token' | 'malformed' | 'revoked';
+    };
 
 /**
  * Decide whether a presented guest token is still usable.
@@ -88,6 +100,12 @@ export async function validateGuestSession(
   const presentedHash = await hashGuestToken(presentedToken);
   if (!timingSafeEqual(presentedHash, record.tokenHash)) {
     return { valid: false, reason: 'unknown_token' };
+  }
+  // Revocation is checked BEFORE expiry, so an investigation reading the reason
+  // learns that a session was deliberately ended rather than that it timed out.
+  // Both refuse the request; only one of them says somebody signed out.
+  if (record.revokedAt !== null) {
+    return { valid: false, reason: 'revoked' };
   }
   if (now >= record.expiresAt) {
     return { valid: false, reason: 'expired' };

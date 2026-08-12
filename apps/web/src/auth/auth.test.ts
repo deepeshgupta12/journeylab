@@ -149,6 +149,7 @@ describe('guest session', () => {
       tokenHash: await hashGuestToken(guest.token),
       issuedAt: guest.issuedAt,
       expiresAt: guest.expiresAt,
+      revokedAt: null,
     };
     const verdict = await validateGuestSession(guest.token, record, NOW + 1000);
     expect(verdict.valid).toBe(true);
@@ -160,6 +161,7 @@ describe('guest session', () => {
       tokenHash: await hashGuestToken(guest.token),
       issuedAt: guest.issuedAt,
       expiresAt: guest.expiresAt,
+      revokedAt: null,
     };
     const verdict = await validateGuestSession(guest.token, record, guest.expiresAt + 1);
     expect(verdict.valid).toBe(false);
@@ -179,10 +181,42 @@ describe('guest session', () => {
       tokenHash: await hashGuestToken(other.token),
       issuedAt: guest.issuedAt,
       expiresAt: guest.expiresAt,
+      revokedAt: null,
     };
     const verdict = await validateGuestSession(guest.token, record, NOW);
     expect(verdict.valid).toBe(false);
     if (!verdict.valid) expect(verdict.reason).toBe('unknown_token');
+  });
+
+  it('rejects a REVOKED record while it is still unexpired', async () => {
+    // STEP-002.08. The whole point of the server-side store: a session ended by
+    // signing out, or by an administrator, must stop working immediately rather
+    // than running to its natural seven-day expiry (ADR-014).
+    const guest = issueGuestSession(NOW);
+    const record = {
+      tokenHash: await hashGuestToken(guest.token),
+      issuedAt: guest.issuedAt,
+      expiresAt: guest.expiresAt,
+      revokedAt: NOW + 1000,
+    };
+    const verdict = await validateGuestSession(guest.token, record, NOW + 2000);
+    expect(verdict.valid).toBe(false);
+    if (!verdict.valid) expect(verdict.reason).toBe('revoked');
+  });
+
+  it('reports revocation rather than expiry when a revoked session also expired', async () => {
+    // Order matters for the audit trail, not for the outcome: both refuse. Only
+    // one of them says a human deliberately ended the session.
+    const guest = issueGuestSession(NOW);
+    const record = {
+      tokenHash: await hashGuestToken(guest.token),
+      issuedAt: guest.issuedAt,
+      expiresAt: guest.expiresAt,
+      revokedAt: NOW + 1000,
+    };
+    const verdict = await validateGuestSession(guest.token, record, guest.expiresAt + 1);
+    expect(verdict.valid).toBe(false);
+    if (!verdict.valid) expect(verdict.reason).toBe('revoked');
   });
 
   it('stores a hash, never the token itself', async () => {
@@ -198,6 +232,7 @@ describe('guest session', () => {
       tokenHash: await hashGuestToken(guest.token),
       issuedAt: guest.issuedAt,
       expiresAt: guest.expiresAt,
+      revokedAt: null,
     };
     const early = await validateGuestSession(guest.token, record, NOW);
     const late = await validateGuestSession(

@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Owner | Product Lead (Deepesh Kumar Gupta) |
-| Status | `ACTIVE` — 1 entry, awaiting an owner decision |
+| Status | `ACTIVE` — 2 entries, both awaiting an owner decision |
 | Purpose | Record improvements proposed or delivered beyond the stated requirement, so scope growth is visible rather than silent |
 | Last reviewed | 2026-08-12 |
 
@@ -23,9 +23,74 @@ An enhancement is work nobody asked for. It may be excellent and it may be scope
 
 | ID | Title | Proposed by | Date | Type | Requirement affected | Decision | Delivered in | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ENH-002 | Guard that a carried commitment is discharged | Deepesh Kumar Gupta (during STEP-002.08) | 2026-08-12 | reliability / process | REQ-KG-008 | **PENDING** | — | `PROPOSED` |
 | ENH-001 | Detect semantic change by description drift | Deepesh Kumar Gupta (during STEP-004.08) | 2026-08-12 | developer-experience / reliability | REQ-PLAT-008 | **PENDING** | — | `PROPOSED` |
 
 **Status values:** `PROPOSED` · `ACCEPTED` · `SCHEDULED` · `DELIVERED` · `DECLINED` · `DEFERRED`
+
+---
+
+## ENH-002 — Guard that a carried commitment is discharged
+
+| Field | Value |
+| --- | --- |
+| Proposed by | Deepesh Kumar Gupta, during STEP-002.08 |
+| Date | 2026-08-12 |
+| Type | reliability / process |
+| Trigger | **`BUG-022`** — a security control was carried from `.05` to `.07`, and `.07` closed `VERIFIED` without it. Nothing failed |
+
+### Current behavior
+
+Sub-step records routinely defer work with a phrase like *"carried to
+STEP-002.07"*. `tests/guards/substep-docs.sh` verifies that every `VERIFIED`
+sub-step has an implementation, regression and blast-radius record. **It cannot
+verify that a promise made in one record was kept in another**, because a carry is
+prose.
+
+`BUG-022` is what that costs: server-side session revocation was deferred once,
+never picked up, and the gap survived three further sub-steps while `session.ts`
+carried a comment asserting the control existed.
+
+### Proposed behavior
+
+Parse `carried to STEP-NNN.MM` (and `carried to STEP-NNN`) out of every sub-step
+record. When the named sub-step reaches `VERIFIED`, require that it either
+discharges the item or restates it as a carried gap with a new destination. Fail
+the build otherwise.
+
+An open carry pointing at a `VERIFIED` sub-step is then a build failure rather than
+a thing somebody notices six sub-steps later.
+
+### Value
+
+Directly addresses the only S2 in the register whose root cause is process rather
+than code. The register currently shows this failing **once in twenty-two bugs**,
+which is a low rate — but its consequence was a security control that everyone
+believed existed.
+
+### Cost
+
+Half a day. The parser is straightforward; the real cost is agreeing a shape for
+the carry sentence so it can be matched without turning every record into a form.
+Free-text carries would need normalising, and there are 26 sub-step records.
+
+### Risk of doing it
+
+**A structured carry is easier to satisfy dishonestly than a prose one.** Once the
+guard exists, discharging a carry becomes "make the check pass", and the cheapest
+way is to restate it with a new destination — which is exactly what happened here
+informally, only now with a green build attesting to it. The guard must count
+re-carries and surface them, or it converts a visible failure into a silent one.
+
+### Decision
+
+| Field | Value |
+| --- | --- |
+| Decision | **PENDING — owner decision required** |
+| Decided by | — |
+| Rationale | Logged, not built. Building a documentation guard inside a security sub-step is the widening this log exists to prevent, and `ENH-001` was held to the same rule the same week |
+| If accepted, sub-step | Its own sub-step under `STEP-001` governance, or fold into `STEP-026` |
+| If deferred, revisit at | The next time a carry is written — which is every sub-step, so this should not sit long |
 
 ---
 

@@ -67,6 +67,68 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-002.08 — 2026-08-12 — Server-side session store and revocation
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `5086a8a` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **665 Python** (up from 648) + **63 web** (up from 61) + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched; the STEP-004.08 gate reports no diff from the baseline beyond the known additive one |
+| R3 graph diff as expected | **PASS** | One migration, one new module, one cascade, one TypeScript interface. `detect_changes()` below |
+| R4 untested requirements | **PASS — improved** | REQ-SEC-003 was **claimed** by `.05` and untested; it is now covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…022; meta-suite 55/55 |
+| **R7 tenant isolation** | **PASS — 18/18**, up from 12 | `sessions` added to the suite: cross-tenant read, **cross-tenant revoke** (denial of service, a different harm), and no DELETE privilege at all |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `ImportError: cannot import name 'provision_organization'` | I wrote the fixture from my assumption of the API. The function is `create_organization`, with `slug`/`display_name` | Read the module. **Same failure as the STEP-003 e2e probes and the STEP-004.08 consumer expectations** — third occurrence of writing against an imagined API |
+| `ForeignKeyViolation: role_key=(traveller)` | Invented a role. The real keys are `trip_owner`/`trip_editor`/`trip_viewer`/… | Queried `roles`; used `trip_viewer` |
+| R7 precondition reported `-1 expected table(s) missing` | The gate hardcodes the table count in **four** places and I updated two | All four; a comment now says so |
+| 5 TypeScript errors after making `revokedAt` required | Every existing call site lacked the field | **Working as intended** — that is why it is required rather than optional. Fixed all five |
+| 2 mypy `call-overload`, 1 ruff `S106` | `int(object)` from a DB row; a token literal read as a password | Narrowed via `str()`; suppression with justification |
+
+### Mutation testing
+
+| Seeded | Result |
+| --- | --- |
+| `validate_session` ignores `revoked_at` | **killed** by `test_a_revoked_session_fails_before_its_expiry` and 2 more |
+| Revocation `DELETE`s instead of stamping | **killed** |
+| `revoke_membership` stops cascading | **killed** |
+| `revoke_all_for_user` not scoped to the user | **killed** |
+| Raw token stored instead of the hash | **killed** by `test_no_raw_token_reaches_the_database` and 5 more |
+| TypeScript validator ignores `revokedAt` | **killed** — 2 failed of 63 |
+| `FORCE` RLS removed from `sessions` **in the database** | **SURVIVED — see below** |
+| `FORCE` RLS removed from the **migration file** | **killed**, naming `sessions` |
+
+### Notes
+
+**One mutant survived, and finding out why was the most useful result here.**
+Dropping `FORCE ROW LEVEL SECURITY` on `sessions` in the live database left R7
+passing, because the suite **re-applies the migration before asserting** — it
+repaired the drift it then checked. The seed had to go into the migration file
+instead. Stated plainly: *a suite that heals the condition it tests cannot fail on
+it*, and nothing surfaced that until a mutant was tried against it.
+
+**The FORCE-RLS check listed three tables by name**, so a fourth tenant-scoped
+table would have been unchecked while the assertion still passed. It is now derived
+from the schema — every table with an `organization_id` must force RLS — so the
+next such table is covered by whoever creates it. Same pattern as `BUG-021`.
+
+**R7 grew by six assertions and one of them is a new kind.** Revoking across a
+tenant boundary is denial of service rather than disclosure. The suite previously
+only asserted that a tenant could not *read* another's rows.
+
+---
+
 ## STEP-004.08 — 2026-08-12 — Backward-compatibility and consumer contract tests
 
 | Field | Value |

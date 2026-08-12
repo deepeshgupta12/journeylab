@@ -108,6 +108,7 @@ All `PROPOSED` — see §11, §12, plus `tests/security/test_tenant_isolation.py
 | STEP-002.05 | Browser session and token refresh |
 | STEP-002.06 | Cross-tenant isolation test suite (`TST-SEC-002`) |
 | STEP-002.07 | Audit event emission and runtime flag primitives |
+| STEP-002.08 | Server-side session store and revocation — ✅ **VERIFIED** 2026-08-12 (BR-036, IMPL-033, BUG-022, ENH-002). Added after `.07`: the revocation carry from `.05` was dropped |
 
 *Sub-step files created at step start per [SUB_STEP_PROTOCOL](../02-delivery/SUB_STEP_PROTOCOL.md) §9.*
 

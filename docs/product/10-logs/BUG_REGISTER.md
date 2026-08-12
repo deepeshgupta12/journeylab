@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Owner | Engineering (Deepesh Kumar Gupta) |
-| Status | `ACTIVE` — 21 bugs recorded, all closed with regression tests |
+| Status | `ACTIVE` — 22 bugs recorded, all closed with regression tests |
 | Rule | **Every fixed bug gets a regression test.** Check R6 verifies they all still pass at every sub-step |
 | Last reviewed | 2026-08-12 |
 
@@ -28,6 +28,7 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BUG-022 | A carried commitment was dropped: sessions could not be revoked | **S2** | STEP-002.08 | Auditing why STEP-002 sat at 5/7 with nothing named that would close it | Signing out cleared cookies; the already-issued token kept working until its own expiry | `.05` recorded the gap and carried it to `.07`; `.07` closed `VERIFIED` listing four carried gaps, none of them this one | *(this commit)* | `test_a_revoked_session_fails_before_its_expiry` and 16 more in `tests/api/test_sessions.py`; 6 mutants seeded and killed | **CLOSED** | 2026-08-12 |
 | BUG-021 | Two guarantees depended on fields that were optional | **S3** | STEP-004.08 | **A deliberate audit** for existence-only assertions, promised in the .07 record | `JobEvent.sequence` and `ScenarioSetGenerated.model_versions` were optional while their descriptions promised gap detection and reproducibility | Both tests asserted the KEY existed. A key that exists proves nothing about a field that may be absent | *(this commit)* | `test_events_are_sequenced` and `test_the_generation_event_carries_seed_and_versions`, both rewritten to assert type and required-ness; mutation-verified | **CLOSED** | 2026-08-12 |
 | BUG-020 | A retained evidence conflict could not name its own source | **S3** | STEP-004.07 | **The client generator** — `Record<string, never>` in the emitted TypeScript | `Evidenced.conflicts[].source` was `{type: object}`, so a conflicting claim carried no id, confidence, access label or observation time | The test asserted only that the `conflicts` KEY existed, which is true of an object that can hold nothing | *(this commit)* | `test_conflicting_sources_are_retained_not_averaged`, rewritten to assert substance; mutation-verified against the old shape | **CLOSED** | 2026-08-11 |
 | BUG-008 | Guards assumed macOS paths; failed in CI | **S2** | second CI run | Repository owner | verify failed: documented Node path not executable on ubuntu-latest | Guards encoded Homebrew paths and BSD sed; meta-tested on macOS only | *(this commit)* | all 11 guards verified in a Linux container | **CLOSED** | 2026-08-05 |
@@ -38,6 +39,76 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 | BUG-003 | Sub-step committed without required documentation | **S3** | STEP-001.04 close-out | Post-commit verification | `8a9af9b` shipped without IMPL-004, regression entry or status update | Log script failed; commit ran in the same shell invocation regardless | *(this commit)* | `tests/guards/substep-docs.sh` | **CLOSED** | 2026-08-05 |
 | BUG-002 | `node_modules/` tracked in git | **S3** | STEP-001.02 pre-change analysis | Pre-change inventory | 2 dependency files committed; `.gitignore` contained only `.gitnexus` | `.gitignore` written without dependency/build exclusions in STEP-001.01 | *(this commit)* | `tests/guards/no-tracked-artifacts.sh` | **CLOSED** | 2026-08-05 |
 | BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-022 — A carried commitment was dropped, and sessions could not be revoked
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — a security control that was believed to exist did not. No runtime path yet, which is the only reason this is not S1 |
+| Found during | STEP-004.08 close-out, asking why STEP-002 was stuck at 5/7 |
+| Date found | 2026-08-12 |
+| Affected requirements | REQ-SEC-003 (revocable access), REQ-TRIP-006 (expiring, revocable) |
+
+### Symptom
+
+**Signing out did not end a session.** `signOutCookies()` cleared every cookie, and
+the access token already in the browser — or already copied out of it — kept
+working until it expired on its own. Revoking a membership had the same shape: the
+next authorization check failed, and the token in flight did not.
+
+There was no `sessions` table in any migration.
+
+### Root cause — a process failure, not a coding one
+
+The code was correct at every step. The **commitment** was lost:
+
+| Where | What it said |
+| --- | --- |
+| `.05` §5 | "Server-side revocation of an already-issued access token is NOT implemented — **carried to STEP-002.07**" |
+| `.05` `session.ts` | "Server-side revocation is authoritative and is what actually ends access" — a comment pointing at something that did not exist |
+| `.04` §5 | "Ending an already-issued token needs the session store from `.05`" |
+| `.07` | Closed **`VERIFIED`**, listing four carried gaps: emitters, write-failure monitoring, flag auditing, retention. **Not this one** |
+
+So `.05` deferred it to `.07`, `.07` closed without it, and nothing failed —
+because **a carry is prose**. `tests/guards/substep-docs.sh` checks that every
+`VERIFIED` sub-step has an implementation, regression and blast-radius record. It
+cannot check that a promise made in one record was kept in another.
+
+### Why the tests missed it
+
+They did not miss it — **there was nothing to miss.** No test asserted that a
+revoked session stops working, because the capability did not exist to test. This
+is the failure mode that no amount of mutation testing on existing code finds: the
+gap is in the set of tests, not in any one of them.
+
+What could have caught it is the thing that eventually did: reading the partial
+markers and asking what would close them.
+
+### Fix
+
+`STEP-002.08`. Migration `003_sessions.sql` (two tables — see the sub-step's §6 on
+why a guest session gets its own), `services/identity/src/sessions.py`, revocation
+checked at validation on both the Python and TypeScript sides, and
+`revoke_membership` cascading into sessions in the same transaction.
+
+### Regression tests
+
+17 in `tests/api/test_sessions.py`, 2 in `apps/web/src/auth/auth.test.ts`, and R7
+extended from 12 to 18 assertions. **Six mutants seeded and killed**, including
+disabling the revocation check, deleting instead of stamping, and removing the
+cascade.
+
+### Prevention — the part worth arguing about
+
+A guard could parse "carried to STEP-NNN.MM" out of sub-step records and fail when
+the named sub-step closes without discharging it. That is a real check and it is
+**not** built here, because this sub-step's job was the security control, and
+building a documentation guard inside it would be the same undisciplined widening
+that `ENH-001` was logged rather than built to avoid.
+
+It is logged as **`ENH-002`** with the evidence from this bug attached.
 
 ---
 

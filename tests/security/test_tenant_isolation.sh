@@ -26,12 +26,14 @@ if ! docker ps --format '{{.Names}}' | grep -q '^journeylab-postgres$'; then
   exit 2
 fi
 
-echo "=== applying migration 001 ==="
-if $PGC -q -f - < db/migrations/001_identity_tenancy.sql >/tmp/jl_mig.log 2>&1; then
-  echo "  migration applied"
-else
-  echo "  migration reported errors (may be idempotent re-run):"; tail -3 /tmp/jl_mig.log | sed 's/^/    /'
-fi
+echo "=== applying migrations 001 and 003 ==="
+for mig in db/migrations/001_identity_tenancy.sql db/migrations/003_sessions.sql; do
+  if $PGC -q -f - < "$mig" >/tmp/jl_mig.log 2>&1; then
+    echo "  applied $(basename "$mig")"
+  else
+    echo "  $(basename "$mig") reported errors (may be idempotent re-run):"; tail -3 /tmp/jl_mig.log | sed 's/^/    /'
+  fi
+done
 
 # BUG-007: PRECONDITION GATE. Without this, a missing table makes every write
 # assertion "pass" because the query ERRORS rather than being denied by policy.
@@ -39,7 +41,11 @@ fi
 # BUG-009: an unreachable database and a missing schema are DIFFERENT faults, and
 # the first version conflated them — it swallowed stderr and fell back to "5 tables
 # missing" whenever the query returned nothing. During the Postgres first-boot
-# restart it printed "expected table(s) missing" while all five tables existed.
+# restart it printed "expected table(s) missing" while all the tables existed.
+#
+# STEP-002.08 raised the count 5 -> 6 for `sessions`. The literal appears in four
+# places here; a mismatch fails closed with a nonsense count like -1, which is
+# what happened when only two of them were updated.
 # Fail-closed was right; the diagnosis sent the reader hunting the wrong problem.
 if ! $PGC -tAc "SELECT 1;" >/dev/null 2>/tmp/jl_conn.err; then
   echo ""
@@ -50,20 +56,20 @@ if ! $PGC -tAc "SELECT 1;" >/dev/null 2>/tmp/jl_conn.err; then
   exit 1
 fi
 
-missing=$($PGC -tAc "SELECT 5 - count(*) FROM pg_tables WHERE schemaname='public'
-                     AND tablename IN ('organizations','users','roles','memberships','service_identities');" 2>/dev/null | tr -d ' ')
-if [ "${missing:-5}" != "0" ]; then
+missing=$($PGC -tAc "SELECT 6 - count(*) FROM pg_tables WHERE schemaname='public'
+                     AND tablename IN ('organizations','users','roles','memberships','service_identities','sessions');" 2>/dev/null | tr -d ' ')
+if [ "${missing:-6}" != "0" ]; then
   echo ""
-  echo "ERROR: ${missing:-all 5} expected table(s) missing — the schema is not in place."
+  echo "ERROR: ${missing:-all 6} expected table(s) missing — the schema is not in place."
   echo "       Refusing to run isolation assertions: they would report false passes."
   exit 1
 fi
-echo "  precondition: all 5 tables present"
+echo "  precondition: all 6 tenant-scoped tables present"
 
 echo ""
 echo "=== seeding two tenants ==="
 $PGC -q >/dev/null 2>&1 <<'SQL'
-DELETE FROM memberships; DELETE FROM service_identities;
+DELETE FROM sessions; DELETE FROM memberships; DELETE FROM service_identities;
 DELETE FROM users WHERE email IN ('a@example.test','b@example.test');
 DELETE FROM organizations WHERE slug IN ('tenant-a','tenant-b');
 INSERT INTO organizations (id, slug, display_name) VALUES
@@ -75,8 +81,15 @@ INSERT INTO users (id, email) VALUES
 INSERT INTO memberships (organization_id, user_id, role_key) VALUES
   ('11111111-1111-1111-1111-111111111111','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','trip_owner'),
   ('22222222-2222-2222-2222-222222222222','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','trip_owner');
+-- STEP-002.08: sessions are tenant-scoped, so R7 covers them too. A live session
+-- is the most direct cross-tenant target there is: reading one is reading a
+-- credential's whereabouts, and revoking one is denial of service against
+-- another tenant's user.
+INSERT INTO sessions (organization_id, user_id, token_hash, expires_at) VALUES
+  ('11111111-1111-1111-1111-111111111111','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','hash-a', now() + interval '1 hour'),
+  ('22222222-2222-2222-2222-222222222222','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','hash-b', now() + interval '1 hour');
 SQL
-echo "  2 organizations, 2 users, 2 memberships"
+echo "  2 organizations, 2 users, 2 memberships, 2 sessions"
 
 # helper: run SQL as the non-owner application role with a tenant context
 as_tenant() {
@@ -101,6 +114,40 @@ foreign=$(as_tenant '11111111-1111-1111-1111-111111111111' \
   "SELECT count(*) FROM memberships WHERE organization_id='22222222-2222-2222-2222-222222222222';")
 [ "$foreign" = "0" ] && ok "tenant A cannot read tenant B rows even when naming them explicitly" \
                      || bad "tenant A read $foreign of tenant B's rows"
+
+echo ""
+echo "=== STEP-002.08: sessions are tenant-scoped (TST-SEC-001x) ==="
+sess_a=$(as_tenant '11111111-1111-1111-1111-111111111111' "SELECT count(*) FROM sessions;")
+[ "$sess_a" = "1" ] && ok "tenant A sees exactly its own 1 session (saw $sess_a)" \
+                    || bad "tenant A saw '$sess_a' session rows, expected 1"
+
+sess_foreign=$(as_tenant '11111111-1111-1111-1111-111111111111' \
+  "SELECT count(*) FROM sessions WHERE organization_id='22222222-2222-2222-2222-222222222222';")
+[ "$sess_foreign" = "0" ] && ok "tenant A cannot read tenant B's sessions even when naming them" \
+                          || bad "tenant A read $sess_foreign of tenant B's sessions"
+
+# Revoking across a tenant boundary is denial of service, not disclosure — a
+# different harm from a cross-tenant read and worth its own assertion.
+revoked_across=$(as_tenant '11111111-1111-1111-1111-111111111111' \
+  "WITH u AS (UPDATE sessions SET revoked_at=now(), revoked_reason='administrative'
+              WHERE organization_id='22222222-2222-2222-2222-222222222222' RETURNING 1)
+   SELECT count(*) FROM u;")
+[ "$revoked_across" = "0" ] && ok "tenant A cannot revoke tenant B's session (0 rows affected)" \
+                            || bad "tenant A revoked $revoked_across of tenant B's sessions"
+
+still_live=$(as_tenant '22222222-2222-2222-2222-222222222222' \
+  "SELECT count(*) FROM sessions WHERE revoked_at IS NULL;")
+[ "$still_live" = "1" ] && ok "tenant B's session is still live after A's attempt" \
+                        || bad "tenant B has '$still_live' live sessions, expected 1"
+
+# No DELETE privilege at all: "revocation never deletes" is enforced by the
+# grant, not by remembering to write UPDATE.
+del=$($PGC -tAc "SET ROLE journeylab_app; SET LOCAL app.current_org='11111111-1111-1111-1111-111111111111';
+                 DELETE FROM sessions;" 2>&1 | tail -1)
+case "$del" in
+  *"permission denied"*) ok "the application role cannot DELETE a session at all" ;;
+  *) bad "DELETE on sessions was not refused by privilege (got: $del)" ;;
+esac
 
 echo ""
 echo "=== REQ-SEC-001: missing tenant context denies access (deny-by-default) ==="
@@ -142,9 +189,31 @@ echo "=== BR-008 §9: FORCE RLS — the application role cannot bypass ==="
 bypass=$($PGC -tAc "SELECT rolbypassrls FROM pg_roles WHERE rolname='journeylab_app';" 2>/dev/null | tr -d ' ')
 [ "$bypass" = "f" ] && ok "journeylab_app has NOBYPASSRLS" || bad "journeylab_app can bypass RLS (rolbypassrls=$bypass)"
 
-forced=$($PGC -tAc "SELECT count(*) FROM pg_class WHERE relname IN ('memberships','service_identities','organizations') AND relforcerowsecurity;" 2>/dev/null | tr -d ' ')
-[ "$forced" = "3" ] && ok "FORCE ROW LEVEL SECURITY set on all 3 tenant tables" \
-                    || bad "only $forced of 3 tables have FORCE RLS"
+# DERIVED, NOT LISTED. This asserted a hardcoded list of three tables, so adding
+# `sessions` in STEP-002.08 would have left the new table's FORCE RLS unchecked
+# while the assertion still passed — the same "asserting the current extent of
+# something designed to extend" pattern as BUG-021.
+#
+# The property is: every table carrying a tenant column must FORCE RLS. Derive the
+# set from the schema and the next tenant-scoped table is covered on the day it is
+# created, by whoever creates it, without them having to know this file exists.
+unforced=$($PGC -tAc "
+  SELECT coalesce(string_agg(c.relname, ','), '')
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+  WHERE c.relkind = 'r'
+    AND NOT c.relforcerowsecurity
+    AND EXISTS (SELECT 1 FROM information_schema.columns col
+                WHERE col.table_schema='public' AND col.table_name=c.relname
+                  AND col.column_name='organization_id');" 2>/dev/null | tr -d ' ')
+[ -z "$unforced" ] && ok "every table with an organization_id has FORCE ROW LEVEL SECURITY" \
+                   || bad "tenant-scoped tables WITHOUT FORCE RLS: $unforced"
+
+# `organizations` is tenant-scoped by its own id rather than by organization_id,
+# so the derived query above cannot see it. Named explicitly for that reason.
+org_forced=$($PGC -tAc "SELECT relforcerowsecurity FROM pg_class WHERE relname='organizations';" 2>/dev/null | tr -d ' ')
+[ "$org_forced" = "t" ] && ok "organizations forces RLS (scoped by id, not organization_id)" \
+                        || bad "organizations does not force RLS"
 
 echo ""
 echo "=== BR-008 §9: pooling — context must NOT leak across transactions ==="
