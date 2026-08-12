@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Owner | Engineering (Deepesh Kumar Gupta) |
-| Status | `ACTIVE` — 20 bugs recorded, all closed with regression tests |
+| Status | `ACTIVE` — 21 bugs recorded, all closed with regression tests |
 | Rule | **Every fixed bug gets a regression test.** Check R6 verifies they all still pass at every sub-step |
-| Last reviewed | 2026-08-11 |
+| Last reviewed | 2026-08-12 |
 
 Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.md) · [Regression log](REGRESSION_LOG.md) · [Incident response](../07-operations/INCIDENT_RESPONSE.md)
 
@@ -28,6 +28,7 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BUG-021 | Two guarantees depended on fields that were optional | **S3** | STEP-004.08 | **A deliberate audit** for existence-only assertions, promised in the .07 record | `JobEvent.sequence` and `ScenarioSetGenerated.model_versions` were optional while their descriptions promised gap detection and reproducibility | Both tests asserted the KEY existed. A key that exists proves nothing about a field that may be absent | *(this commit)* | `test_events_are_sequenced` and `test_the_generation_event_carries_seed_and_versions`, both rewritten to assert type and required-ness; mutation-verified | **CLOSED** | 2026-08-12 |
 | BUG-020 | A retained evidence conflict could not name its own source | **S3** | STEP-004.07 | **The client generator** — `Record<string, never>` in the emitted TypeScript | `Evidenced.conflicts[].source` was `{type: object}`, so a conflicting claim carried no id, confidence, access label or observation time | The test asserted only that the `conflicts` KEY existed, which is true of an object that can hold nothing | *(this commit)* | `test_conflicting_sources_are_retained_not_averaged`, rewritten to assert substance; mutation-verified against the old shape | **CLOSED** | 2026-08-11 |
 | BUG-008 | Guards assumed macOS paths; failed in CI | **S2** | second CI run | Repository owner | verify failed: documented Node path not executable on ubuntu-latest | Guards encoded Homebrew paths and BSD sed; meta-tested on macOS only | *(this commit)* | all 11 guards verified in a Linux container | **CLOSED** | 2026-08-05 |
 | BUG-007 | Security suite passed while schema was absent | **S2** | STEP-002.01 | First R7 run | 3 write-denial assertions passed with no tables; migration had failed on missing citext | Migration not self-contained; assertions could not distinguish policy denial from query error | *(this commit)* | suite meta-test: weakened policy must expose both tenants | **CLOSED** | 2026-08-05 |
@@ -37,6 +38,76 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 | BUG-003 | Sub-step committed without required documentation | **S3** | STEP-001.04 close-out | Post-commit verification | `8a9af9b` shipped without IMPL-004, regression entry or status update | Log script failed; commit ran in the same shell invocation regardless | *(this commit)* | `tests/guards/substep-docs.sh` | **CLOSED** | 2026-08-05 |
 | BUG-002 | `node_modules/` tracked in git | **S3** | STEP-001.02 pre-change analysis | Pre-change inventory | 2 dependency files committed; `.gitignore` contained only `.gitnexus` | `.gitignore` written without dependency/build exclusions in STEP-001.01 | *(this commit)* | `tests/guards/no-tracked-artifacts.sh` | **CLOSED** | 2026-08-05 |
 | BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-021 — Two guarantees depended on fields that were optional
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — no runtime path exists; both defects would have reached every consumer of the contract |
+| Found during | STEP-004.08 — by the **deliberate audit** for existence-only assertions that the STEP-004.07 record committed to |
+| Date found | 2026-08-12 |
+| Affected requirements | REQ-CONS-006 (reproducibility), and the gap-detection guarantee `JobEvent` states in its own description |
+
+### Symptom
+
+Two fields whose presence a stated guarantee depends on were declared optional.
+
+| Field | Declared | The guarantee it carries |
+| --- | --- | --- |
+| `JobEvent.sequence` | `required: [event, job_id]` | *"Monotonic, so a client that reconnects can tell whether it missed anything"* |
+| `ScenarioSetGenerated.payload.model_versions` | required set had `solver_version` and `random_seed`, not this | `REQ-CONS-006`: reproducible from inputs, config, **model versions** and seed |
+
+### Root cause
+
+Each was written as an optional property and never revisited. Neither had anything
+checking the property the requirement actually needs.
+
+**`sequence` is the sharper of the two.** In a stream where some events carry a
+sequence number and some do not, a missing number proves nothing — the client
+cannot distinguish "event 4 was dropped" from "event 4 had no sequence". An
+optional sequence does not weaken gap detection; it removes it entirely, while
+looking like it is there.
+
+**`model_versions` is the more embarrassing.** Three of the four things
+`REQ-CONS-006` names were required and the fourth was not, in the same list. A run
+reproduced with the right seed and the right solver against different model
+versions is a different run.
+
+### Fix
+
+Both added to their required sets. Both are response/event shapes, so per
+`tools/contract_diff.py` this is **additive** — a stronger guarantee cannot break a
+reader — and the compatibility gate classifies it exactly that way.
+
+### Why the tests missed it — the pattern, now measured
+
+```python
+assert "sequence" in SPEC["components"]["schemas"]["JobEvent"]["properties"]
+assert "model_versions" in payload["properties"]
+```
+
+**Both asserted a key, not a capability.** They would pass against a field of any
+type, required or not — including the empty-object shape that was BUG-020.
+
+This is the same defect class as BUG-020 and as the stale assertions in `.02`,
+`.03` and `.06`. The STEP-004.07 record predicted it would recur and said `.08`
+should hunt for it deliberately rather than wait to trip over the next one. **That
+hunt is what found these**, by grepping every `assert "x" in ...properties` in the
+contract suites and asking of each one whether the requirement survives the field
+being absent or untyped.
+
+Two of the three candidates examined were real defects. The third
+(`accessibility_needs`) was sound but under-asserted, and was strengthened in the
+same pass: nothing had pinned it to an array of strings, so `{type: object}` would
+have satisfied it — an empty object standing in for a privacy guarantee.
+
+### Regression tests
+
+Both rewritten to assert type **and** required-ness, with the reasoning inline.
+**Mutation-verified:** reverting either contract change fails its test, confirmed
+by removing both and observing exactly two failures.
 
 ---
 

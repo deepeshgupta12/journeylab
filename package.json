@@ -25,7 +25,7 @@
     "py:typecheck": "bash tests/guards/py-typecheck.sh",
     "build": "pnpm -r --if-present build",
     "py:test": "uv run pytest",
-    "verify": "pnpm guard:node && pnpm guard:pnpm && pnpm guard:markup && pnpm guard:artifacts && pnpm guard:codeowners && pnpm guard:ports && pnpm guard:substep-docs && pnpm guard:readme && pnpm guard:workflows && pnpm guard:boundaries && pnpm guard:logical-css && pnpm guard:generated-clients && pnpm lint && pnpm format:check && pnpm typecheck && pnpm py:lint && pnpm py:format:check && pnpm py:typecheck && pnpm test && pnpm build && pnpm guard:gallery-gate && pnpm a11y",
+    "verify": "pnpm guard:node && pnpm guard:pnpm && pnpm guard:markup && pnpm guard:artifacts && pnpm guard:codeowners && pnpm guard:ports && pnpm guard:substep-docs && pnpm guard:readme && pnpm guard:workflows && pnpm guard:boundaries && pnpm guard:logical-css && pnpm guard:generated-clients && pnpm guard:contract-compatibility && pnpm lint && pnpm format:check && pnpm typecheck && pnpm py:lint && pnpm py:format:check && pnpm py:typecheck && pnpm test && pnpm build && pnpm guard:gallery-gate && pnpm a11y",
     "kg:status": "npx --yes gitnexus status",
     "kg:refresh": "npx --yes gitnexus analyze",
     "guard:markup": "bash tests/guards/no-stray-markup.sh",
@@ -53,7 +53,9 @@
     "guard:gallery-gate": "bash tests/guards/gallery-gate.sh",
     "a11y": "pnpm --filter @journeylab/web a11y",
     "contracts:generate": "uv run python tools/gen_clients.py",
-    "guard:generated-clients": "bash tests/guards/generated-clients.sh"
+    "guard:generated-clients": "bash tests/guards/generated-clients.sh",
+    "contracts:baseline": "uv run python tools/promote_baseline.py",
+    "guard:contract-compatibility": "bash tests/guards/contract-compatibility.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.7",

@@ -284,12 +284,25 @@ class TestReproducibilityIsAuditableFromTheStream:
         later from the log alone — without the database, and without trusting
         that nobody changed a default in between."""
         payload = payload_schema(message_for("EVT-003"))
+        # BUG-021: `model_versions` was checked for existence only, and was
+        # OPTIONAL while the other three were required. REQ-CONS-006 names all four
+        # — inputs, config, model versions and seed — and three out of four does not
+        # reproduce a run.
         assert {
             "random_seed",
             "solver_version",
             "evidence_pack_id",
+            "model_versions",
         } <= set(payload["required"])
-        assert "model_versions" in payload["properties"]
+
+        # A map of name -> version. An untyped object would satisfy "present and
+        # required" while recording nothing identifiable.
+        model_versions = payload["properties"]["model_versions"]
+        assert model_versions["type"] == "object"
+        assert model_versions["additionalProperties"]["type"] == "string", (
+            "model_versions must map a model name to a version string; an untyped "
+            "object records nothing a rerun could pin"
+        )
 
 
 class TestOrderingIsHonestAboutItsLimits:

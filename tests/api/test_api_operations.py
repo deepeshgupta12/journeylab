@@ -306,9 +306,21 @@ class TestPrivacy:
     def test_accessibility_needs_are_declared_never_inferred(self) -> None:
         """REQ-PRIV-003. The field exists only because the traveller filled it in."""
         party = SPEC["components"]["schemas"]["Party"]
-        assert "accessibility_needs" in party["properties"]
-        description = party["properties"]["accessibility_needs"]["description"]
-        assert "never inferred" in description.lower()
+        needs = party["properties"]["accessibility_needs"]
+
+        # Shape, not just presence. `{type: object}` would satisfy an existence
+        # check and carry nothing a traveller could actually have declared — the
+        # BUG-020 shape, in the one place where an empty object would be a privacy
+        # claim rather than a data-modelling slip.
+        assert needs["type"] == "array"
+        assert needs["items"]["type"] == "string"
+
+        # Optional is the requirement, not an oversight: a required field is one the
+        # traveller must answer, and REQ-PRIV-003 is precisely that they need not.
+        assert "accessibility_needs" not in party.get("required", []), (
+            "a required sensitive attribute is a compelled disclosure"
+        )
+        assert "never inferred" in needs["description"].lower()
 
     def test_the_party_schema_is_closed(self) -> None:
         """An open object lets an undeclared sensitive attribute in."""
@@ -748,5 +760,21 @@ class TestJobStreaming:
         assert "204" not in op["responses"]
 
     def test_events_are_sequenced(self) -> None:
-        """So a client that reconnects can tell whether it missed anything."""
-        assert "sequence" in SPEC["components"]["schemas"]["JobEvent"]["properties"]
+        """So a client that reconnects can tell whether it missed anything.
+
+        BUG-021: this asserted only that a key named `sequence` existed, and passed
+        while the field was OPTIONAL. Gap detection needs every event to carry one —
+        in a stream where some events have a sequence and some do not, a missing
+        number proves nothing, so the guarantee in the schema description was
+        unenforceable.
+
+        Three properties, because the requirement needs all three: present, an
+        integer (you cannot subtract strings to find a gap), and required.
+        """
+        job_event = SPEC["components"]["schemas"]["JobEvent"]
+        sequence = job_event["properties"]["sequence"]
+        assert sequence["type"] == "integer", "a gap is found by arithmetic"
+        assert "sequence" in job_event["required"], (
+            "an optional sequence cannot detect a gap: a client receiving an event "
+            "without one cannot tell whether a number was skipped or never sent"
+        )

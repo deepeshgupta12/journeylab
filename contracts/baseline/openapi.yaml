@@ -1795,11 +1795,7 @@ components:
       description: |
         One server-sent event. `heartbeat` is not filler: without it a client
         cannot tell a job that is thinking from a connection that died.
-      # BUG-021: `sequence` was optional. Gap detection is only possible if EVERY
-      # event carries one — a stream where some events have a sequence and some do
-      # not is a stream in which a missing number proves nothing. The guarantee the
-      # description claims requires the field to be required.
-      required: [event, job_id, sequence]
+      required: [event, job_id]
       properties:
         event:
           type: string

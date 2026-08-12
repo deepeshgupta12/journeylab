@@ -64,7 +64,7 @@ for g in tests/guards/*.sh; do
   # its own section below rather than in the fast baseline loop.
   # generated-clients.sh regenerates both clients from the contract (~20s); it is
   # exercised in its own section below rather than in the fast baseline loop.
-  case "$(basename "$g")" in change-impact-record.sh|gallery-gate.sh|generated-clients.sh) continue ;; esac
+  case "$(basename "$g")" in change-impact-record.sh|gallery-gate.sh|generated-clients.sh|contract-compatibility.sh) continue ;; esac
   assert_guard "$(basename "$g") clean" "$g" 0
 done
 
@@ -237,6 +237,110 @@ if [ -f "$GEN_TS" ]; then
   assert_guard "generated-clients clean again" tests/guards/generated-clients.sh 0
 else
   echo "  skip generated-clients meta-test — no generated client present (run pnpm contracts:generate)"
+fi
+
+echo ""
+echo "=== STEP-004.08: a breaking contract change must fail the build ==="
+# THE SPECIFIED DELIVERABLE (§7): "a seeded breaking change is actually caught".
+#
+# Four seeds, chosen so that passing them all requires the classifier to be
+# DIRECTION-AWARE rather than merely alarmed:
+#   1. a removed operation                  -> BREAKING regardless of direction
+#   2. a removed RESPONSE property          -> BREAKING only because it is a response
+#   3. the same removal carried by a major bump -> must PASS
+#   4. a deprecated operation with no Sunset    -> BREAKING on metadata alone
+#
+# Seed 3 is the one that matters. A guard that failed on every diff would pass
+# seeds 1, 2 and 4 and look healthy.
+if [ -f contracts/baseline/openapi.yaml ]; then
+  assert_guard "contract-compatibility passes on an unchanged contract" \
+    tests/guards/contract-compatibility.sh 0 "no breaking contract change"
+
+  cp contracts/openapi.yaml /tmp/META_OA.bak
+
+  # 1. remove an operation
+  uv run python - <<'PY' >/dev/null 2>&1
+import pathlib, yaml
+p = pathlib.Path("contracts/openapi.yaml")
+d = yaml.safe_load(p.read_text())
+del d["paths"]["/trips/{tripId}"]
+p.write_text(yaml.safe_dump(d, sort_keys=False))
+PY
+  assert_guard "contract-compatibility catches a removed operation" \
+    tests/guards/contract-compatibility.sh 1 "operation_removed\|BREAKING"
+  cp /tmp/META_OA.bak contracts/openapi.yaml
+
+  # 2. remove a property from a response schema
+  uv run python - <<'PY' >/dev/null 2>&1
+import pathlib, yaml
+p = pathlib.Path("contracts/openapi.yaml")
+d = yaml.safe_load(p.read_text())
+trip = d["components"]["schemas"]["Trip"]["properties"]
+trip.pop(next(iter(trip)))
+p.write_text(yaml.safe_dump(d, sort_keys=False))
+PY
+  assert_guard "contract-compatibility catches a removed response property" \
+    tests/guards/contract-compatibility.sh 1 "BREAKING"
+  cp /tmp/META_OA.bak contracts/openapi.yaml
+
+  # 3. the SAME removal, carried by a major version bump -> must pass
+  uv run python - <<'PY' >/dev/null 2>&1
+import pathlib, yaml
+p = pathlib.Path("contracts/openapi.yaml")
+d = yaml.safe_load(p.read_text())
+trip = d["components"]["schemas"]["Trip"]["properties"]
+trip.pop(next(iter(trip)))
+d["info"]["version"] = "1.0.0"
+p.write_text(yaml.safe_dump(d, sort_keys=False))
+PY
+  assert_guard "contract-compatibility ALLOWS a breaking change behind a major bump" \
+    tests/guards/contract-compatibility.sh 0 "carried by a major"
+  cp /tmp/META_OA.bak contracts/openapi.yaml
+
+  # 4. deprecation without a sunset date
+  uv run python - <<'PY' >/dev/null 2>&1
+import pathlib, yaml
+p = pathlib.Path("contracts/openapi.yaml")
+d = yaml.safe_load(p.read_text())
+d["paths"]["/trips/{tripId}"]["get"]["deprecated"] = True
+p.write_text(yaml.safe_dump(d, sort_keys=False))
+PY
+  assert_guard "contract-compatibility catches a deprecation with no Sunset" \
+    tests/guards/contract-compatibility.sh 1 "Sunset"
+  cp /tmp/META_OA.bak contracts/openapi.yaml; rm -f /tmp/META_OA.bak
+
+  # 5. THE BYPASS. Moving the baseline is how you make any compatibility diff come
+  # out empty, so the check that catches it needs its own seed — otherwise the gate
+  # is a lock on a door standing next to an open window.
+  cp contracts/baseline/openapi.yaml /tmp/META_BASE.bak
+  uv run python - <<'PY' >/dev/null 2>&1
+import pathlib, yaml
+p = pathlib.Path("contracts/baseline/openapi.yaml")
+d = yaml.safe_load(p.read_text())
+trip = d["components"]["schemas"]["Trip"]["properties"]
+trip.pop(next(iter(trip)))
+p.write_text(yaml.safe_dump(d, sort_keys=False))
+PY
+  assert_guard "contract-compatibility catches a silently moved baseline" \
+    tests/guards/contract-compatibility.sh 1 "BASELINE.md was not updated"
+  cp /tmp/META_BASE.bak contracts/baseline/openapi.yaml; rm -f /tmp/META_BASE.bak
+
+  # 6. A version claimed in BASELINE.md that the snapshot does not declare.
+  cp contracts/baseline/BASELINE.md /tmp/META_MARKER.bak
+  sedi 's|^| Baseline version | `0.1.0` ||| Baseline version | `9.9.9` ||' contracts/baseline/BASELINE.md 2>/dev/null \
+    || uv run python -c "
+import pathlib
+p = pathlib.Path('contracts/baseline/BASELINE.md')
+p.write_text(p.read_text().replace('| Baseline version | \`0.1.0\` |', '| Baseline version | \`9.9.9\` |', 1))
+" >/dev/null 2>&1
+  assert_guard "contract-compatibility catches a version the snapshot does not declare" \
+    tests/guards/contract-compatibility.sh 1 "but the snapshot declares"
+  cp /tmp/META_MARKER.bak contracts/baseline/BASELINE.md; rm -f /tmp/META_MARKER.bak
+
+  assert_guard "contract-compatibility clean again" \
+    tests/guards/contract-compatibility.sh 0 "no breaking contract change"
+else
+  echo "  skip contract-compatibility meta-test — no baseline (run pnpm contracts:baseline)"
 fi
 
 echo ""

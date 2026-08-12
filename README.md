@@ -47,7 +47,7 @@ cp .env.example .env                                # local dev config
 pnpm verify                                         # must be green
 ```
 
-`pnpm verify` is the whole gate: 22 steps across 16 repository guards, linting,
+`pnpm verify` is the whole gate: 23 steps across 17 repository guards, linting,
 formatting, typechecking, the JavaScript and Python suites, a production build, and
 a **real-browser accessibility run**. **It must pass before you change anything**, so
 you know any later failure is yours.
@@ -66,6 +66,7 @@ pnpm --filter @journeylab/web exec playwright install --with-deps chromium
 | `pnpm ci:local` | **Runs CI's job on Linux, in a clean checkout, with a cold install.** Run it before pushing anything touching dependencies, generated files, or CI itself — it has caught seven failures that a macOS run could not |
 | `pnpm build` | Production build of every package |
 | `pnpm contracts:generate` | Rebuilds the API clients from `contracts/` — run it after **any** contract change |
+| `pnpm contracts:baseline` | Promotes the current contracts to the compatibility baseline. **This declares a release** — see `contracts/baseline/BASELINE.md` |
 
 ### Changing the API contract
 
@@ -75,8 +76,27 @@ built from it and **must never be edited by hand** (`REQ-PLAT-007`):
 ```bash
 # 1. edit contracts/openapi.yaml (or contracts/jsonschema/*.json)
 pnpm contracts:generate     # 2. rebuild both clients
-pnpm verify                 # 3. the drift guard confirms they match
+pnpm verify                 # 3. drift guard + compatibility gate
 ```
+
+Two gates run, and they answer different questions:
+
+| Gate | Question |
+| --- | --- |
+| `guard:generated-clients` | Do the committed clients match the contract? |
+| `guard:contract-compatibility` | Did this change break an existing consumer? |
+
+The compatibility gate diffs against `contracts/baseline/` and **fails on a
+breaking change that is not carried by a major version bump**. It is
+direction-aware: adding a required property breaks a *request* and is harmless in a
+*response*, and relaxing required-ness is the reverse. It also fails a deprecated
+operation that declares no `Sunset` date.
+
+Two things it cannot do, both deliberate. It does not detect **semantic change** —
+a field that keeps its name and type while changing meaning (`ENH-001`, pending) —
+and it does not diff **AsyncAPI**, because event compatibility depends on delivery
+semantics and `DEC-009` is open. A green run means "not breaking in a way a machine
+can recognise", not "safe".
 
 `pnpm verify` regenerates and diffs. If the committed client differs from what
 the contract produces, the build fails — whether that is because someone edited
@@ -149,10 +169,11 @@ packages/ui/       design system: tokens, primitives, a11y            built
 services/audit/    append-only audit with redaction                   built
 db/migrations/     schema + row-level security                        built
 contracts/         OpenAPI, AsyncAPI, JSON Schema — the source of truth  built
+contracts/baseline/ what compatibility is measured against          built
 packages/contracts/ generated TypeScript client (never hand-edited)   built
 services/          domain, data, retrieval, AI, ML, workflow          [STEP-005+]
 infra/local/       local development images
-tests/guards/      16 executable repository guards (run by pnpm verify)
+tests/guards/      17 executable repository guards (run by pnpm verify)
 tests/security/    cross-tenant isolation suite (R7)
 docs/product/      the documentation system — scope, architecture, contracts
 docs/adr/          architecture decision records
@@ -173,12 +194,12 @@ docs/adr/          architecture decision records
 
 | Suite | Count | Runs in |
 | --- | --- | --- |
-| Python | 592 | `pnpm verify` |
+| Python | 648 | `pnpm verify` |
 | Design system (jsdom) | 307 | `pnpm verify` |
 | Web (unit) | 61 | `pnpm verify` |
 | **Real browser (Playwright + axe)** | **40** | `pnpm verify` |
 | Cross-tenant isolation (R7) | 12 | `pnpm test:security` |
-| Guard meta-tests | 47 | `pnpm guard:meta` |
+| Guard meta-tests | 55 | `pnpm guard:meta` |
 
 The browser suite is the one to know about. It runs axe over five surfaces in two
 device profiles and asserts keyboard traversal, focus visibility, 24×24 touch

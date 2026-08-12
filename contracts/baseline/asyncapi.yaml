@@ -278,12 +278,6 @@ components:
                   - evidence_pack_id
                   - solver_version
                   - random_seed
-                  # BUG-021: `model_versions` was optional while `solver_version`
-                  # and `random_seed` were required. REQ-CONS-006 names all four —
-                  # inputs, config, MODEL VERSIONS and seed — and a scenario set
-                  # emitted without recording which models produced it cannot be
-                  # reproduced, whatever the other three say.
-                  - model_versions
                 additionalProperties: false
                 properties:
                   trip_id: { type: string }

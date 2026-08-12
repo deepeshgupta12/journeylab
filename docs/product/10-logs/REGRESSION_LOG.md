@@ -67,6 +67,65 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-004.08 — 2026-08-12 — Backward-compatibility and consumer contract tests
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `eb30a26` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **648 Python** (up from 592) + 61 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS — and now enforced rather than asserted** | Two fields became required in response/event shapes (BUG-021). The classifier delivered by this very sub-step rates that additive, and the gate prints it as such. **This is the first sub-step where R2 is a check rather than a judgement** |
+| R3 graph diff as expected | **PASS** | Two new tools, one guard, one snapshot directory, three strengthened tests. `detect_changes()` recorded below |
+| R4 untested requirements | **PASS — improved** | REQ-PLAT-008 newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…021. Guard meta-suite **55/55** (up from 47: 8 new cases) |
+| **R7 tenant isolation** | **PASS — 12/12** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `test_every_named_schema_on_the_wire_is_reachable` failed on 3 orphans | My test asserted `len(orphans) <= 2` — a threshold, not a property. The three are bare `$ref` aliases, deliberate named exports left by `.06` | Rewritten to assert what actually matters: an unreferenced schema must be a bare alias, never an inline definition. **Raising the threshold would have passed and tested nothing** |
+| Consumer expectations named `TripCreate` | The schema is `CreateTripRequest`. Written from assumption rather than from the contract | Read the contract; corrected. Same failure shape as the STEP-003 e2e probes |
+| 2 mypy `no-any-return` errors | `yaml.safe_load` and a dict lookup both return `Any` | Narrowed with explicit `isinstance` checks rather than casts |
+| The gate reported "no differences" about a contract I had just changed | Safe required-ness changes were classified correctly and then **not reported at all** | Both directions now reported, additive included. Two regression tests added. *A tool silent about safe changes is telling the reader nothing moved* |
+
+### Mutation testing
+
+| Seeded | Result |
+| --- | --- |
+| Operation removed | **killed** |
+| Response property removed | **killed** |
+| The same removal behind a major version bump | **correctly PASSES** — the case that proves the gate is not simply alarmed |
+| Deprecated operation with no `Sunset` | **killed** |
+| Baseline snapshot moved silently | **killed** |
+| `BASELINE.md` claiming a version the snapshot does not declare | **killed** |
+| `JobEvent.sequence` reverted to optional | **killed** |
+| `model_versions` reverted to optional | **killed** |
+| An inline unreferenced schema | **killed** |
+
+### Notes
+
+**The audit promised at `.07` paid for itself.** Grepping every
+`assert "x" in ...properties` found two real defects in twenty minutes that four
+sub-steps of ordinary work had not. Both are BUG-021.
+
+**And it caught me committing the same defect while auditing for it** — see the
+orphan-threshold row above. Worth recording plainly: knowing a pattern by name did
+not stop me writing it.
+
+**R2 changes character from this sub-step onward.** Every previous entry answered
+"no unintended breaking diff" by inspection. From here it is a gate with seeded
+proof that it fails, and the honest caveat that it cannot see semantic change
+(`ENH-001`, pending).
+
+---
+
 ## STEP-004.07 — 2026-08-11 — Client generation and no-hand-edit enforcement
 
 | Field | Value |

@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Owner | Product Lead (Deepesh Kumar Gupta) |
-| Status | `READY` — no entries yet |
+| Status | `ACTIVE` — 1 entry, awaiting an owner decision |
 | Purpose | Record improvements proposed or delivered beyond the stated requirement, so scope growth is visible rather than silent |
-| Last reviewed | 2026-08-05 |
+| Last reviewed | 2026-08-12 |
 
 Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.md) · [Out of scope](../01-product/OUT_OF_SCOPE.md) · [Master tracker](../02-delivery/MASTER_TRACKER.md)
 
@@ -23,9 +23,82 @@ An enhancement is work nobody asked for. It may be excellent and it may be scope
 
 | ID | Title | Proposed by | Date | Type | Requirement affected | Decision | Delivered in | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| — | *No entries* | | | | | | | |
+| ENH-001 | Detect semantic change by description drift | Deepesh Kumar Gupta (during STEP-004.08) | 2026-08-12 | developer-experience / reliability | REQ-PLAT-008 | **PENDING** | — | `PROPOSED` |
 
 **Status values:** `PROPOSED` · `ACCEPTED` · `SCHEDULED` · `DELIVERED` · `DECLINED` · `DEFERRED`
+
+---
+
+## ENH-001 — Detect semantic change by description drift
+
+| Field | Value |
+| --- | --- |
+| Proposed by | Deepesh Kumar Gupta, during STEP-004.08 |
+| Date | 2026-08-12 |
+| Type | reliability / developer-experience |
+| Trigger | Writing `tools/contract_diff.py` and having to document, in the module docstring, that the most dangerous class of change is the one it cannot see |
+
+### Current behavior
+
+`CONTRACT_CHANGE_POLICY` §1: *"Changing what a field means while keeping its name
+and type passes every automated compatibility check and breaks every consumer. It
+is always treated as breaking."*
+
+The classifier delivered in STEP-004.08 is structural. A field that keeps its name,
+type and required-ness while changing meaning is invisible to it, and the sub-step
+record for `.08` says as much rather than implying otherwise. Today the only
+control is review.
+
+That is acceptable because it is honest and because nothing is released yet. It is
+improvable because review is exactly what stops happening under delivery pressure,
+which is when a semantic change is most likely to be made.
+
+### Proposed behavior
+
+Hash each schema property's `description` alongside its structure. When a property
+is structurally identical between baseline and current but its **description
+changed**, emit `REVIEW_REQUIRED` naming both texts.
+
+Not a new severity class in the gate — a report the author must acknowledge.
+
+The insight is that a semantic change is undetectable in general, but a **documented**
+semantic change is not: an author who changes what a field means and updates its
+description has left a machine-readable trace. The check converts "invisible" into
+"invisible only when undocumented", which is a strictly smaller hole.
+
+### Value
+
+Addresses the category `CONTRACT_CHANGE_POLICY` §1 calls the most dangerous, and
+which `REQ-PLAT-008` currently has no automated coverage for at all. Cheap: the
+diff already walks every property.
+
+### Cost
+
+Roughly a day. Its real cost is false positives — a typo fix in a description would
+trip it, and a check that fires on prose edits is one people learn to acknowledge
+without reading, which would leave us worse off than having no check.
+
+Mitigating that means normalising whitespace, ignoring pure-markdown edits, and
+probably a `# semantic: unchanged` escape hatch — and an escape hatch is a permanent
+maintenance surface with its own failure mode.
+
+### Risk of doing it
+
+**The honest risk is that it teaches people to click through a warning.** This
+repository already has one degraded signal that reads as a real answer
+(`gitnexus_query` returning empty, `BR-029` §3), and the lesson there was that a
+check nobody can trust is worse than a check nobody has. If the false-positive rate
+is not driven near zero first, this should not ship.
+
+### Decision
+
+| Field | Value |
+| --- | --- |
+| Decision | **PENDING — owner decision required** |
+| Decided by | — |
+| Rationale | Logged rather than implemented, per this log's rule 1. It is not required by `REQ-PLAT-008` and the `.08` sub-step record explicitly scopes semantic change to review |
+| If accepted, sub-step | Suggest `STEP-004.09`, or fold into `STEP-026` alongside the graph work |
+| If deferred, revisit at | Before the first external consumer integrates (`STEP-016`) — after that a semantic change is expensive rather than free |
 
 ---
 

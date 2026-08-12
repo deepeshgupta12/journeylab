@@ -940,7 +940,7 @@ export type components = {
        * @description Monotonic, so a client that reconnects can tell whether it missed
        * anything rather than assuming it did not.
        */
-      sequence?: number;
+      sequence: number;
       progress_percent?: number;
       message?: string;
       problem?: components["schemas"]["Problem"];

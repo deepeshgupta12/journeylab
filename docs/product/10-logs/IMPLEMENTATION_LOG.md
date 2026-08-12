@@ -60,6 +60,116 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-032 — STEP-004.08 — Backward-compatibility and consumer contract tests
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-12 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PLAT-008 |
+| Blast radius | [BR-035](blast-radius/BR-035-compatibility-tests.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `eb30a26` — matched HEAD at pre-change |
+| Bugs closed | [BUG-021](BUG_REGISTER.md) |
+| Enhancements logged | [ENH-001](ENHANCEMENT_LOG.md) — **PENDING owner decision**, not implemented |
+
+### What was built
+
+A breaking contract change now fails the build unless it carries a major version
+bump. `tools/contract_diff.py` classifies, `tools/check_compatibility.py` decides,
+`contracts/baseline/` is what it compares against, and
+`tests/contracts/test_consumer_contracts.py` records what a consumer relies on.
+
+Python suite 592 → **648**. Guard meta-suite 47 → **55**.
+
+### The whole idea is that direction decides the verdict
+
+Request and response schemas have **opposite** compatibility rules. Adding a
+required property breaks every client of a request and is harmless in a response.
+Making a required property optional is a courtesy in a request and breaks every
+consumer of a response. Every rule inverts.
+
+So the classifier does not look at schemas in isolation. It walks from the
+operations, records which position each schema is reachable in, and applies the
+matching ruleset — with a schema reachable from both, like `Money` and `Problem`,
+checked under both and taking the worse verdict.
+
+Half the tests are written as pairs asserting **opposite** severities for the same
+structural edit. That shape was chosen because the two obvious wrong
+implementations both pass half a normal suite: a direction-blind classifier gets
+one of each pair right, and a classifier that calls everything breaking gets every
+breaking case right. Neither survives the pairs.
+
+### The audit I promised at .07, and what it cost to keep
+
+The `.07` record committed `.08` to hunting the existence-versus-capability
+assertion pattern deliberately. That hunt found **two real defects** (BUG-021):
+`JobEvent.sequence` and `ScenarioSetGenerated.model_versions` were optional while
+their own descriptions promised gap detection and reproducibility.
+
+`sequence` is the one worth remembering. In a stream where some events carry a
+sequence and some do not, **a missing number proves nothing** — you cannot tell a
+dropped event from an event that never had one. Optional sequencing does not weaken
+gap detection, it removes it, while looking exactly like it is there.
+
+Four sub-steps of ordinary work had not surfaced these. Twenty minutes of grepping
+`assert "x" in ...properties` did. **The pattern is findable when hunted and
+invisible when not**, which is the argument for scheduling audits rather than
+relying on noticing.
+
+### Three mistakes of my own, and one of them twice
+
+**I asserted a threshold instead of a property.** My orphan-schema test asserted
+`len(orphans) <= 2` and failed on three. Raising it to 3 would have gone green and
+tested nothing — the same defect I was auditing for, committed while auditing for
+it. The real property is that an unreferenced schema must be a bare `$ref` alias
+(a named export) rather than an inline definition nobody references.
+
+**I named a schema that does not exist.** The consumer expectations referenced
+`TripCreate`; the contract calls it `CreateTripRequest`. Written from my assumption
+of the contract rather than from the contract, which is the exact failure named in
+the STEP-003 e2e work.
+
+**My tool reported "no differences" about a contract I had just changed.** The
+classifier treated safe required-ness changes as nothing to report, so tightening
+`JobEvent.required` produced the output *"no differences from the baseline"*. The
+verdict was right and the report was a lie, and a reader trusts the report. Safe
+and absent are different answers; both directions are now reported, additive ones
+included.
+
+### The bypass, and the limit of what a guard can do about it
+
+Any compatibility gate can be defeated by moving the baseline. `BASELINE.md`
+records a digest of the snapshot and the gate recomputes it, so a moved baseline
+fails the build.
+
+This does not make the bypass impossible — the author can edit both files — and
+`BASELINE.md` §3 says so in those words. What it does is convert a silent edit into
+**a claimed release that did not happen**: a specific, recorded, reviewable false
+statement. Writing that limitation into the artefact seemed better than letting the
+next reader assume the check is stronger than it is.
+
+The digest is used instead of git history because `git diff HEAD` cannot see an
+uncommitted baseline, answers differently either side of the commit that introduces
+one, and needs history a shallow CI clone does not have — the same argument that
+chose a committed snapshot over a git tag.
+
+### What was deliberately left undone
+
+**AsyncAPI is not diffed.** Event compatibility turns on delivery semantics and
+`DEC-009` is open; writing the rules now would bake in the assumption this
+repository has refused to make. The snapshot includes `asyncapi.yaml` so the
+baseline is complete. Carried to `STEP-006`.
+
+**Semantic change is not detected** — `CONTRACT_CHANGE_POLICY` §1's most dangerous
+category, invisible to a structural diff by construction. `ENH-001` proposes
+detecting the *documented* subset via description drift and is **logged, not built**:
+the enhancement log's rule 1 says an enhancement is never implemented silently
+inside another sub-step, and its real risk is teaching people to click through a
+warning.
+
+---
+
 ## IMPL-031 — STEP-004.07 — Client generation and no-hand-edit enforcement
 
 | Field | Value |

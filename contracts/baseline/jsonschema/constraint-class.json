@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://journeylab.app/schemas/v1/constraint-class.json",
+  "title": "ConstraintClass",
+  "description": "THE FOUR CLASSES ARE KEPT DISTINCT, and collapsing any pair breaks something specific:\n\n  hard        violating it makes the plan wrong. Zero violations is REQ-CONS-004, an S1 if breached\n  soft        a preference the solver trades off\n  inferred    WE derived it, the traveller did not say it. Requires provenance, and must be reviewable\n  unresolved  a blocking ambiguity. The plan cannot be solved until it is answered (REQ-CONS-002)\n\nMerging `hard` and `soft` produces a solver that quietly relaxes a wheelchair requirement to save nine minutes. Merging `inferred` into either hides that a machine put words in the traveller's mouth. Merging `unresolved` into `soft` produces a confident plan built on a guess — the exact failure this product exists to remove.",
+  "type": "string",
+  "enum": ["hard", "soft", "inferred", "unresolved"]
+}

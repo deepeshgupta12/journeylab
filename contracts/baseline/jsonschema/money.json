@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://journeylab.app/schemas/v1/money.json",
+  "title": "Money",
+  "description": "Integer minor units. NEVER floating point. `0.1 + 0.2` is not `0.3` in IEEE 754 and currency arithmetic is mostly addition, so a total summed from float line items stops matching the sum of what is displayed. The exponent is not always 2: JPY and KRW have none, BHD/KWD/TND have three — so only formatting divides.",
+  "type": "object",
+  "required": ["amount_minor", "currency"],
+  "additionalProperties": false,
+  "properties": {
+    "amount_minor": {
+      "type": "integer",
+      "description": "€12.34 is 1234. ¥100 is 100.",
+      "examples": [1234]
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217.",
+      "examples": ["EUR"]
+    }
+  }
+}

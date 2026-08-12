@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://journeylab.app/schemas/error-codes.json",
+  "title": "JourneyLab error codes",
+  "description": "GENERATED from docs/product/04-contracts/ERROR_MODEL.md — do not edit by hand. Rebuild: uv run python tools/gen_error_codes.py. Only client-visible codes appear here; internal conditions surface as a fallback or a warning and are never returned to a caller.",
+  "type": "string",
+  "enum": [
+    "validation.invalid_request",
+    "validation.invalid_party",
+    "coverage.unsupported_region",
+    "coverage.unsupported_dates",
+    "coverage.provider_degraded",
+    "constraint.ambiguous_requires_clarification",
+    "constraint.unsatisfiable",
+    "solver.infeasible",
+    "solver.timeout",
+    "evidence.pack_stale",
+    "evidence.insufficient_coverage",
+    "itinerary.item_protected",
+    "concurrency.version_mismatch",
+    "collaboration.invitation_expired",
+    "affiliate.unavailable",
+    "booking.availability_changed",
+    "privacy.deletion_failed",
+    "authz.forbidden",
+    "tenant.isolation_violation"
+  ],
+  "x-journeylab-codes": {
+    "validation.invalid_request": {
+      "status": 400,
+      "type": "https://journeylab.app/problems/validation.invalid_request",
+      "meaning": "Request does not satisfy its schema",
+      "remediation": "Show the offending fields inline; do not retry unchanged",
+      "requirement": "REQ-PLAT-005"
+    },
+    "validation.invalid_party": {
+      "status": 422,
+      "type": "https://journeylab.app/problems/validation.invalid_party",
+      "meaning": "Party composition is well-formed but impossible",
+      "remediation": "State which combination cannot be planned for",
+      "requirement": "REQ-PLAT-005"
+    },
+    "coverage.unsupported_region": {
+      "status": 422,
+      "type": "https://journeylab.app/problems/coverage.unsupported_region",
+      "meaning": "Region not in the destination pack",
+      "remediation": "Show supported regions; offer waitlist",
+      "requirement": "REQ-TRIP-002"
+    },
+    "coverage.unsupported_dates": {
+      "status": 422,
+      "type": "https://journeylab.app/problems/coverage.unsupported_dates",
+      "meaning": "Dates outside coverage or planning window",
+      "remediation": "Show supported bounds",
+      "requirement": "REQ-TRIP-002"
+    },
+    "coverage.provider_degraded": {
+      "status": 503,
+      "type": "https://journeylab.app/problems/coverage.provider_degraded",
+      "meaning": "Provider health insufficient for reliable planning",
+      "remediation": "Refuse rather than produce a partial simulation",
+      "requirement": "REQ-EVID-006"
+    },
+    "constraint.ambiguous_requires_clarification": {
+      "status": 422,
+      "type": "https://journeylab.app/problems/constraint.ambiguous_requires_clarification",
+      "meaning": "A blocking ambiguity prevents solving",
+      "remediation": "Present the specific clarification question",
+      "requirement": "REQ-CONS-002"
+    },
+    "constraint.unsatisfiable": {
+      "status": 422,
+      "type": "https://journeylab.app/problems/constraint.unsatisfiable",
+      "meaning": "Constraints conflict before search",
+      "remediation": "Return minimal conflict set",
+      "requirement": "REQ-CONS-005"
+    },
+    "solver.infeasible": {
+      "status": 422,
+      "type": "https://journeylab.app/problems/solver.infeasible",
+      "meaning": "No feasible schedule exists",
+      "remediation": "Minimal conflict set + suggested relaxations",
+      "requirement": "REQ-CONS-005"
+    },
+    "solver.timeout": {
+      "status": 504,
+      "type": "https://journeylab.app/problems/solver.timeout",
+      "meaning": "Generation exceeded budget",
+      "remediation": "Return best-known feasible or preserve last valid version",
+      "requirement": "REQ-NFR-004"
+    },
+    "evidence.pack_stale": {
+      "status": 409,
+      "type": "https://journeylab.app/problems/evidence.pack_stale",
+      "meaning": "Evidence changed since the pack was built",
+      "remediation": "Rebuild pack and regenerate",
+      "requirement": "REQ-EVID-005"
+    },
+    "evidence.insufficient_coverage": {
+      "status": 422,
+      "type": "https://journeylab.app/problems/evidence.insufficient_coverage",
+      "meaning": "Critical facts missing",
+      "remediation": "State what is missing; block affected options",
+      "requirement": "REQ-AI-004"
+    },
+    "itinerary.item_protected": {
+      "status": 409,
+      "type": "https://journeylab.app/problems/itinerary.item_protected",
+      "meaning": "Edit targets a protected/booked item",
+      "remediation": "Require explicit unlock by the user",
+      "requirement": "REQ-CONS-011"
+    },
+    "concurrency.version_mismatch": {
+      "status": 409,
+      "type": "https://journeylab.app/problems/concurrency.version_mismatch",
+      "meaning": "ETag mismatch",
+      "remediation": "Refetch and re-apply",
+      "requirement": null
+    },
+    "collaboration.invitation_expired": {
+      "status": 403,
+      "type": "https://journeylab.app/problems/collaboration.invitation_expired",
+      "meaning": "Link expired or revoked",
+      "remediation": "Fail closed, leak nothing",
+      "requirement": "REQ-SEC-008"
+    },
+    "affiliate.unavailable": {
+      "status": 503,
+      "type": "https://journeylab.app/problems/affiliate.unavailable",
+      "meaning": "Partner unreachable",
+      "remediation": "Copyable booking details fallback",
+      "requirement": "REQ-BOOK-004"
+    },
+    "booking.availability_changed": {
+      "status": 409,
+      "type": "https://journeylab.app/problems/booking.availability_changed",
+      "meaning": "Provider availability changed",
+      "remediation": "Re-search and show a clear delta",
+      "requirement": "REQ-BOOK-001"
+    },
+    "privacy.deletion_failed": {
+      "status": 202,
+      "type": "https://journeylab.app/problems/privacy.deletion_failed",
+      "meaning": "Deletion incomplete",
+      "remediation": "Monitored retry queue visible to privacy owner",
+      "requirement": "REQ-PRIV-007"
+    },
+    "authz.forbidden": {
+      "status": 403,
+      "type": "https://journeylab.app/problems/authz.forbidden",
+      "meaning": "Not permitted",
+      "remediation": "Identical to not-found",
+      "requirement": "REQ-SEC-004"
+    },
+    "tenant.isolation_violation": {
+      "status": 500,
+      "type": "https://journeylab.app/problems/tenant.isolation_violation",
+      "meaning": "Cross-tenant access attempted",
+      "remediation": "Halt, incident response",
+      "requirement": "REQ-SEC-002"
+    }
+  }
+}

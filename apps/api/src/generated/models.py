@@ -1046,8 +1046,8 @@ class JobEvent(BaseModel):
 
     event: Event
     job_id: str
-    sequence: int | None = Field(
-        None,
+    sequence: int = Field(
+        ...,
         description='Monotonic, so a client that reconnects can tell whether it missed\nanything rather than assuming it did not.\n',
     )
     progress_percent: float | None = Field(None, ge=0.0, le=100.0)
