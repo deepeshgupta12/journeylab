@@ -82,7 +82,7 @@ trending up, coverage gaps accepted with a reason.
 | R4 untested requirements | **PASS — improved** | REQ-SEC-003 was **claimed** by `.05` and untested; it is now covered |
 | R5 orphan/unowned nodes | **PASS** | Catch-all owner |
 | R6 closed-bug tests | **PASS** | BUG-001…022; meta-suite 55/55 |
-| **R7 tenant isolation** | **PASS — 18/18**, up from 12 | `sessions` added to the suite: cross-tenant read, **cross-tenant revoke** (denial of service, a different harm), and no DELETE privilege at all |
+| **R7 tenant isolation** | **PASS — 18/18** locally, up from 12. **Not run in CI — see below** | `sessions` added to the suite: cross-tenant read, **cross-tenant revoke** (denial of service, a different harm), and no DELETE privilege at all |
 
 **Overall:** PASS
 
@@ -126,6 +126,35 @@ next such table is covered by whoever creates it. Same pattern as `BUG-021`.
 **R7 grew by six assertions and one of them is a new kind.** Revoking across a
 tenant boundary is denial of service rather than disclosure. The suite previously
 only asserted that a tenant could not *read* another's rows.
+
+### The finding that matters most, and it is not about this sub-step
+
+**None of the database-backed security tests run in CI.** Measured on this
+sub-step's `pnpm ci:local`:
+
+| Environment | Python result |
+| --- | --- |
+| Local, dev stack up | **665 passed, 5 skipped** |
+| CI mirror (Linux, cold install) | **624 passed, 46 skipped** |
+
+Forty-one tests are gated on `@requires_db` and skip when Postgres is absent —
+including **all 13 database-backed session-revocation tests added here**. Neither
+`tests/ci-mirror.sh` nor `.github/workflows/verify.yml` provides a database.
+
+Worse: **`pnpm test:security` is not in `pnpm verify` at all**, so R7 — the check
+`CLAUDE.md` §2 calls non-negotiable — has never run in CI. It runs when a human
+runs it, on a machine where the stack happens to be up.
+
+This is **pre-existing**, dating from STEP-002.01 rather than introduced here. But
+this sub-step just added thirteen more security assertions to the set that CI does
+not execute, which makes it worth stating rather than inheriting. The skip is
+visible in the output and nothing treats it as a failure, so a green CI run today
+is not evidence that tenant isolation holds.
+
+Recorded here rather than fixed: adding a Postgres service to CI is an
+infrastructure change with its own blast radius, and doing it inside a security
+sub-step is the widening `ENH-001` and `ENH-002` were logged to avoid. **Raised to
+the owner as the recommended next piece of work.**
 
 ---
 

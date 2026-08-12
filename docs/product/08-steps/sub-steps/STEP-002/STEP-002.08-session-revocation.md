@@ -110,7 +110,7 @@ hashed, appears in an audit payload or a log line. No user-facing surface here.
 | R4 untested requirements | **PASS — improved** | REQ-SEC-003 was *claimed* by `.05` and untested; now covered |
 | R5 orphan/unowned nodes | **PASS** | Catch-all owner |
 | R6 closed-bug regression tests | **PASS** | BUG-001…022; meta-suite 55/55 |
-| R7 tenant isolation | **PASS — 18/18**, up from 12 | Cross-tenant read, **cross-tenant revoke**, and no DELETE privilege |
+| R7 tenant isolation | **PASS — 18/18** locally, up from 12 | Cross-tenant read, **cross-tenant revoke**, no DELETE privilege. **Runs locally only — CI has no database, so R7 and 41 other tests skip there.** Pre-existing; see the regression entry |
 
 **Overall:** **PASS**.
 
