@@ -111,6 +111,20 @@ trending up, coverage gaps accepted with a reason.
 
 ### Notes
 
+**The mirror failed once before it passed, and the failure was mine.** The
+PostgreSQL step added in STEP-001.07 reported *"the mirror database never became
+ready"* and nothing else — the BUG-009 shape exactly, a message that sends the
+reader hunting the wrong problem. It was transient: the machine was under load
+(npm registry requests were taking 45–70s) and 40s was not enough for readiness
+while Docker contended.
+
+Fixed as a diagnosis problem rather than a timeout problem: the window is 60s, a
+failed `docker run` is now reported as such, and on timeout the step prints the
+container status and its last fifteen log lines. A retry that succeeds is not
+evidence the check is sound; a failure that cannot be diagnosed is.
+
+Re-run: **727 passed / 5 skipped on Linux, R7 18/18** — matching local exactly.
+
 **The survivor is the finding.** Flipping the production client to
 `follow_redirects=True` left all 61 tests green, because every test injects its own
 client and the constructor's default was never exercised. That is not cosmetic:

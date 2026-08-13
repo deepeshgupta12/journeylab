@@ -70,19 +70,30 @@ echo "  no node_modules (cold install confirmed)"
 echo ""
 echo "=== 1b. PostgreSQL, as CI provides it ==="
 docker network create "$MIRROR_NET" >/dev/null 2>&1 || true
-docker run -d --rm --name "$MIRROR_DB" --network "$MIRROR_NET" \
+if ! docker run -d --rm --name "$MIRROR_DB" --network "$MIRROR_NET" \
   -e POSTGRES_USER=journeylab \
   -e POSTGRES_PASSWORD=journeylab_dev_only \
   -e POSTGRES_DB=journeylab \
-  postgres:18-alpine >/dev/null
+  postgres:18-alpine >/dev/null; then
+  echo "  FAIL: could not start the mirror database (docker run failed above)."
+  exit 1
+fi
+
 # Wait for readiness rather than sleeping. BUG-009 was a first-boot restart being
 # mistaken for a missing schema; a fixed sleep either wastes time or reproduces it.
-for _ in $(seq 1 40); do
+for _ in $(seq 1 60); do
   if docker exec "$MIRROR_DB" pg_isready -U journeylab >/dev/null 2>&1; then break; fi
   sleep 1
 done
 if ! docker exec "$MIRROR_DB" pg_isready -U journeylab >/dev/null 2>&1; then
-  echo "  FAIL: the mirror database never became ready."
+  # DIAGNOSE, do not just fail. "Never became ready" with no evidence is the
+  # BUG-009 shape exactly — a message that sends the reader hunting the wrong
+  # problem. Print what the container actually said.
+  echo "  FAIL: the mirror database never became ready after 60s."
+  echo "  --- container status ---"
+  docker ps -a --filter "name=$MIRROR_DB" --format "    {{.Status}} ({{.Image}})" || true
+  echo "  --- last container log lines ---"
+  docker logs "$MIRROR_DB" 2>&1 | tail -15 | sed "s/^/    /" || true
   exit 1
 fi
 echo "  postgres:18-alpine ready on network $MIRROR_NET"
