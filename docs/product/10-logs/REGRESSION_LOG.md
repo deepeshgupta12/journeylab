@@ -67,6 +67,62 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-001.08 — 2026-08-13 — Carried-commitment guard (ENH-002)
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `34588be` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 727 Python + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS** | One tool, one guard, six annotations, two documents |
+| R4 untested requirements | **PASS — improved** | REQ-KG-008 gains an automated check where it had only a protocol |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…024; meta-suite **68/68** (up from 61) |
+| R7 tenant isolation | **PASS — 18/18** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| The guard failed on its own documentation, **five times** | `STEP-NNN.MM` placeholders; a quoted BUG-022 carry; a literal `.07` example; the fenced code block showing the convention; and the log entry recording all of them | Placeholders skipped; an explicit `carry-exempt` marker for prose that *describes* a carry; the syntax example rewritten in placeholder form. Each was a decision, not a loosened rule |
+| Six existing carries flagged | Their targets had closed and the lines said nothing | Five annotated as discharged. **The sixth was a live commitment with no home** — see the notes |
+
+### Mutation testing
+
+| Seeded | Result |
+| --- | --- |
+| The BUG-022 shape reconstructed — a carry to a `VERIFIED` target, no disposition | **killed**, naming the target |
+| The same carry with `— discharged at X` | **passes** — a guard that failed either way would be a blocker, not a guard |
+| `— withdrawn: <reason>` | **passes** |
+| A carry to an open step | **passes** untouched — the normal case |
+| A `STEP-NNN` placeholder | **passes** — not treated as a carry |
+
+### Notes
+
+**The prototype was worth more than the guard.** A read-only detector run against
+the real corpus before any design killed two rules that would each have shipped and
+each been wrong — "the target must mention the source" (fails two of the three
+honest discharge shapes) and treating a quoted carry as a live one.
+
+**It found a commitment with no owner.** `auth/errors.py` still returns the
+STEP-002.02 shape rather than RFC 9457. `STEP-004.01` carried the migration to
+`.04`, `.04` correctly established it was not its job, and nobody re-carried it —
+so the record pointed at a sub-step that had declined the work. `BR-028` §7
+disclosed the two shapes at the time; what was lost was ownership, which is
+precisely `BUG-022`. Now re-carried to `STEP-008`.
+
+**No BUG entry for that**, deliberately: nothing regressed and nothing was hidden.
+The defect was in the process the guard now closes, and it is recorded in `BR-039`
+§4 rather than as a new bug.
+
+---
+
 ## STEP-005.01 — 2026-08-13 — Connector framework
 
 | Field | Value |
@@ -665,7 +721,7 @@ branch that is simply never reached, and nobody noticing for a year.
 **Two error shapes now exist in the repository.** `auth/errors.py` still returns
 its STEP-002.02 body and is *not* RFC 9457. Migrating it means changing a function
 with two live callers inside a traced execution flow, with **no HTTP surface to
-verify the migration against** — `apps/api` has no routes. Carried to STEP-004.04
+verify the migration against** — `apps/api` has no routes. Carried to STEP-004.04 — **superseded: re-carried to STEP-008** (the first route handlers); `.04` correctly established it was not its job, but the migration itself remains outstanding
 and stated in `BR-028` §7 rather than left to be discovered.
 
 **A third graph limitation surfaced.** `gitnexus_query` returned nothing and

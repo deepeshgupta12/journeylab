@@ -12,11 +12,46 @@ Navigation: [Sub-step protocol](SUB_STEP_PROTOCOL.md) · [Change impact protocol
 
 ---
 
+
+## Deferring work — the carry convention
+
+Work is often deferred to a later sub-step. Write it as:
+
+```
+carried to STEP-NNN.MM
+```
+
+**When that target closes, the line must say what became of the promise.** One of:
+
+| Disposition | Means |
+| --- | --- |
+| `— discharged at STEP-NNN.MM` | the work was done, and where |
+| `— withdrawn: <reason>` | the carry was mistaken |
+| `— superseded by <what>` | it moved, and this says where |
+
+`pnpm guard:carried-commitments` fails the build when a carry names an already
+`VERIFIED` sub-step and the line says nothing.
+
+**Why this is enforced rather than trusted.** `BUG-022`: `STEP-002.05` deferred
+server-side session revocation with *"carried to STEP-002.07"*, `.07` closed <!-- carry-exempt: quotes BUG-022 -->
+`VERIFIED` without it, and nothing failed for six sub-steps — because a carry is
+prose and the documentation guard only checks that records exist. A security
+control everybody believed existed did not.
+
+**Re-routing is allowed and deliberately visible.** Writing `— superseded by` is
+a legitimate answer; the point is that a promise which keeps moving can be
+counted. Prose that *describes* a carry rather than making one is exempted with
+`<!-- carry-exempt: reason -->`, the same shape as `rtl-exempt` in the CSS guard.
+
+**What it cannot do:** prove the work was done. `— withdrawn: nonsense` passes.
+It converts silence into a specific, recorded, reviewable claim — the same honest
+limit as `contracts/baseline/BASELINE.md` §3.
+
 ## 1. Branching
 
 | Branch | Purpose | Rules |
 | --- | --- | --- |
-| `main` | Always green, always deployable | Protected; no direct pushes; every merge triggers graph refresh |
+| `main` | Always green, always deployable | **Direct pushes accepted while there is one owner (`ADR-017`)** — a pull request with no second reviewer is the author approving their own change with extra steps (`ADR-010`). `pnpm verify` before every commit and `pnpm ci:local` before anything touching dependencies or CI are what replace the merge gate. Every push triggers a graph refresh |
 | `step/NNN-<slug>` | One branch per step | Sub-steps commit here sequentially |
 | `fix/BUG-NNN-<slug>` | Bug fix | Must add a regression test before the fix |
 | `chore/<slug>` | Tooling, dependencies | Still requires impact analysis if a version changes |

@@ -36,6 +36,7 @@ decision log.
 | [ADR-014](ADR-014-guest-session-lifetime.md) | A guest session lasts 7 days | Accepted |
 | [ADR-015](ADR-015-kafka-as-the-event-backbone.md) | Kafka is the event backbone | Accepted |
 | [ADR-016](ADR-016-phase-1-destination-region.md) | Phase 1 destination region is Switzerland | Accepted |
+| [ADR-017](ADR-017-direct-pushes-to-main.md) | Direct pushes to `main` while there is one owner | Accepted |
 
 ## Rules
 

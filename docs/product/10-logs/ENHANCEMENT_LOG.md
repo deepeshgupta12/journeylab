@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Owner | Product Lead (Deepesh Kumar Gupta) |
-| Status | `ACTIVE` — 2 entries: ENH-001 `SCHEDULED`, ENH-002 awaiting a decision |
+| Status | `ACTIVE` — 2 entries: ENH-001 `SCHEDULED` (STEP-004.09), ENH-002 **`DELIVERED`** (STEP-001.08) |
 | Purpose | Record improvements proposed or delivered beyond the stated requirement, so scope growth is visible rather than silent |
 | Last reviewed | 2026-08-12 |
 
@@ -23,7 +23,7 @@ An enhancement is work nobody asked for. It may be excellent and it may be scope
 
 | ID | Title | Proposed by | Date | Type | Requirement affected | Decision | Delivered in | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| ENH-002 | Guard that a carried commitment is discharged | Deepesh Kumar Gupta (during STEP-002.08) | 2026-08-12 | reliability / process | REQ-KG-008 | **PENDING** | — | `PROPOSED` |
+| ENH-002 | Guard that a carried commitment is discharged | Deepesh Kumar Gupta (during STEP-002.08) | 2026-08-12 | reliability / process | REQ-KG-008 | **ACCEPTED 2026-08-13** (owner) | STEP-001.08 | `DELIVERED` |
 | ENH-001 | Detect semantic change by description drift | Deepesh Kumar Gupta (during STEP-004.08) | 2026-08-12 | developer-experience / reliability | REQ-PLAT-008 | **ACCEPTED 2026-08-13** (owner) | STEP-004.09 | `SCHEDULED` |
 
 **Status values:** `PROPOSED` · `ACCEPTED` · `SCHEDULED` · `DELIVERED` · `DECLINED` · `DEFERRED`
@@ -86,11 +86,11 @@ re-carries and surface them, or it converts a visible failure into a silent one.
 
 | Field | Value |
 | --- | --- |
-| Decision | **PENDING — owner decision required** |
-| Decided by | — |
-| Rationale | Logged, not built. Building a documentation guard inside a security sub-step is the widening this log exists to prevent, and `ENH-001` was held to the same rule the same week |
-| If accepted, sub-step | Its own sub-step under `STEP-001` governance, or fold into `STEP-026` |
-| If deferred, revisit at | The next time a carry is written — which is every sub-step, so this should not sit long |
+| Decision | **ACCEPTED and DELIVERED** — owner directive, 2026-08-13 |
+| Decided by | Deepesh Kumar Gupta (repository owner) |
+| Delivered in | **`STEP-001.08`** (`BR-039`, `IMPL-036`) |
+| Outcome against the stated risk | The risk was false positives teaching people to click through. **It fired on its own documentation five times** before the design was right, and each was fixed by an explicit decision rather than a loosened rule: placeholders skipped, a `carry-exempt` marker for prose that describes a carry, and the syntax example written in placeholder form |
+| What it found immediately | Six carries pointing at closed sub-steps. Five were genuine discharges needing annotation; **one was a live commitment with no home** — the `auth/errors.py` RFC 9457 migration, carried to `STEP-004.04`, declined there, and never re-carried. `BR-039` §4 <!-- carry-exempt: describes a finding --> |
 
 ---
 

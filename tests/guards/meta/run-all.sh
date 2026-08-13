@@ -64,7 +64,7 @@ for g in tests/guards/*.sh; do
   # its own section below rather than in the fast baseline loop.
   # generated-clients.sh regenerates both clients from the contract (~20s); it is
   # exercised in its own section below rather than in the fast baseline loop.
-  case "$(basename "$g")" in change-impact-record.sh|gallery-gate.sh|generated-clients.sh|contract-compatibility.sh|tenant-isolation-gate.sh) continue ;; esac
+  case "$(basename "$g")" in change-impact-record.sh|gallery-gate.sh|generated-clients.sh|contract-compatibility.sh|tenant-isolation-gate.sh|carried-commitments.sh) continue ;; esac
   assert_guard "$(basename "$g") clean" "$g" 0
 done
 
@@ -403,6 +403,57 @@ if [ "$rc" -eq 0 ] && echo "$out" | grep -qE "skipped|s "; then
 else
   echo "  FAIL pytest should skip without the flag; exit $rc"; fail=$((fail+1))
 fi
+
+echo ""
+echo "=== STEP-001.08 (ENH-002): a carried commitment cannot be dropped ==="
+# BUG-022 SURVIVED SIX SUB-STEPS BECAUSE A CARRY IS PROSE.
+# The seed reconstructs it exactly: a deferral naming a target that has since
+# closed, with nothing on the line saying what became of it.
+SEED_DIR=docs/product/08-steps/sub-steps/STEP-002
+SEED=$SEED_DIR/META_SEED_carry.md
+CLEANUP+=("$SEED")
+
+assert_guard "carried-commitments passes on the current repository" \
+  tests/guards/carried-commitments.sh 0 "no carried commitment outlived"
+
+# 1. The BUG-022 shape, reconstructed.
+cat > "$SEED" <<'SEEDEOF'
+---
+sub_step_id: STEP-002.99
+parent_step: STEP-002
+status: VERIFIED
+---
+- [~] PARTIAL. Live-token revocation is not implemented — carried to STEP-002.07
+SEEDEOF
+assert_guard "carried-commitments catches the BUG-022 shape" \
+  tests/guards/carried-commitments.sh 1 "carried to STEP-002.07, which is VERIFIED"
+
+# 2. The same carry, disposed. Must pass — a guard that fails either way is not
+#    a guard, it is a blocker.
+sedi 's|carried to STEP-002.07$|carried to STEP-002.07 — discharged at STEP-002.08|' "$SEED"
+assert_guard "carried-commitments accepts a disposed carry" \
+  tests/guards/carried-commitments.sh 0 "no carried commitment outlived"
+
+# 3. Withdrawn and superseded are equally valid dispositions — STEP-004.04
+#    discharged its carry by establishing the carry was WRONG.
+sedi 's|— discharged at STEP-002.08|— withdrawn: the premise was mistaken|' "$SEED"
+assert_guard "carried-commitments accepts a withdrawal" \
+  tests/guards/carried-commitments.sh 0 "no carried commitment outlived"
+
+# 4. A carry to work that is still OPEN is the normal case and must be untouched.
+sedi 's|carried to STEP-002.07 — withdrawn: the premise was mistaken|carried to STEP-026|' "$SEED"
+assert_guard "carried-commitments leaves an open carry alone" \
+  tests/guards/carried-commitments.sh 0 "no carried commitment outlived"
+
+# 5. A template placeholder is not a carry. Without this the guard fails on the
+#    documentation that describes it — which it did, three times.
+sedi 's|carried to STEP-026|carried to STEP-NNN.MM|' "$SEED"
+assert_guard "carried-commitments ignores a STEP-NNN placeholder" \
+  tests/guards/carried-commitments.sh 0 "no carried commitment outlived"
+
+rm -f "$SEED"
+assert_guard "carried-commitments clean again" \
+  tests/guards/carried-commitments.sh 0 "no carried commitment outlived"
 
 echo ""
 echo "════════════════════════════════════════"

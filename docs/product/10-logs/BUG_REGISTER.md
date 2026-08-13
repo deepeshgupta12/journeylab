@@ -205,7 +205,7 @@ The code was correct at every step. The **commitment** was lost:
 
 | Where | What it said |
 | --- | --- |
-| `.05` §5 | "Server-side revocation of an already-issued access token is NOT implemented — **carried to STEP-002.07**" |
+| `.05` §5 | "Server-side revocation of an already-issued access token is NOT implemented — **carried to STEP-002.07**" — **discharged at STEP-002.08** |
 | `.05` `session.ts` | "Server-side revocation is authoritative and is what actually ends access" — a comment pointing at something that did not exist |
 | `.04` §5 | "Ending an already-issued token needs the session store from `.05`" |
 | `.07` | Closed **`VERIFIED`**, listing four carried gaps: emitters, write-failure monitoring, flag auditing, retention. **Not this one** |

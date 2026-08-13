@@ -60,6 +60,77 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-036 — STEP-001.08 — A carried commitment cannot be dropped silently
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-13 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-KG-008, REQ-PLAT-002 |
+| Blast radius | [BR-039](blast-radius/BR-039-carried-commitments.md) (LOW, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `34588be` — matched HEAD at pre-change |
+| Delivers | **ENH-002**, accepted by the owner 2026-08-13 |
+
+### What was built
+
+`tests/guards/carried-commitments.sh`. A commitment deferred with
+`carried to STEP-NNN.MM` cannot reach that target's closure without a disposition
+on its own line. Guard meta-suite 61 → **68**.
+
+### The prototype was worth more than the guard
+
+I wrote a throwaway detector and ran it against the real corpus before designing
+anything. It killed two designs that would each have shipped and each been wrong.
+
+**"The target must mention the source"** was the obvious rule. `STEP-004.01`
+carried the RFC 9457 migration to `STEP-004.04`, and `.04` discharged it by
+establishing the carry was *mistaken* — never naming `.01`. Discharge has three
+honest shapes (done, withdrawn, re-routed) and only the first resembles doing the
+work.
+
+**Then it flagged carries I had already fixed**, because `STEP-002.08` rewrote
+those lines to *quote* the old carry while explaining the fix. A live promise and a
+historical quotation of one are textually identical. That is the false-positive
+class `ENH-002` predicted, and it is why the disposition belongs on the carry line:
+whoever resolves a promise annotates the promise, and a quotation is not one.
+
+### It found a commitment with no home
+
+Six carries pointed at closed sub-steps. Five needed annotation. One was live:
+
+**`auth/errors.py` still returns the STEP-002.02 shape, not RFC 9457.**
+`STEP-004.01` carried the migration to `.04`; `.04` correctly established it was
+not its job — and nobody re-carried it. Two error shapes have coexisted since
+STEP-004.01 with the record pointing at a sub-step that had declined the work.
+
+Not a new defect — `BR-028` §7 disclosed the two shapes openly at the time. What
+had been lost was **ownership**, which is exactly what `BUG-022` was. Now annotated
+`— superseded: re-carried to STEP-008`.
+
+### What surprised me
+
+**The guard failed on its own documentation five times.** `STEP-NNN.MM`
+placeholders, a quoted BUG-022 carry, a literal `.07` example, the fenced code
+block showing the convention, and finally the enhancement-log entry recording all
+of the above. Each needed a decision rather than a loosened rule:
+placeholders are skipped, prose that *describes* a carry gets an explicit
+`carry-exempt` marker (the same shape as `rtl-exempt` in the CSS guard), and the
+syntax example now uses the placeholder form so a document explaining the
+convention cannot fail on its own example.
+
+That is the false-positive tax `ENH-002` costed, paid explicitly. A check people
+learn to click through is worse than none, and the way to avoid it is to make each
+exemption a human decision that can be asked about.
+
+### The limit, stated rather than implied
+
+It proves a carry was **considered at closure**, not that the work was **done**.
+`— withdrawn: nonsense` passes. Same limit as `BASELINE.md` §3: silence becomes a
+specific, recorded, reviewable claim; the claim is not thereby true.
+
+---
+
 ## IMPL-035 — STEP-005.01 — Connector framework
 
 | Field | Value |
@@ -1149,7 +1220,7 @@ graph traces them.
 **`auth/errors.py` still returns the STEP-002.02 body.** It is not RFC 9457, and
 migrating it means changing a function with two live callers inside a traced flow
 with **no HTTP surface to verify the migration against** — `apps/api` has no
-routes yet. Carried to STEP-004.04, where the platform routes land.
+routes yet. Carried to STEP-004.04, where the platform routes land. — **superseded: `.04` established the carry was mistaken (STEP-004 declares contracts only, no handler exists to verify a migration against). The migration is STILL OUTSTANDING and re-carried to STEP-008**, where the first route handlers land. Surfaced by the STEP-001.08 guard, which found it had been homeless since STEP-004.01.
 
 Until then **two error shapes exist in the repository**, which is stated in
 `BR-028` §7 rather than left to be discovered.

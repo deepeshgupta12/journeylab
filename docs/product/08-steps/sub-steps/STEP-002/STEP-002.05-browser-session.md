@@ -39,7 +39,7 @@ The web app holds a session securely, refreshes tokens without interrupting the 
 - [x] `__Host-` prefixed, httpOnly, Secure cookies. **No function in the package can write a token anywhere JS-readable** — `tokenCookie()` throws without the prefix and forces httpOnly
 - [x] Single-flight per session key. **Required by Auth0 rotation, not an optimisation**: concurrent refreshes look like replay and can revoke the token family
 - [x] Opaque 32-byte token, hashed at rest, **7-day** expiry enforced server-side against the stored record (`ADR-014`), warned in the final 24 hours
-- [x] Sign-out clears **every** cookie in `ALL_SESSION_COOKIES`, **and server-side revocation now exists** (STEP-002.08). This line read "carried to STEP-002.07"; `.07` closed `VERIFIED` without it and without listing it among its carried gaps, so the commitment was dropped rather than deferred — `BUG-022`
+- [x] Sign-out clears **every** cookie in `ALL_SESSION_COOKIES`, **and server-side revocation now exists** (STEP-002.08). This line read "carried to STEP-002.07"; `.07` closed `VERIFIED` without it and without listing it among its carried gaps, so the commitment was dropped rather than deferred — `BUG-022`, **discharged at STEP-002.08**
 - [x] Provider outage or rejected refresh ⇒ no session and cookies cleared. Mutation-tested by making it fail open
 - [x] Double-submit token; missing cookie, missing header, empty string or mismatch all deny
 

@@ -41,7 +41,7 @@ Users, organizations, memberships and service identities can be created, updated
 - [x] Grant, reinstate and revoke. Revocation **stamps `revoked_at`, never deletes** — deleting erases the evidence access was held
 - [x] Workload identity. **No parameter exists** through which a secret could be passed; asserted by signature introspection
 - [~] **PARTIAL, and the only one left in `.04` — no `trips` table exists** (STEP-007). Memberships re-parent, replay-safe, with before/after counts. The guarantee is built and tested; it has nothing to apply to yet
-- [x] **CLOSED at STEP-002.08.** State is revoked, `active_role_keys` respects it, **and `revoke_membership` now ends the user's live sessions in the same transaction** — so an already-issued token stops working rather than running to its own expiry. The session store this waited on was carried to `.07` and dropped (`BUG-022`)
+- [x] **CLOSED at STEP-002.08.** State is revoked, `active_role_keys` respects it, **and `revoke_membership` now ends the user's live sessions in the same transaction** — so an already-issued token stops working rather than running to its own expiry. The session store this waited on was carried to `.07` and dropped (`BUG-022`) — **discharged at STEP-002.08**
 - [x] No provider SDK imported; no branch on a vendor. `DEC-004` stays open
 
 ## 6. Contracts and schema changes
