@@ -1,10 +1,11 @@
 # ADR-016 — Phase 1 destination region is Switzerland
 
-> **Status: PROPOSED.** This is the implementer's researched recommendation under
-> `ADR-007`'s propose-then-confirm rule. It is not accepted until the repository
-> owner confirms or overrides, and `DEC-002` stays open until then.
+> **Status: ACCEPTED 2026-08-13.** Proposed by the implementer under `ADR-007`'s
+> propose-then-confirm rule and **confirmed by the repository owner the same day**.
+> Accepted ADRs are superseded, never edited.
 
-- **Date:** 2026-08-13 · **Author:** Deepesh Kumar Gupta (implementer) · **Status:** Proposed
+- **Date:** 2026-08-13 · **Author:** Deepesh Kumar Gupta · **Status:** Accepted
+- **Confirmed by:** Repository owner, 2026-08-13 — "ok Switzerland"
 - **Constraint set by the owner, 2026-08-13:** **open data only, zero licence spend.**
 
 ## Context
@@ -50,7 +51,7 @@ must be chosen before `STEP-010`:
   a labelled fallback whose facts are marked in provenance.
 
 **(c) is what makes the region choice matter**, and it is why the recommendation
-below is not simply "wherever the transit data is best".
+here is not simply "wherever the transit data is best".
 
 ### 2. The obvious weather source is unusable
 
@@ -62,7 +63,7 @@ would be a licence breach, not a rate-limit problem.
 National meteorological services are the answer, and their terms vary by country —
 which again ties weather to the region choice rather than being independent of it.
 
-## Decision (proposed)
+## Decision
 
 **Switzerland**, as a rail-connected multi-modal region rather than a single city.
 
@@ -91,7 +92,7 @@ demonstrable claim rather than a slogan.
 | **Finland (Helsinki / Digitransit)** | Fully open, genuinely excellent API. Smaller scope and a shorter usable season for a 3–7 day trip |
 | **Greece — Cyclades** | **Rejected, and this needs saying explicitly.** The repository's own contract examples are built on it — `solver.infeasible` names Sifnos and Antiparos ferries. **Greek ferry schedules are not published as open GTFS.** The region the documentation implicitly assumes is the one least compatible with the constraint just set. The examples are illustrative and need no change, but nobody should read them as a region decision |
 
-## Consequences if accepted
+## Consequences
 
 - `STEP-005` unblocks; `STEP-005.01` (connector framework) can start immediately.
 - **`RISK-001` is not closed by this.** It moves from "unproven licensability" to
@@ -107,10 +108,38 @@ demonstrable claim rather than a slogan.
 - Attribution is a product requirement, not a footnote: `opentransportdata.swiss`
   and MeteoSwiss must be cited wherever their data is shown.
 
+## Other countries — what choosing one region does and does not commit us to
+
+`PRODUCT_SCOPE` §Phase 1 is **one region, 3–7 days**; a **second destination pack
+is Phase 2** (`STEP-014`, `STEP-015`, `STEP-022`). So this ADR picks the first
+region, not the only one, and `CONTRACT_CHANGE_POLICY` §6 already versions
+destination packs **per region with an effective date**.
+
+That imposes a real constraint on `STEP-005`, and it is the reason this section
+exists rather than being left as an aspiration:
+
+- **No adapter may be Switzerland-shaped.** The things that make Switzerland
+  attractive — a single national GTFS feed, statutory stop-level accessibility,
+  official occupancy — are unusually *good*. An adapter written to assume them
+  will not survive a region where accessibility is crowd-sourced and occupancy
+  does not exist.
+- **Absence must be representable.** The Netherlands fallback has no statutory
+  accessibility duty; a pack that cannot say "this region has no official
+  accessibility source" will force the second region to fake one.
+- **The licence differs per source, so it belongs in the data.**
+  `Provenance.licence_id` already exists for this. Switzerland's attribution-only
+  terms and OSM's ODbL will coexist inside one pack from day one, so the field is
+  load-bearing immediately rather than in Phase 2.
+
+The concrete test: **adding the Netherlands should be a new pack and new adapter
+configuration, not a change to the connector framework.** If it is not, the
+framework is wrong, and `STEP-005.01` is where that is decided.
+
 ## What this ADR does not decide
 
-The ODbL posture (a/b/c), the precise city corridor, and whether a paid feed is
-ever revisited. Each is separable and none blocks `STEP-005.01`.
+The ODbL posture (a/b/c), the precise city corridor, whether a paid feed is ever
+revisited, and **when** the second region lands. Each is separable and none blocks
+`STEP-005.01`.
 
 ## Review trigger
 

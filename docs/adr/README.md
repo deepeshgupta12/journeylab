@@ -35,7 +35,7 @@ decision log.
 | [ADR-013](ADR-013-auth0-as-identity-provider.md) | Auth0 is the identity provider (DEC-004 resolved) | Accepted |
 | [ADR-014](ADR-014-guest-session-lifetime.md) | A guest session lasts 7 days | Accepted |
 | [ADR-015](ADR-015-kafka-as-the-event-backbone.md) | Kafka is the event backbone | Accepted |
-| [ADR-016](ADR-016-phase-1-destination-region.md) | Phase 1 destination region is Switzerland | **Proposed** |
+| [ADR-016](ADR-016-phase-1-destination-region.md) | Phase 1 destination region is Switzerland | Accepted |
 
 ## Rules
 
