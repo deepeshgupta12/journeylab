@@ -19,6 +19,40 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
+    # STEP-001.07 (BUG-023): without this, 41 database-backed tests SKIPPED on
+    # every push and R7 — the check CLAUDE.md calls non-negotiable — never ran at
+    # all. The build was green throughout.
+    #
+    # The credentials match docker-compose.dev.yml and are development-only. They
+    # are in the repository deliberately: a credential that looks secret but is
+    # not is worse than one that is obviously local, because it teaches people to
+    # treat real secrets casually.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: journeylab
+          POSTGRES_PASSWORD: journeylab_dev_only
+          POSTGRES_DB: journeylab
+        ports:
+          - 5700:5432
+        # Without a health check the job races the server's first-boot restart and
+        # fails intermittently — BUG-009 was exactly that, diagnosed as a schema
+        # problem because the symptom looked like missing tables.
+        options: >-
+          --health-cmd "pg_isready -U journeylab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Port 5700 matches the dev stack, so the default DSN needs no override and
+      # local and CI cannot drift apart.
+      JOURNEYLAB_DATABASE_URL: postgresql://journeylab:journeylab_dev_only@127.0.0.1:5700/journeylab
+      # A database is expected here, so its absence must FAIL rather than skip.
+      JOURNEYLAB_REQUIRE_DB: '1'
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,6 +79,16 @@ jobs:
       # the failure without them is an opaque browser-launch error rather than a
       # missing-dependency message.
       - run: pnpm --filter @journeylab/web exec playwright install --with-deps chromium
+
+      # Migrations, so the database-backed tests have a schema to run against.
+      # Applied here rather than inside `pnpm verify` because `verify` is the
+      # gate a developer runs against their own already-migrated stack.
+      - name: Apply migrations
+        run: |
+          for m in db/migrations/*.sql; do
+            echo "--- $m"
+            psql -v ON_ERROR_STOP=1 "$JOURNEYLAB_DATABASE_URL" -q -f "$m"
+          done
 
       # The same checks a developer runs locally, in the same order.
       - run: pnpm verify

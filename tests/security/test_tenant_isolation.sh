@@ -10,21 +10,58 @@
 # A passing isolation suite that would also pass with RLS disabled is worse than
 # no suite — it manufactures confidence. (BUG-004's lesson.)
 #
-# Requires the local stack: pnpm dev
+# Requires a database. Locally: pnpm dev
+#
+# HOW IT CONNECTS, AND WHY THAT CHANGED (STEP-001.07, BUG-023)
+#   This used `docker exec -i journeylab-postgres psql`, which requires a
+#   container with that exact name on the same host. That works on a laptop and
+#   nowhere else — so R7, the check CLAUDE.md calls non-negotiable, could not run
+#   in CI and never had.
+#
+#   It now connects over TCP using a DSN, so the same script runs against the dev
+#   stack, a GitHub Actions service container, or the mirror. `docker exec` is
+#   kept only as a fallback for a machine with no psql client installed.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 
-PGC="docker exec -i journeylab-postgres psql -v ON_ERROR_STOP=1 -U journeylab -d journeylab"
+DSN="${JOURNEYLAB_DATABASE_URL:-${JOURNEYLAB_TEST_DSN:-postgresql://journeylab:journeylab_dev_only@127.0.0.1:5700/journeylab}}"
+
+if command -v psql >/dev/null 2>&1; then
+  PGC="psql -v ON_ERROR_STOP=1 $DSN"
+  CONNECTION="psql -> $DSN"
+elif docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^journeylab-postgres$'; then
+  # No psql on PATH. Fall back to the container so a developer without libpq
+  # installed is not blocked; CI always has psql.
+  PGC="docker exec -i journeylab-postgres psql -v ON_ERROR_STOP=1 -U journeylab -d journeylab"
+  CONNECTION="docker exec journeylab-postgres"
+else
+  echo "SKIP: no psql client and no journeylab-postgres container."
+  echo "      Start the stack with: pnpm dev"
+  echo "      (R7 cannot be evaluated without the database — this is a SKIP, not a PASS.)"
+  exit 2
+fi
+
 pass=0; fail=0
 
 ok()   { echo "  ok   $1"; pass=$((pass+1)); }
 bad()  { echo "  FAIL $1"; fail=$((fail+1)); }
 
-if ! docker ps --format '{{.Names}}' | grep -q '^journeylab-postgres$'; then
-  echo "SKIP: local stack not running. Start with: pnpm dev"
+# A SKIP IS NOT A PASS, AND NOW SOMETHING OTHER THAN A HUMAN ENFORCES THAT.
+# Where a database is declared to be expected, its absence is a failure. Without
+# this, a renamed service or a moved port returns R7 to skipping under a green
+# build — which is precisely how BUG-023 survived from STEP-002.01.
+if ! $PGC -tAc "SELECT 1;" >/dev/null 2>&1; then
+  if [ "${JOURNEYLAB_REQUIRE_DB:-}" != "" ] && [ "${JOURNEYLAB_REQUIRE_DB:-}" != "0" ]; then
+    echo "FAIL: JOURNEYLAB_REQUIRE_DB is set but no database is reachable."
+    echo "      Connection attempted: $CONNECTION"
+    echo "      R7 is non-negotiable; refusing to report a skip as success."
+    exit 1
+  fi
+  echo "SKIP: no database reachable via $CONNECTION"
   echo "      (R7 cannot be evaluated without the database — this is a SKIP, not a PASS.)"
   exit 2
 fi
+echo "  connection: $CONNECTION"
 
 echo "=== applying migrations 001 and 003 ==="
 for mig in db/migrations/001_identity_tenancy.sql db/migrations/003_sessions.sql; do

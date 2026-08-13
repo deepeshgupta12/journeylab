@@ -64,7 +64,7 @@ for g in tests/guards/*.sh; do
   # its own section below rather than in the fast baseline loop.
   # generated-clients.sh regenerates both clients from the contract (~20s); it is
   # exercised in its own section below rather than in the fast baseline loop.
-  case "$(basename "$g")" in change-impact-record.sh|gallery-gate.sh|generated-clients.sh|contract-compatibility.sh) continue ;; esac
+  case "$(basename "$g")" in change-impact-record.sh|gallery-gate.sh|generated-clients.sh|contract-compatibility.sh|tenant-isolation-gate.sh) continue ;; esac
   assert_guard "$(basename "$g") clean" "$g" 0
 done
 
@@ -341,6 +341,67 @@ p.write_text(p.read_text().replace('| Baseline version | \`0.1.0\` |', '| Baseli
     tests/guards/contract-compatibility.sh 0 "no breaking contract change"
 else
   echo "  skip contract-compatibility meta-test — no baseline (run pnpm contracts:baseline)"
+fi
+
+echo ""
+echo "=== STEP-001.07: a missing database must FAIL where one is declared ==="
+# BUG-023 SURVIVED FOR SIX STEPS BECAUSE A SKIP READ AS A PASS.
+# Adding PostgreSQL to CI fixes today; this fixes the regression. If the service
+# is ever renamed, moved or broken, these are what turn a silent skip back into a
+# red build.
+NOWHERE="postgresql://nobody:nothing@127.0.0.1:59999/absent"
+
+assert_guard "tenant-isolation gate passes with the stack up" \
+  tests/guards/tenant-isolation-gate.sh 0 "cross-tenant isolation enforced"
+
+# Skip tolerated when nothing declared a database — but it must SAY so.
+out=$(JOURNEYLAB_DATABASE_URL="$NOWHERE" bash tests/guards/tenant-isolation-gate.sh 2>&1); rc=$?
+if [ "$rc" -eq 0 ] && echo "$out" | grep -q "DID NOT RUN"; then
+  echo "  ok   no database + no flag -> tolerated, and says loudly that R7 did not run"; pass=$((pass+1))
+else
+  echo "  FAIL no database + no flag -> expected exit 0 with a loud notice, got $rc"; fail=$((fail+1))
+fi
+
+# The ratchet itself.
+# TWO LAYERS CAN FIRE HERE, and the first version of this assertion only knew
+# about one. The suite itself refuses when JOURNEYLAB_REQUIRE_DB is set, so the
+# wrapper's own branch is reached only if the suite ever stops checking. Both are
+# correct; assert the OUTCOME and the reason, not one component's wording.
+out=$(JOURNEYLAB_REQUIRE_DB=1 JOURNEYLAB_DATABASE_URL="$NOWHERE" bash tests/guards/tenant-isolation-gate.sh 2>&1); rc=$?
+if [ "$rc" -eq 1 ] && echo "$out" | grep -qi "JOURNEYLAB_REQUIRE_DB\|declared a database"; then
+  echo "  ok   no database + JOURNEYLAB_REQUIRE_DB -> FAILS (the BUG-023 ratchet)"; pass=$((pass+1))
+else
+  echo "  FAIL expected exit 1 naming the flag; got exit $rc"; fail=$((fail+1))
+fi
+
+# And the wrapper's own branch, reached by removing the suite's check. Belt and
+# braces are only worth having if each is known to hold on its own.
+cp tests/security/test_tenant_isolation.sh /tmp/META_R7.bak
+sedi 's|if \[ "${JOURNEYLAB_REQUIRE_DB:-}" != "" \] && \[ "${JOURNEYLAB_REQUIRE_DB:-}" != "0" \]; then|if false; then|' tests/security/test_tenant_isolation.sh
+out=$(JOURNEYLAB_REQUIRE_DB=1 JOURNEYLAB_DATABASE_URL="$NOWHERE" bash tests/guards/tenant-isolation-gate.sh 2>&1); rc=$?
+if [ "$rc" -eq 1 ] && echo "$out" | grep -q "declared a database"; then
+  echo "  ok   the wrapper ratchet holds even if the suite stops checking"; pass=$((pass+1))
+else
+  echo "  FAIL wrapper ratchet did not fire; exit $rc"; fail=$((fail+1))
+fi
+cp /tmp/META_R7.bak tests/security/test_tenant_isolation.sh; rm -f /tmp/META_R7.bak
+
+# The same ratchet on the pytest side, which is where the other 41 tests live.
+out=$(JOURNEYLAB_REQUIRE_DB=1 JOURNEYLAB_DATABASE_URL="$NOWHERE" \
+      uv run pytest tests/api/test_sessions.py -p no:warnings -q 2>&1); rc=$?
+if [ "$rc" -ne 0 ] && echo "$out" | grep -q "JOURNEYLAB_REQUIRE_DB is set"; then
+  echo "  ok   pytest refuses to skip when a database was declared"; pass=$((pass+1))
+else
+  echo "  FAIL pytest did not refuse; exit $rc"; fail=$((fail+1))
+fi
+
+# And the everyday case still skips rather than failing a laptop with no stack.
+out=$(JOURNEYLAB_DATABASE_URL="$NOWHERE" \
+      uv run pytest tests/api/test_sessions.py -p no:warnings -q 2>&1); rc=$?
+if [ "$rc" -eq 0 ] && echo "$out" | grep -qE "skipped|s "; then
+  echo "  ok   pytest still skips on a machine with no stack"; pass=$((pass+1))
+else
+  echo "  FAIL pytest should skip without the flag; exit $rc"; fail=$((fail+1))
 fi
 
 echo ""

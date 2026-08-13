@@ -13,13 +13,13 @@ WHAT THESE ARE PROVING
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
 import psycopg
 import pytest
+from dbcheck import DSN, requires_db
 from provisioning import (
     create_organization,
     grant_membership,
@@ -40,22 +40,6 @@ from sessions import (
     validate_guest_session,
     validate_session,
 )
-
-DSN = os.environ.get(
-    "JOURNEYLAB_DATABASE_URL",
-    "postgresql://journeylab:journeylab_dev_only@127.0.0.1:5700/journeylab",
-)
-
-
-def _stack_up() -> bool:
-    import socket
-
-    with socket.socket() as s:
-        s.settimeout(1)
-        return s.connect_ex(("127.0.0.1", 5700)) == 0
-
-
-requires_db = pytest.mark.skipif(not _stack_up(), reason="local stack not running (pnpm dev)")
 
 
 def run_as_owner[T](

@@ -31,8 +31,6 @@ Requires the local stack. Skips — reported as skips, never as passes — witho
 from __future__ import annotations
 
 import asyncio
-import os
-import socket
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -43,26 +41,14 @@ from auth.db import bind_tenant
 from auth.errors import OPAQUE_BODY, OPAQUE_STATUS
 from auth.events import stamp_envelope
 from authz import Operation, Resource, Role, authorize
+from dbcheck import DSN, requires_db, stack_is_up
 from provisioning import create_organization, grant_membership, provision_user
 
 pytestmark = pytest.mark.security
 
-DSN = os.environ.get(
-    "JOURNEYLAB_TEST_DSN",
-    "postgresql://journeylab:journeylab_dev_only@127.0.0.1:5700/journeylab",
-)
 
 ORG_A = uuid.UUID("aaaa0000-0000-0000-0000-00000000000a")
 ORG_B = uuid.UUID("bbbb0000-0000-0000-0000-00000000000b")
-
-
-def _stack_up() -> bool:
-    with socket.socket() as s:
-        s.settimeout(1)
-        return s.connect_ex(("127.0.0.1", 5700)) == 0
-
-
-requires_db = pytest.mark.skipif(not _stack_up(), reason="local stack not running (pnpm dev)")
 
 
 def run[T](fn: Callable[[psycopg.AsyncCursor[tuple[object, ...]]], Awaitable[T]]) -> T:
@@ -261,7 +247,7 @@ def test_event_vector_stamps_the_acting_tenant() -> None:
 
 
 def _table_exists(name: str) -> bool:
-    if not _stack_up():
+    if not stack_is_up():
         return False
 
     async def check(cur: psycopg.AsyncCursor[tuple[object, ...]]) -> bool:

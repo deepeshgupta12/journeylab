@@ -47,7 +47,7 @@ cp .env.example .env                                # local dev config
 pnpm verify                                         # must be green
 ```
 
-`pnpm verify` is the whole gate: 23 steps across 17 repository guards, linting,
+`pnpm verify` is the whole gate: 24 steps across 18 repository guards, linting,
 formatting, typechecking, the JavaScript and Python suites, a production build, and
 a **real-browser accessibility run**. **It must pass before you change anything**, so
 you know any later failure is yours.
@@ -173,7 +173,7 @@ contracts/baseline/ what compatibility is measured against          built
 packages/contracts/ generated TypeScript client (never hand-edited)   built
 services/          domain, data, retrieval, AI, ML, workflow          [STEP-005+]
 infra/local/       local development images
-tests/guards/      17 executable repository guards (run by pnpm verify)
+tests/guards/      18 executable repository guards (run by pnpm verify)
 tests/security/    cross-tenant isolation suite (R7)
 docs/product/      the documentation system — scope, architecture, contracts
 docs/adr/          architecture decision records
@@ -194,12 +194,12 @@ docs/adr/          architecture decision records
 
 | Suite | Count | Runs in |
 | --- | --- | --- |
-| Python | 648 | `pnpm verify` |
+| Python | 665 | `pnpm verify` |
 | Design system (jsdom) | 307 | `pnpm verify` |
-| Web (unit) | 61 | `pnpm verify` |
+| Web (unit) | 63 | `pnpm verify` |
 | **Real browser (Playwright + axe)** | **40** | `pnpm verify` |
-| Cross-tenant isolation (R7) | 12 | `pnpm test:security` |
-| Guard meta-tests | 55 | `pnpm guard:meta` |
+| Cross-tenant isolation (R7) | 18 | **`pnpm verify`** (and `pnpm test:security`) |
+| Guard meta-tests | 61 | `pnpm guard:meta` |
 
 The browser suite is the one to know about. It runs axe over five surfaces in two
 device profiles and asserts keyboard traversal, focus visibility, 24×24 touch

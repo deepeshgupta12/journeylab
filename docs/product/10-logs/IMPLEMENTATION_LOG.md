@@ -60,6 +60,114 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-034 — STEP-001.07 — Database-backed checks run in CI
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-13 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PLAT-002, REQ-SEC-001, REQ-SEC-002 |
+| Blast radius | [BR-037](blast-radius/BR-037-database-backed-ci.md) (MEDIUM, **confidence MEDIUM**) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `5cd47bb` — matched HEAD at pre-change |
+| Bugs closed | [BUG-023](BUG_REGISTER.md) |
+
+### What was built
+
+PostgreSQL in CI and in `pnpm ci:local`, migrations applied in both, R7 wired into
+`pnpm verify`, and the five copies of the skip decision replaced by one. Guard
+meta-suite 55 → **61**.
+
+### The bug was not "CI lacks a database"
+
+That was the visible half. CI ran **624 passed / 46 skipped** where local ran
+**665 / 5** — forty-one database-backed tests skipping on every push — and
+`pnpm test:security` was not in `pnpm verify` at all, so R7 had never run in CI in
+the repository's history.
+
+The reason it lasted six steps is the third cause: **the skip decision existed in
+five copies**, one per test module. Asking the graph for the blast radius of one
+returned `status: ambiguous` with five candidates. Five places taking the same
+decision forty-one times a run, none able to change the others, none reporting it.
+
+A fourth cause surfaced while consolidating: the modules read the DSN from **two
+different environment variables** — `JOURNEYLAB_DATABASE_URL` in one and
+`JOURNEYLAB_TEST_DSN` in four. Setting either in CI would have configured some
+modules and left the rest pointed at localhost, producing connection failures in a
+subset of tests with nothing explaining why.
+
+### Adding the service is the easy half
+
+On its own it is a fix that regresses silently. Rename the service, change its
+health check, move the port — `_stack_up()` returns False and forty-one tests go
+back to skipping under a green build.
+
+So the deliverable is the **ratchet**: `JOURNEYLAB_REQUIRE_DB=1`, set in CI and the
+mirror, makes a missing database a failure. It exists in two independent layers
+(the suite and the `verify` wrapper) and each was seeded separately to prove it
+holds alone.
+
+`tests/e2e/smoke.sh` has printed "a skip is not a pass" since STEP-003. This is the
+first time anything other than a human reading the output enforces it.
+
+### Keeping `pnpm verify` usable without Docker
+
+R7 exits 2 for "no database", and `&&` treats 2 exactly like 1 — so wiring the
+suite in directly would have made the repository's headline command fail on any
+machine without the stack running, for a CSS change.
+
+Swallowing the 2 is worse: a green `verify` would then mean "isolation holds **or**
+was never checked", which is how `BUG-023` survived.
+
+`tests/guards/tenant-isolation-gate.sh` makes the difference explicit in one
+readable place instead of leaving it an emergent property of `&&`: with the flag, a
+skip fails; without it, a skip is tolerated and prints a box saying R7 **did not
+run** and this is not a pass.
+
+### What surprised me
+
+**My warning box ran a command.** Backticks inside double quotes are command
+substitution, so `` echo "│ Run `pnpm dev` …" `` **started the whole Docker stack**
+while printing help text. I noticed because four containers reported healthy during
+what should have been a message. A guard with a side effect is not a guard — and
+this side effect would have masked the exact condition being reported, since after
+printing, the database it had just called missing would have been running.
+
+**A meta-test asserted one component's wording rather than the outcome.** The
+ratchet lives in both the suite and the wrapper; the suite fires first, so my
+assertion looking for the wrapper's message failed against entirely correct
+behaviour. Rewritten to assert the outcome, plus a second case that disables the
+suite's check to prove the wrapper's holds on its own.
+
+### It found a real defect on its first run
+
+The mirror's first run with a database failed: three tenant-context tests asserting
+`count(*) == 1` against rows the **R7 shell script** creates as a side effect. They
+passed on every developer machine, because R7 leaves its seed behind, and failed on
+a clean schema. `BUG-024`.
+
+Order-dependent on a different suite, in a different language, with nothing
+recording the dependency — and invisible for six steps because the only environment
+that was both clean and had a database did not exist until this sub-step created
+it.
+
+### What this sub-step cannot verify about itself
+
+**The workflow YAML.** GitHub Actions `services:` blocks are interpreted by the
+runner; nothing local executes them. `pnpm ci:local` provides its database by a
+different mechanism — a container on a user-defined network — so the two paths
+verify different things and neither proves the other. `BR-037` §3 records that the
+workflow change is verified only by the push that follows, which is why that record
+is MEDIUM confidence while the code around it is high.
+
+### What was deliberately left undone
+
+Redis, MinIO, NATS and Jaeger stay out of CI. No test depends on them, and adding
+services nothing uses is cost without coverage. When one is needed, it gets the
+same ratchet.
+
+---
+
 ## IMPL-033 — STEP-002.08 — Server-side session store and revocation
 
 | Field | Value |

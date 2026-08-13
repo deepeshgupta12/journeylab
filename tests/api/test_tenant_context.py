@@ -17,7 +17,6 @@ is down. A skip is not a pass and is reported as a skip.
 # every route returns 422 instead of using the dependency. Relevant to STEP-004.
 
 import asyncio
-import os
 import uuid
 from typing import Annotated
 
@@ -32,12 +31,17 @@ from auth import (
     stamp_envelope,
 )
 from auth.dependencies import ContextDependency
+from dbcheck import DSN, requires_db
 from fastapi import Depends, FastAPI, Request
 from fastapi.testclient import TestClient
 
 ORG_A = uuid.UUID("11111111-1111-1111-1111-111111111111")
 ORG_B = uuid.UUID("22222222-2222-2222-2222-222222222222")
 USER_A = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+# BUG-024: the seed helper needs a second user; these UUIDs match the ones
+# tests/security/test_tenant_isolation.sh uses, so the two suites agree rather
+# than fighting over the same organizations with different members.
+USER_B = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 
 
 # Not a credential: an opaque string the stub recognises. S105 flags the literal
@@ -260,15 +264,55 @@ def test_envelope_refuses_conflicting_tenant() -> None:
 
 # Default matches .env.example. Dev-only credentials, and the port is bound to
 # 127.0.0.1 in docker-compose.dev.yml.
-DSN = os.environ.get(
-    "JOURNEYLAB_TEST_DSN",
-    "postgresql://journeylab:journeylab_dev_only@127.0.0.1:5700/journeylab",
-)
+
+
+async def _ensure_seed() -> None:
+    """Create exactly the rows these assertions expect.
+
+    BUG-024. These tests asserted `count(*) == 1` against seed data that
+    `tests/security/test_tenant_isolation.sh` creates as a side effect. They passed
+    on any machine where R7 had ever been run and failed on a clean database — so
+    they were **order-dependent on another suite**, and nothing said so.
+
+    That went unnoticed for six steps because the tests never ran anywhere clean:
+    CI skipped them (`BUG-023`). The first CI-mirror run with a real database found
+    all three immediately, which is the whole argument for STEP-001.07.
+
+    Idempotent, and it sets the counts rather than adding to them — two runs must
+    leave exactly one membership per organization, or the assertion becomes a test
+    of how many times the suite has been run.
+    """
+    import psycopg
+
+    async with await psycopg.AsyncConnection.connect(DSN) as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "INSERT INTO organizations (id, slug, display_name) VALUES "
+                "(%s,'tenant-a','Tenant A'), (%s,'tenant-b','Tenant B') "
+                "ON CONFLICT (id) DO NOTHING",
+                (str(ORG_A), str(ORG_B)),
+            )
+            await cur.execute(
+                "INSERT INTO users (id, email) VALUES (%s,'a@example.test'), (%s,'b@example.test') "
+                "ON CONFLICT (id) DO NOTHING",
+                (str(USER_A), str(USER_B)),
+            )
+            await cur.execute(
+                "DELETE FROM memberships WHERE organization_id IN (%s, %s)",
+                (str(ORG_A), str(ORG_B)),
+            )
+            await cur.execute(
+                "INSERT INTO memberships (organization_id, user_id, role_key) VALUES "
+                "(%s,%s,'trip_owner'), (%s,%s,'trip_owner')",
+                (str(ORG_A), str(USER_A), str(ORG_B), str(USER_B)),
+            )
+        await conn.commit()
 
 
 async def _rows_visible_as(context: RequestContext) -> int:
     import psycopg
 
+    await _ensure_seed()
     async with await psycopg.AsyncConnection.connect(DSN) as conn:
         async with conn.cursor() as cur:
             await cur.execute("SET ROLE journeylab_app")
@@ -276,17 +320,6 @@ async def _rows_visible_as(context: RequestContext) -> int:
             await cur.execute("SELECT count(*) FROM memberships")
             row = await cur.fetchone()
             return int(row[0]) if row else -1
-
-
-def _stack_up() -> bool:
-    import socket
-
-    with socket.socket() as s:
-        s.settimeout(1)
-        return s.connect_ex(("127.0.0.1", 5700)) == 0
-
-
-requires_db = pytest.mark.skipif(not _stack_up(), reason="local stack not running (pnpm dev)")
 
 
 @requires_db
@@ -367,6 +400,7 @@ def test_binding_does_not_survive_the_transaction() -> None:
     import psycopg
 
     async def scenario() -> tuple[int, int]:
+        await _ensure_seed()
         ctx = RequestContext(actor_id=USER_A, organization_id=ORG_A)
         async with await psycopg.AsyncConnection.connect(DSN) as conn:
             async with conn.cursor() as cur:

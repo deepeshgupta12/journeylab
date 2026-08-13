@@ -1,8 +1,6 @@
 """Audit emission and runtime flags — TST-SEC-007, TST-PLAT-012 · STEP-002.07."""
 
 import asyncio
-import os
-import socket
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
@@ -12,24 +10,12 @@ import pytest
 from audit import AuditEvent, AuditWriteError, emit, from_decision
 from auth.context import RequestContext
 from auth.db import bind_tenant
+from dbcheck import DSN, requires_db
 from flags import Evaluation, Flag, evaluate, evaluate_bool
 from provisioning import create_organization, provision_user
 from redaction import MASK, RedactionError, redact
 
-DSN = os.environ.get(
-    "JOURNEYLAB_TEST_DSN",
-    "postgresql://journeylab:journeylab_dev_only@127.0.0.1:5700/journeylab",
-)
 ORG = uuid.UUID("cccc0000-0000-0000-0000-00000000000c")
-
-
-def _stack_up() -> bool:
-    with socket.socket() as s:
-        s.settimeout(1)
-        return s.connect_ex(("127.0.0.1", 5700)) == 0
-
-
-requires_db = pytest.mark.skipif(not _stack_up(), reason="local stack not running (pnpm dev)")
 
 
 def run[T](fn: Callable[[psycopg.AsyncCursor[tuple[object, ...]]], Awaitable[T]]) -> T:

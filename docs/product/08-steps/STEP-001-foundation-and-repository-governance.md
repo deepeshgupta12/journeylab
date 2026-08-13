@@ -114,6 +114,7 @@ Low reach (no consumers exist), high reversibility, but **confidence is limited*
 | STEP-001.04 | Local dependency stack | [STEP-001.04](sub-steps/STEP-001/STEP-001.04-local-dev-environment.md) |
 | STEP-001.05 | Documentation and ADR-001 | [STEP-001.05](sub-steps/STEP-001/STEP-001.05-readme-and-adr.md) |
 | STEP-001.06 | Knowledge-graph workflow wiring | [STEP-001.06](sub-steps/STEP-001/STEP-001.06-knowledge-graph-workflow.md) |
+| STEP-001.07 | Database-backed checks run in CI — ✅ **VERIFIED** 2026-08-13 (BR-037, IMPL-034, BUG-023). Added after the step closed: CI had never run R7 |
 
 ## 22. Test and evaluation plan
 `TST-PLAT-001` (clean-checkout bootstrap), `TST-PLAT-002` (lock enforcement), `TST-PLAT-003` (ownership enforcement), `TST-PLAT-004` (ADR presence review).

@@ -67,6 +67,69 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-001.07 — 2026-08-13 — Database-backed checks run in CI
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `5cd47bb` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 665 Python + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS** | Configuration, one new helper, one new guard, five test modules simplified |
+| R4 untested requirements | **PASS — improved** | REQ-SEC-001/002 go from *asserted locally* to *verified on every push* |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…**024**; meta-suite **61/61** (up from 55) |
+| **R7 tenant isolation** | **PASS — 18/18, and now inside `pnpm verify`** | Previously reachable only via `pnpm test:security`, which nothing ran automatically |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| The skip-path warning **started the Docker stack** | Backticks inside double quotes are command substitution; `` `pnpm dev` `` in an `echo` executed | Single-quoted, ASCII box, reason recorded at the line. *A guard with a side effect is not a guard* |
+| Meta-test failed against correct behaviour | It asserted the wrapper's wording; the suite's ratchet fires first | Assert the outcome; added a case that disables the suite's check to prove the wrapper's alone |
+| `NameError: _stack_up` after consolidation | One call site survived the removal of the definition | Replaced with `stack_is_up` |
+| 4 × `F811 Redefinition of unused DSN` | The duplicates used `JOURNEYLAB_TEST_DSN`, a **different variable name** my first pass did not match | Removed; `dbcheck` honours both names so no existing override breaks |
+
+### Mutation testing
+
+| Seeded | Result |
+| --- | --- |
+| No database, flag unset, `verify` gate | **exit 0 with a loud "DID NOT RUN" notice** — the intended behaviour, asserted on the text |
+| No database, `JOURNEYLAB_REQUIRE_DB=1`, gate | **killed** — exit 1 |
+| Same, with the **suite's** ratchet removed | **killed** by the wrapper — each layer holds alone |
+| No database, flag set, pytest | **killed** — refuses at import |
+| No database, flag unset, pytest | **skips**, as a laptop should |
+
+### Notes
+
+**The graph's ambiguous answer was the most useful result in the pre-change
+check.** `impact(_stack_up)` returned `status: ambiguous` with five candidates —
+five copies of the skip decision. That is the mechanism behind BUG-023, and a clean
+single-symbol answer would have hidden it.
+
+**The mirror failed on its first run with a database, and that was the point.**
+Three tenant-context tests asserted counts against rows the R7 *shell script*
+creates as a side effect. They passed on every developer machine — where R7 has
+been run at some point — and failed on a clean schema with `assert 0 == 1`.
+`BUG-024`, fixed by making them self-seeding, mutation-verified by neutering the
+helper and reproducing exactly those three failures.
+
+Six steps of green builds had never executed them anywhere clean, because CI
+skipped them. **The sub-step paid for itself before it was pushed.**
+
+**One thing here is unverifiable before pushing.** GitHub Actions service
+containers have no local equivalent; `pnpm ci:local` uses a different mechanism, so
+it proves the suite runs green on Linux against a real database but says nothing
+about whether the workflow YAML is correct. `BR-037` §3 states this, and it is why
+that record is MEDIUM confidence.
+
+---
+
 ## STEP-002.08 — 2026-08-12 — Server-side session store and revocation
 
 | Field | Value |

@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Owner | Engineering (Deepesh Kumar Gupta) |
-| Status | `ACTIVE` — 22 bugs recorded, all closed with regression tests |
+| Status | `ACTIVE` — 24 bugs recorded, all closed with regression tests |
 | Rule | **Every fixed bug gets a regression test.** Check R6 verifies they all still pass at every sub-step |
-| Last reviewed | 2026-08-12 |
+| Last reviewed | 2026-08-13 |
 
 Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.md) · [Regression log](REGRESSION_LOG.md) · [Incident response](../07-operations/INCIDENT_RESPONSE.md)
 
@@ -28,6 +28,8 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BUG-024 | Three tenant-context tests depended on another suite's seed data | **S3** | STEP-001.07 — **the first CI-mirror run with a real database** | `pnpm ci:local` | 3 failed on a clean database, `assert 0 == 1`; all 3 pass locally | They asserted counts against rows `test_tenant_isolation.sh` creates as a side effect, so they passed on any machine where R7 had ever run | *(this commit)* | `_ensure_seed()` makes them self-seeding and idempotent; mutation-verified by neutering it against a bare schema | **CLOSED** | 2026-08-13 |
+| BUG-023 | CI ran none of the database-backed security tests | **S2** | STEP-002.08 close-out | Comparing local and CI skip counts | 624 passed / 46 skipped in CI versus 665 / 5 locally; R7 never ran in CI at all | No database in CI, and `pnpm test:security` was not in `pnpm verify`. Five copies of the skip decision meant it could not be changed centrally | *(this commit)* | 6 meta-tests in `run-all.sh`, both ratchet layers proven independently | **CLOSED** | 2026-08-13 |
 | BUG-022 | A carried commitment was dropped: sessions could not be revoked | **S2** | STEP-002.08 | Auditing why STEP-002 sat at 5/7 with nothing named that would close it | Signing out cleared cookies; the already-issued token kept working until its own expiry | `.05` recorded the gap and carried it to `.07`; `.07` closed `VERIFIED` listing four carried gaps, none of them this one | *(this commit)* | `test_a_revoked_session_fails_before_its_expiry` and 16 more in `tests/api/test_sessions.py`; 6 mutants seeded and killed | **CLOSED** | 2026-08-12 |
 | BUG-021 | Two guarantees depended on fields that were optional | **S3** | STEP-004.08 | **A deliberate audit** for existence-only assertions, promised in the .07 record | `JobEvent.sequence` and `ScenarioSetGenerated.model_versions` were optional while their descriptions promised gap detection and reproducibility | Both tests asserted the KEY existed. A key that exists proves nothing about a field that may be absent | *(this commit)* | `test_events_are_sequenced` and `test_the_generation_event_carries_seed_and_versions`, both rewritten to assert type and required-ness; mutation-verified | **CLOSED** | 2026-08-12 |
 | BUG-020 | A retained evidence conflict could not name its own source | **S3** | STEP-004.07 | **The client generator** — `Record<string, never>` in the emitted TypeScript | `Evidenced.conflicts[].source` was `{type: object}`, so a conflicting claim carried no id, confidence, access label or observation time | The test asserted only that the `conflicts` KEY existed, which is true of an object that can hold nothing | *(this commit)* | `test_conflicting_sources_are_retained_not_averaged`, rewritten to assert substance; mutation-verified against the old shape | **CLOSED** | 2026-08-11 |
@@ -39,6 +41,143 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 | BUG-003 | Sub-step committed without required documentation | **S3** | STEP-001.04 close-out | Post-commit verification | `8a9af9b` shipped without IMPL-004, regression entry or status update | Log script failed; commit ran in the same shell invocation regardless | *(this commit)* | `tests/guards/substep-docs.sh` | **CLOSED** | 2026-08-05 |
 | BUG-002 | `node_modules/` tracked in git | **S3** | STEP-001.02 pre-change analysis | Pre-change inventory | 2 dependency files committed; `.gitignore` contained only `.gitnexus` | `.gitignore` written without dependency/build exclusions in STEP-001.01 | *(this commit)* | `tests/guards/no-tracked-artifacts.sh` | **CLOSED** | 2026-08-05 |
 | BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-024 — Three tenant-context tests depended on another suite's seed data
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — the tests were valid; their independence was not. No product defect |
+| Found during | STEP-001.07, by the **first `pnpm ci:local` run that had a database** |
+| Date found | 2026-08-13 |
+| Affected requirements | REQ-PLAT-002 (the local gate and the CI gate must agree) |
+
+### Symptom
+
+```
+FAILED test_tenant_context.py::test_bound_context_reaches_the_database_session
+FAILED test_tenant_context.py::test_binding_is_injection_safe
+FAILED test_tenant_context.py::test_binding_does_not_survive_the_transaction
+3 failed, 662 passed, 5 skipped
+```
+
+`AssertionError: assert 0 == 1`. All three pass locally, every time.
+
+### Root cause
+
+Each asserts `count(*) FROM memberships == 1` for a fixed organization UUID. Those
+rows are created by **`tests/security/test_tenant_isolation.sh`** — the R7 shell
+script — as a side effect of its own setup. Migrations do not create them.
+
+So the tests passed on any machine where R7 had ever been run, and failed on a
+database that had only had migrations applied. **Order-dependent on a different
+suite, in a different language, with nothing recording the dependency.**
+
+### Why it took six steps to surface
+
+Because the tests never ran anywhere clean. CI skipped them (`BUG-023`), and a
+developer's database always has R7's residue on it. The first environment that was
+both clean and had a database was the CI mirror in this sub-step — and it found all
+three within seconds.
+
+**This is the sub-step justifying itself on its first run.** The point of adding a
+database to CI was to stop trusting checks that never execute; the immediate
+dividend was three tests that had been passing for the wrong reason.
+
+### Fix
+
+`_ensure_seed()` in `test_tenant_context.py`: idempotent, and it **sets** the
+counts rather than adding to them, so two runs still leave exactly one membership
+per organization. It reuses the same UUIDs as the R7 script so the two suites agree
+about those organizations rather than fighting over them.
+
+### Regression test
+
+The three tests themselves, now against a bare schema. **Mutation-verified:**
+neutering `_ensure_seed()` and wiping the seed reproduces exactly the three
+failures the mirror reported; restoring it returns all 29 to green.
+
+### Prevention
+
+A test that depends on rows it did not create is depending on history. The general
+fix is fixtures that create what they assert on — which the newer suites
+(`test_provisioning.py`, `test_sessions.py`) already do, and which this file
+predates.
+
+---
+
+## BUG-023 — CI ran none of the database-backed security tests
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — tenant isolation was unverified on every push since STEP-002.01 while the build reported green |
+| Found during | STEP-002.08 close-out, comparing the local and CI skip counts |
+| Date found | 2026-08-12 |
+| Affected requirements | REQ-PLAT-002, REQ-SEC-001, REQ-SEC-002 |
+
+### Symptom
+
+| Environment | Python result |
+| --- | --- |
+| Local, dev stack up | 665 passed, **5 skipped** |
+| CI (and `pnpm ci:local`) | 624 passed, **46 skipped** |
+
+Forty-one tests skipped on every push. And `pnpm test:security` was not in
+`pnpm verify` at all, so **R7 — the check `CLAUDE.md` §2 calls non-negotiable —
+had never run in CI in the repository's history**.
+
+### Root cause
+
+Three things, and the third is why it lasted:
+
+1. Neither `.github/workflows/verify.yml` nor `tests/ci-mirror.sh` provided
+   PostgreSQL.
+2. R7 connected with `docker exec -i journeylab-postgres psql`, which needs a
+   container of that exact name on the same host — a laptop, and nowhere else.
+3. **The skip decision existed in five copies.** Each test module defined its own
+   `_stack_up()` and its own `requires_db`. The knowledge graph returned all five
+   when asked for the blast radius of one. Nothing could change the decision
+   centrally, and nothing reported that it was being taken.
+
+A fourth, found while fixing: the modules read the DSN from **two different
+environment variables** — `JOURNEYLAB_DATABASE_URL` in one and
+`JOURNEYLAB_TEST_DSN` in four. Setting either in CI would have pointed some
+modules at the service and left the rest aimed at `127.0.0.1:5700`.
+
+### Why nothing caught it
+
+`pytest` reports skips as success, and it is right to — a laptop without Docker
+should not fail the suite. The defect was that **no environment ever declared that
+a database was expected**, so no environment could tell a legitimate skip from a
+broken one.
+
+`tests/e2e/smoke.sh` has printed "a skip is not a pass" since STEP-003. That rule
+was enforced by a human reading the output, and only for e2e.
+
+### Fix
+
+A PostgreSQL service in CI and in the mirror; migrations applied in both; R7
+connecting by DSN so it runs anywhere; `pnpm guard:tenant-isolation` in
+`pnpm verify`; and the five copies replaced by `tests/dbcheck.py`.
+
+**The important half is the ratchet.** `JOURNEYLAB_REQUIRE_DB=1`, set in CI and
+the mirror, turns a skip into a failure. Adding the service fixes today; the
+ratchet is what stops a renamed service or a moved port from silently restoring
+the bug.
+
+### Regression tests
+
+Six in the guard meta-suite, covering both layers independently: the suite's own
+refusal, the wrapper's refusal when the suite's is removed, pytest's refusal, and
+— just as important — that a laptop with no stack still **skips** rather than
+failing.
+
+### Prevention
+
+The ratchet generalises: any future service the tests depend on gets the same
+treatment. `docs/product/06-quality/` should record the rule, and `ENH-002`
+(carried-commitment guard) would have caught the closely-related BUG-022.
 
 ---
 

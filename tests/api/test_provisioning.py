@@ -9,7 +9,6 @@ They SKIP when the local stack is down. A skip is reported as a skip.
 """
 
 import asyncio
-import os
 import re
 import uuid
 from collections.abc import Awaitable, Callable
@@ -19,6 +18,7 @@ import psycopg
 import pytest
 from auth.context import RequestContext
 from auth.db import bind_tenant
+from dbcheck import DSN, requires_db
 from provisioning import (
     CREDENTIAL_COLUMN_PATTERN,
     AuditRecord,
@@ -34,22 +34,6 @@ from provisioning import (
     revoke_membership,
     revoke_service_identity,
 )
-
-DSN = os.environ.get(
-    "JOURNEYLAB_TEST_DSN",
-    "postgresql://journeylab:journeylab_dev_only@127.0.0.1:5700/journeylab",
-)
-
-
-def _stack_up() -> bool:
-    import socket
-
-    with socket.socket() as s:
-        s.settimeout(1)
-        return s.connect_ex(("127.0.0.1", 5700)) == 0
-
-
-requires_db = pytest.mark.skipif(not _stack_up(), reason="local stack not running (pnpm dev)")
 
 
 def run_as_owner[T](

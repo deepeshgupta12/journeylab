@@ -38,7 +38,20 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 STAGE="$(mktemp -d)"
-trap 'rm -rf "$STAGE"' EXIT
+
+# STEP-001.07: CI now runs a PostgreSQL service, so the mirror must too — a
+# mirror that omits the thing CI provides stops being a mirror. GitHub Actions
+# service containers have no local equivalent, so this uses a container on a
+# user-defined network and reaches it by name. **The two mechanisms differ, so
+# neither run proves the other**; both are exercised before pushing.
+MIRROR_NET="journeylab-mirror-$$"
+MIRROR_DB="journeylab-mirror-db-$$"
+cleanup() {
+  rm -rf "$STAGE"
+  docker rm -f "$MIRROR_DB" >/dev/null 2>&1 || true
+  docker network rm "$MIRROR_NET" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
 
 echo "=== 1. Clean checkout of HEAD (tracked files only) ==="
 # A real clone, not `git archive`: several guards call `git ls-files`, so the
@@ -55,13 +68,36 @@ fi
 echo "  no node_modules (cold install confirmed)"
 
 echo ""
+echo "=== 1b. PostgreSQL, as CI provides it ==="
+docker network create "$MIRROR_NET" >/dev/null 2>&1 || true
+docker run -d --rm --name "$MIRROR_DB" --network "$MIRROR_NET" \
+  -e POSTGRES_USER=journeylab \
+  -e POSTGRES_PASSWORD=journeylab_dev_only \
+  -e POSTGRES_DB=journeylab \
+  postgres:18-alpine >/dev/null
+# Wait for readiness rather than sleeping. BUG-009 was a first-boot restart being
+# mistaken for a missing schema; a fixed sleep either wastes time or reproduces it.
+for _ in $(seq 1 40); do
+  if docker exec "$MIRROR_DB" pg_isready -U journeylab >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+if ! docker exec "$MIRROR_DB" pg_isready -U journeylab >/dev/null 2>&1; then
+  echo "  FAIL: the mirror database never became ready."
+  exit 1
+fi
+echo "  postgres:18-alpine ready on network $MIRROR_NET"
+
+echo ""
 echo "=== 2. Cold install + verify on Linux ==="
 docker run --rm \
   -v "$STAGE":/w \
   -w /w \
+  --network "$MIRROR_NET" \
   -e CI=true \
   -e PNPM_HOME=/pnpm \
   -e PNPM_STORE_DIR=/pnpm/store \
+  -e JOURNEYLAB_DATABASE_URL="postgresql://journeylab:journeylab_dev_only@${MIRROR_DB}:5432/journeylab" \
+  -e JOURNEYLAB_REQUIRE_DB=1 \
   node:24-bookworm \
   bash -euo pipefail -c '
     # NOTE: this whole block is inside SINGLE quotes, so backslash-escaped double
@@ -100,6 +136,15 @@ docker run --rm \
     sed -i "s|http://deb.debian.org|https://deb.debian.org|g" /etc/apt/sources.list 2>/dev/null || true
     apt-get -o Acquire::Retries=3 update -qq >/dev/null
     pnpm --filter @journeylab/web exec playwright install --with-deps chromium >/dev/null
+    # psql, for R7. The GitHub runner ships it; node:24-bookworm does not, and
+    # without it R7 falls back to looking for a container name that does not
+    # exist inside this one and exits 2 as a SKIP.
+    echo "--- installing postgresql-client ---"
+    apt-get install -y -qq postgresql-client >/dev/null
+    echo "--- applying migrations ---"
+    for m in db/migrations/*.sql; do
+      psql -v ON_ERROR_STOP=1 "$JOURNEYLAB_DATABASE_URL" -q -f "$m" >/dev/null
+    done
     echo "--- pnpm verify ---"
     pnpm verify
   '

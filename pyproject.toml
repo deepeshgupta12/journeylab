@@ -68,7 +68,10 @@ mypy_path = "apps/api/src:services/identity/src:services/audit/src:tools"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["apps/api/src", "services/identity/src", "services/audit/src", "tools"]
+# `tests` is on the path so the five copies of the database-availability check
+# could become one (STEP-001.07, BUG-023). Without it each test module would
+# have to reach for a relative import, which is what produced the copies.
+pythonpath = ["apps/api/src", "services/identity/src", "services/audit/src", "tools", "tests"]
 asyncio_mode = "strict"
 addopts = "-q --strict-markers --strict-config"
 markers = [
