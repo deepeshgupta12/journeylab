@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Owner | Engineering (Deepesh Kumar Gupta) |
-| Status | `ACTIVE` — 24 bugs recorded, all closed with regression tests |
+| Status | `ACTIVE` — 25 bugs recorded, all closed with regression tests |
 | Rule | **Every fixed bug gets a regression test.** Check R6 verifies they all still pass at every sub-step |
 | Last reviewed | 2026-08-13 |
 
@@ -28,6 +28,7 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BUG-025 | BUG-009 reintroduced: socket `pg_isready` in CI and the mirror | **S2** | STEP-004.09 pre-work, by the mirror failing twice | `pnpm ci:local` | "the mirror database never became ready"; container status `Up 1 second`, log ending at "ready for start up" | STEP-001.07 wrote the default socket `pg_isready` into `verify.yml` and `ci-mirror.sh`. The entrypoint's first-boot temporary server is socket-only, so the probe reports ready against a server about to be destroyed | *(this commit)* | `tests/guards/postgres-healthcheck.sh` — 11 probes checked; seeded and killed | **CLOSED** | 2026-08-13 |
 | BUG-024 | Three tenant-context tests depended on another suite's seed data | **S3** | STEP-001.07 — **the first CI-mirror run with a real database** | `pnpm ci:local` | 3 failed on a clean database, `assert 0 == 1`; all 3 pass locally | They asserted counts against rows `test_tenant_isolation.sh` creates as a side effect, so they passed on any machine where R7 had ever run | *(this commit)* | `_ensure_seed()` makes them self-seeding and idempotent; mutation-verified by neutering it against a bare schema | **CLOSED** | 2026-08-13 |
 | BUG-023 | CI ran none of the database-backed security tests | **S2** | STEP-002.08 close-out | Comparing local and CI skip counts | 624 passed / 46 skipped in CI versus 665 / 5 locally; R7 never ran in CI at all | No database in CI, and `pnpm test:security` was not in `pnpm verify`. Five copies of the skip decision meant it could not be changed centrally | *(this commit)* | 6 meta-tests in `run-all.sh`, both ratchet layers proven independently | **CLOSED** | 2026-08-13 |
 | BUG-022 | A carried commitment was dropped: sessions could not be revoked | **S2** | STEP-002.08 | Auditing why STEP-002 sat at 5/7 with nothing named that would close it | Signing out cleared cookies; the already-issued token kept working until its own expiry | `.05` recorded the gap and carried it to `.07`; `.07` closed `VERIFIED` listing four carried gaps, none of them this one | *(this commit)* | `test_a_revoked_session_fails_before_its_expiry` and 16 more in `tests/api/test_sessions.py`; 6 mutants seeded and killed | **CLOSED** | 2026-08-12 |
@@ -41,6 +42,88 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 | BUG-003 | Sub-step committed without required documentation | **S3** | STEP-001.04 close-out | Post-commit verification | `8a9af9b` shipped without IMPL-004, regression entry or status update | Log script failed; commit ran in the same shell invocation regardless | *(this commit)* | `tests/guards/substep-docs.sh` | **CLOSED** | 2026-08-05 |
 | BUG-002 | `node_modules/` tracked in git | **S3** | STEP-001.02 pre-change analysis | Pre-change inventory | 2 dependency files committed; `.gitignore` contained only `.gitnexus` | `.gitignore` written without dependency/build exclusions in STEP-001.01 | *(this commit)* | `tests/guards/no-tracked-artifacts.sh` | **CLOSED** | 2026-08-05 |
 | BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-025 — BUG-009 reintroduced: a socket `pg_isready` in CI and the mirror
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — CI's Postgres service was waited on incorrectly, so every run since STEP-001.07 passed on timing rather than on correctness |
+| Found during | STEP-004.09 pre-work, after `pnpm ci:local` failed twice |
+| Date found | 2026-08-13 |
+| Affected requirements | REQ-PLAT-002, and indirectly REQ-SEC-001/002 — R7 runs against that service |
+
+### Symptom
+
+```
+=== 1b. PostgreSQL, as CI provides it ===
+  FAIL: the mirror database never became ready after 60s.
+  --- container status ---
+Up 1 second (postgres:18-alpine)
+  --- last container log lines ---
+    PostgreSQL init process complete; ready for start up.
+```
+
+Container "Up 1 second" after a 60-second wait, and a log ending exactly where a
+healthy server begins.
+
+### Root cause — this is BUG-009, for the third time
+
+`BUG-009` (STEP-002.02) established that the official Postgres entrypoint runs a
+**temporary, socket-only server** during first-boot initialisation
+(`listen_addresses=''`). A default `pg_isready` uses that socket, so it reports
+**ready** against a server that is about to be shut down and restarted.
+
+`STEP-001.07` added a Postgres service to `.github/workflows/verify.yml` and to
+`tests/ci-mirror.sh` and wrote `pg_isready -U journeylab` — the socket form — in
+**both**, despite `docker-compose.dev.yml` carrying a warning comment about
+exactly this since STEP-002.02.
+
+So the mirror's readiness loop exited early against the throwaway server, and the
+confirming check then ran during the shutdown window and failed.
+
+**And I misdiagnosed it twice.** The first failure I attributed to machine load and
+"fixed" by raising the timeout 40s → 60s and adding diagnostics. The diagnostics
+are what eventually solved it — but the timeout change was treating a symptom, and
+I recorded it in `STEP-005.01`'s regression entry as transient. That entry is
+wrong, and is corrected by this one.
+
+### Why the existing tests did not catch it
+
+`BUG-009`'s fix was a **value in one file**: a corrected healthcheck in
+`docker-compose.dev.yml` with an explanatory comment. R6 keeps every closed bug's
+regression test passing, and BUG-009 had no test that generalised — nothing
+asserted that *any future* Postgres probe must use TCP.
+
+A comment in one file cannot stop a second file being written. That is the whole
+lesson: **a fix that is a value has no reach; a fix that is a rule does.**
+
+### Fix
+
+TCP form in both places, and `tests/guards/postgres-healthcheck.sh` — every
+`pg_isready` in any `.yml`/`.yaml`/`.sh` must name an explicit host. Eleven probes
+checked. Wired into `pnpm verify`.
+
+The mirror also now waits on Docker's own health verdict rather than polling
+itself, so it uses the same mechanism as the GitHub service container.
+
+**The proof that the timeout was never the problem:** with the TCP probe the
+container reports healthy in **5 seconds**. The failing version waited 60 and
+reported never-ready. A correct probe answers twelve times faster than the budget
+I had doubled.
+
+### Regression test
+
+`tests/guards/postgres-healthcheck.sh`, meta-tested: seeding the socket form into
+`verify.yml` fails the guard naming `SOCKET PROBE`; restoring it passes.
+
+### What I would do differently
+
+Read the bug register before adding a service that a closed bug was about. The
+hook surfaced `BUG-009` by title while I was mid-fix, and that is the only reason
+the third occurrence was diagnosed rather than papered over with a fourth timeout
+increase.
 
 ---
 

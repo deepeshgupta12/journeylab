@@ -167,19 +167,21 @@ The defect was in the process the guard now closes, and it is recorded in `BR-03
 
 ### Notes
 
-**The mirror failed once before it passed, and the failure was mine.** The
+**The mirror failed once before it passed, and my diagnosis was wrong.** The
 PostgreSQL step added in STEP-001.07 reported *"the mirror database never became
-ready"* and nothing else — the BUG-009 shape exactly, a message that sends the
-reader hunting the wrong problem. It was transient: the machine was under load
-(npm registry requests were taking 45–70s) and 40s was not enough for readiness
-while Docker contended.
+ready"* and nothing else — the BUG-009 shape, a message that sends the reader
+hunting the wrong problem. I attributed it to machine load (npm requests were
+taking 45–70s) and raised the timeout 40s → 60s alongside adding diagnostics.
 
-Fixed as a diagnosis problem rather than a timeout problem: the window is 60s, a
-failed `docker run` is now reported as such, and on timeout the step prints the
-container status and its last fifteen log lines. A retry that succeeds is not
-evidence the check is sound; a failure that cannot be diagnosed is.
+> **CORRECTED 2026-08-13 — it was not transient.** It was `BUG-009` reproduced:
+> the readiness probe used the default socket `pg_isready`, and the entrypoint's
+> first-boot temporary server is socket-only, so the probe reported ready against
+> a server about to be destroyed. The timeout was never the problem, and raising
+> it was treating a symptom. See `BUG-025`. The diagnostics added here are what
+> eventually made the real cause visible, which is the part that was right.
 
-Re-run: **727 passed / 5 skipped on Linux, R7 18/18** — matching local exactly.
+Re-run at the time: **727 passed / 5 skipped on Linux, R7 18/18** — matching local
+exactly.
 
 **The survivor is the finding.** Flipping the production client to
 `follow_redirects=True` left all 61 tests green, because every test injects its own

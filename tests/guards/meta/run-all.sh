@@ -456,6 +456,24 @@ assert_guard "carried-commitments clean again" \
   tests/guards/carried-commitments.sh 0 "no carried commitment outlived"
 
 echo ""
+echo "=== BUG-025: a Postgres health check must be a TCP probe ==="
+# BUG-009 THIRD OCCURRENCE. The entrypoint runs a temporary socket-only server
+# during first-boot init, so a default pg_isready reports READY against a server
+# about to be destroyed. The fix lived as a comment in docker-compose.dev.yml,
+# and STEP-001.07 wrote the socket form into CI and the mirror anyway — a comment
+# in one file cannot stop a second file being written.
+assert_guard "postgres-healthcheck passes on the current tree" \
+  tests/guards/postgres-healthcheck.sh 0 "explicit host"
+
+cp .github/workflows/verify.yml /tmp/META_PGWF.bak
+sedi 's|pg_isready -h 127.0.0.1 -U journeylab|pg_isready -U journeylab|' .github/workflows/verify.yml
+assert_guard "postgres-healthcheck catches a socket probe in CI" \
+  tests/guards/postgres-healthcheck.sh 1 "SOCKET PROBE"
+cp /tmp/META_PGWF.bak .github/workflows/verify.yml; rm -f /tmp/META_PGWF.bak
+assert_guard "postgres-healthcheck clean again" \
+  tests/guards/postgres-healthcheck.sh 0 "explicit host"
+
+echo ""
 echo "════════════════════════════════════════"
 echo "  meta-tests passed: $pass"
 echo "  meta-tests failed: $fail"

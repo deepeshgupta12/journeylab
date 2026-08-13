@@ -70,33 +70,60 @@ echo "  no node_modules (cold install confirmed)"
 echo ""
 echo "=== 1b. PostgreSQL, as CI provides it ==="
 docker network create "$MIRROR_NET" >/dev/null 2>&1 || true
+# WAIT ON THE SAME SIGNAL CI WAITS ON (BUG-025).
+#   The workflow declares `--health-cmd pg_isready` and GitHub blocks the job
+#   until the service is healthy. The mirror polled `pg_isready` itself with a
+#   fixed attempt count instead, and on a COLD Docker Desktop the first-boot
+#   initdb — which starts postgres, shuts it down, and starts it again — took
+#   longer than the budget. It failed twice, reporting "never became ready" while
+#   the container log ended at "ready for start up".
+#
+#   That is BUG-009 REPRODUCED, not merely its shape (BUG-025). The default
+#   `pg_isready` uses the Unix socket, and the official entrypoint runs a
+#   TEMPORARY socket-only server during first-boot init — so the probe reported
+#   ready against a server about to be destroyed, the loop exited early, and the
+#   confirming check then ran during the shutdown window and failed.
+#
+#   The budget was never the problem. The health command must be the TCP form,
+#   exactly as docker-compose.dev.yml has warned since STEP-002.02.
 if ! docker run -d --rm --name "$MIRROR_DB" --network "$MIRROR_NET" \
   -e POSTGRES_USER=journeylab \
   -e POSTGRES_PASSWORD=journeylab_dev_only \
   -e POSTGRES_DB=journeylab \
+  --health-cmd "pg_isready -h 127.0.0.1 -U journeylab" \
+  --health-interval 2s \
+  --health-timeout 5s \
+  --health-retries 60 \
   postgres:18-alpine >/dev/null; then
   echo "  FAIL: could not start the mirror database (docker run failed above)."
   exit 1
 fi
 
-# Wait for readiness rather than sleeping. BUG-009 was a first-boot restart being
-# mistaken for a missing schema; a fixed sleep either wastes time or reproduces it.
-for _ in $(seq 1 60); do
-  if docker exec "$MIRROR_DB" pg_isready -U journeylab >/dev/null 2>&1; then break; fi
-  sleep 1
+# 180s: a cold Docker Desktop plus a first-boot initdb is genuinely slow, and the
+# elapsed time is PRINTED so a slow start is visible rather than silently absorbed.
+db_started=$SECONDS
+while true; do
+  health=$(docker inspect -f "{{.State.Health.Status}}" "$MIRROR_DB" 2>/dev/null || echo "gone")
+  [ "$health" = "healthy" ] && break
+  if [ "$health" = "gone" ]; then
+    echo "  FAIL: the mirror database container disappeared while starting."
+    break
+  fi
+  if [ $((SECONDS - db_started)) -ge 180 ]; then break; fi
+  sleep 2
 done
-if ! docker exec "$MIRROR_DB" pg_isready -U journeylab >/dev/null 2>&1; then
+if ! docker exec "$MIRROR_DB" pg_isready -h 127.0.0.1 -U journeylab >/dev/null 2>&1; then
   # DIAGNOSE, do not just fail. "Never became ready" with no evidence is the
   # BUG-009 shape exactly — a message that sends the reader hunting the wrong
   # problem. Print what the container actually said.
-  echo "  FAIL: the mirror database never became ready after 60s."
+  echo "  FAIL: the mirror database never became ready after $((SECONDS - db_started))s."
   echo "  --- container status ---"
   docker ps -a --filter "name=$MIRROR_DB" --format "    {{.Status}} ({{.Image}})" || true
   echo "  --- last container log lines ---"
   docker logs "$MIRROR_DB" 2>&1 | tail -15 | sed "s/^/    /" || true
   exit 1
 fi
-echo "  postgres:18-alpine ready on network $MIRROR_NET"
+echo "  postgres:18-alpine healthy after $((SECONDS - db_started))s on network $MIRROR_NET"
 
 echo ""
 echo "=== 2. Cold install + verify on Linux ==="

@@ -40,8 +40,14 @@ jobs:
         # Without a health check the job races the server's first-boot restart and
         # fails intermittently — BUG-009 was exactly that, diagnosed as a schema
         # problem because the symptom looked like missing tables.
+        # BUG-025: this MUST be the TCP form. BUG-009 established that the
+        # official entrypoint runs a temporary socket-only server during
+        # first-boot init, so a default `pg_isready` reports healthy against a
+        # server that is about to be shut down and restarted. STEP-001.07 wrote
+        # the socket form here and in the mirror despite the warning comment in
+        # docker-compose.dev.yml; CI had been passing on timing, not correctness.
         options: >-
-          --health-cmd "pg_isready -U journeylab"
+          --health-cmd "pg_isready -h 127.0.0.1 -U journeylab"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
