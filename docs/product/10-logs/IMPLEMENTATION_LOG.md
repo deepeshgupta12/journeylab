@@ -60,6 +60,76 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-037 — STEP-004.09 — Detect documented semantic change
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-13 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PLAT-008 |
+| Blast radius | [BR-040](blast-radius/BR-040-semantic-change.md) (LOW, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `776e385` — matched HEAD at pre-change |
+| Delivers | **ENH-001**, accepted by the owner against my recommendation to defer |
+
+### What was built
+
+`semantic_review()` in `tools/contract_diff.py`: a property whose description
+changed while its shape did not is reported as `REVIEW REQUIRED`. Contract suite
+56 → **65**.
+
+### The insight, and its limit in one sentence
+
+A semantic change is undetectable in general; a **documented** one is not. An
+author who changes what a field means and updates its description leaves a
+machine-readable trace. This converts "invisible" into "invisible only when
+undocumented" — strictly smaller, and not closed. An undocumented meaning change
+stays invisible and no tool fixes that.
+
+### I recommended deferring this, and the owner overrode me
+
+Worth recording plainly, because the override was reasonable. My argument was
+cost-of-false-positives, not that the gap was acceptable — `CONTRACT_CHANGE_POLICY`
+§1 calls this the most dangerous category and it had no automated coverage at all.
+
+So the risk I raised became the acceptance criterion. `ENH-001` said: *"If the
+false-positive rate is not driven near zero first, this should not ship."*
+**Measured on the live corpus: 0 findings across 54 described properties**, and
+that measurement is itself a test — if normalisation ever stops removing
+formatting noise, the suite fails rather than the check quietly becoming noise.
+
+### It reports; it does not fail the build
+
+A check that fails on a reworded sentence is one people learn to bypass. `BR-029`
+§3 records exactly what that costs here: `gitnexus_query` returns an empty result
+that reads like "no such concept exists", and the lesson was that a signal nobody
+trusts is worse than no signal.
+
+But a report nobody consumes is equally worthless, so it is wired into
+`RELEASE_READINESS_CHECKLIST` §2 — resolved at the moment a semantic change stops
+being free — and `CONTRACT_CHANGE_POLICY` §1 now points at the coverage it has
+rather than only at the gap.
+
+### Normalisation chosen from measurement, not taste
+
+Four edits change a description's bytes without changing meaning: reflow, emphasis,
+code marks, sentence case. Each is normalised away and each has a test asserting
+**no** report.
+
+A typo fix still fires. That is accepted rather than engineered around — the report
+prints both texts so a reviewer dismisses it in one glance, and guessing which
+edits are "trivial" is precisely how a checker starts silently ignoring real ones.
+
+### Two guards on the guard
+
+`test_the_false_positive_rate_is_measured_not_asserted` fails if noise starts
+getting through. `test_it_can_still_fire_on_the_real_contract` seeds a genuine
+redefinition of `Evidenced.status` and requires it to be caught — because a
+detector that reports nothing would satisfy the first test perfectly while
+detecting nothing at all.
+
+---
+
 ## IMPL-036 — STEP-001.08 — A carried commitment cannot be dropped silently
 
 | Field | Value |

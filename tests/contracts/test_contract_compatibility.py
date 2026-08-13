@@ -26,10 +26,12 @@ sys.path.insert(0, str(REPO / "tools"))
 from contract_diff import (  # noqa: E402
     Position,
     Severity,
+    _described_properties,
     check_deprecation_metadata,
     diff_contracts,
     major_of,
     schema_positions,
+    semantic_review,
 )
 
 JsonDict = dict[str, Any]
@@ -534,3 +536,125 @@ class TestTheRealContract:
             "Either an operation should reference it, or a $ref to it is misspelled, "
             "or it should be deleted."
         )
+
+
+# --- STEP-004.09 (ENH-001): documented semantic change ------------------------
+
+
+class TestSemanticReview:
+    """The category `CONTRACT_CHANGE_POLICY` §1 calls most dangerous.
+
+    A structural diff cannot see a meaning change. A **documented** one leaves a
+    trace, and these assert that the trace is followed without the check firing on
+    every reflow — which is the failure mode `ENH-001` costed and the reason it was
+    nearly deferred.
+    """
+
+    @staticmethod
+    def _with_description(text: str) -> JsonDict:
+        doc = doc_with_response(
+            {
+                "type": "object",
+                "properties": {"status": {"type": "string", "description": text}},
+            }
+        )
+        return doc
+
+    def test_a_reworded_description_is_reported(self) -> None:
+        """Same name, same type, opposite meaning — invisible to everything else."""
+        old = self._with_description("`confirmed` means a provider stated it.")
+        new = self._with_description("`confirmed` means we derived it.")
+        reviews = semantic_review(old, new)
+        assert len(reviews) == 1
+        assert reviews[0].location == "Thing.status"
+        # Both texts, so a reviewer decides in one glance rather than going to look.
+        assert "provider stated" in reviews[0].before
+        assert "we derived" in reviews[0].after
+
+    def test_reflow_alone_is_not_reported(self) -> None:
+        """A YAML block scalar rewrapped at a different width renders identically.
+
+        This is the dominant noise source: descriptions in this contract are
+        multi-line block scalars, and any edit nearby can rewrap them.
+        """
+        old = self._with_description("the traveller must\narrive before 18:00")
+        new = self._with_description("the traveller\nmust arrive     before 18:00")
+        assert semantic_review(old, new) == []
+
+    def test_emphasis_and_code_marks_alone_are_not_reported(self) -> None:
+        old = self._with_description("must arrive before Money is charged")
+        new = self._with_description("**must** arrive before `Money` is charged")
+        assert semantic_review(old, new) == []
+
+    def test_a_structural_change_is_not_double_reported(self) -> None:
+        """It is already reported by the classifier. Echoing it here would make the
+        semantic report mostly duplicate, which is how a report becomes noise."""
+        old = self._with_description("one meaning")
+        new = doc_with_response(
+            {
+                "type": "object",
+                "properties": {"status": {"type": "integer", "description": "quite another"}},
+            }
+        )
+        assert semantic_review(old, new) == []
+        # ...and the structural differ does report it.
+        assert severities(old, new, "property_type_changed") == [Severity.BREAKING]
+
+    def test_a_new_property_is_not_a_semantic_change(self) -> None:
+        old = doc_with_response({"type": "object", "properties": {}})
+        new = self._with_description("brand new")
+        assert semantic_review(old, new) == []
+
+    def test_a_removed_property_is_not_a_semantic_change(self) -> None:
+        old = self._with_description("about to vanish")
+        new = doc_with_response({"type": "object", "properties": {}})
+        assert semantic_review(old, new) == []
+
+    def test_case_alone_is_not_reported(self) -> None:
+        """Sentence-case edits are copy-editing, not meaning."""
+        old = self._with_description("Must arrive before 18:00")
+        new = self._with_description("must arrive before 18:00")
+        assert semantic_review(old, new) == []
+
+
+class TestSemanticReviewOnTheRealContract:
+    def test_the_false_positive_rate_is_measured_not_asserted(self) -> None:
+        """`ENH-001`: "If the false-positive rate is not driven near zero first,
+        this should not ship."
+
+        So it is counted rather than claimed. The current contract differs from its
+        baseline by one additive structural change (BUG-021's `JobEvent.sequence`)
+        and no description edits, so the expected count is exactly zero across all
+        described properties.
+
+        If this ever fails, the normalisation has stopped removing formatting noise
+        — which is the specific way this check degrades into something people
+        click through.
+        """
+        import yaml
+
+        current = yaml.safe_load((REPO / "contracts" / "openapi.yaml").read_text())
+        baseline = yaml.safe_load((REPO / "contracts" / "baseline" / "openapi.yaml").read_text())
+
+        described = _described_properties(current)
+        assert len(described) > 40, "precondition: the contract should carry many descriptions"
+
+        reviews = semantic_review(baseline, current)
+        assert reviews == [], [r.location for r in reviews]
+
+    def test_it_can_still_fire_on_the_real_contract(self) -> None:
+        """Guards the guard. A detector that reports nothing on a real corpus
+        would satisfy the test above while detecting nothing at all."""
+        import copy
+
+        import yaml
+
+        baseline = yaml.safe_load((REPO / "contracts" / "baseline" / "openapi.yaml").read_text())
+        seeded = copy.deepcopy(baseline)
+        status = seeded["components"]["schemas"]["Evidenced"]["properties"]["status"]
+        status["description"] = (
+            "`confirmed` means we derived it; `estimated` means a provider said so."
+        )
+
+        reviews = semantic_review(baseline, seeded)
+        assert [r.location for r in reviews] == ["Evidenced.status"]

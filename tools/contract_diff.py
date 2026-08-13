@@ -42,6 +42,7 @@ WHAT THIS CANNOT DO, STATED HERE RATHER THAN DISCOVERED LATER
 from __future__ import annotations
 
 import enum
+import re
 from dataclasses import dataclass, field
 from typing import Any, Final
 
@@ -593,3 +594,90 @@ def diff_contracts(old: JsonDict, new: JsonDict) -> DiffResult:
     _diff_operations(old, new, result)
     _diff_schemas(old, new, result)
     return result
+
+
+# --- semantic change: the category a structural diff cannot see ---------------
+#
+# STEP-004.09 (ENH-001). `CONTRACT_CHANGE_POLICY` §1 calls a meaning change while
+# name and type stay put "the most dangerous category", and everything above this
+# line is blind to it by construction.
+#
+# THE INSIGHT, AND ITS LIMIT IN ONE SENTENCE
+#     A semantic change is undetectable in general; a **documented** one is not.
+#     An author who changes what a field means and updates its description has
+#     left a machine-readable trace. This converts "invisible" into "invisible
+#     only when undocumented", which is a strictly smaller hole and not a closed
+#     one.
+#
+# WHY IT REPORTS RATHER THAN FAILS
+#     A check that fails on a typo fix is one people learn to bypass. `BR-029` §3
+#     records what that costs here: a degraded signal that reads like a real
+#     answer is worse than no signal. The exit code is deliberately untouched;
+#     `RELEASE_READINESS_CHECKLIST` is where the report is consumed, because that
+#     is the moment a semantic change stops being free.
+
+#: Markdown decoration that changes bytes without changing meaning.
+_EMPHASIS = re.compile(r"[`*_]+")
+
+
+def normalise_description(text: str) -> str:
+    """Strip formatting noise so only a real wording change survives.
+
+    Three edits change a description's bytes and not its meaning: a YAML block
+    scalar rewrapped at a different width, emphasis added (`must` -> `**must**`),
+    and code marks added (`Money` -> backticked). Collapsing whitespace and
+    removing emphasis characters removes all three.
+
+    A typo fix still shows up. That is accepted rather than engineered around:
+    the report prints both texts so a reviewer dismisses it at a glance, and the
+    alternative — guessing which edits are "trivial" — is how a checker starts
+    silently ignoring real changes.
+    """
+    return " ".join(_EMPHASIS.sub("", text).split()).strip().lower()
+
+
+@dataclass(frozen=True, slots=True)
+class SemanticReview:
+    """A property whose shape held and whose description moved."""
+
+    location: str
+    before: str
+    after: str
+
+
+def _described_properties(doc: JsonDict) -> dict[str, tuple[Any, str]]:
+    """Every `components.schemas.X.properties.Y` that carries a description."""
+    found: dict[str, tuple[Any, str]] = {}
+    schemas = doc.get("components", {}).get("schemas", {})
+    if not isinstance(schemas, dict):
+        return found
+    for schema_name, schema in schemas.items():
+        if not isinstance(schema, dict):
+            continue
+        for prop_name, prop in _properties(schema).items():
+            if isinstance(prop, dict) and isinstance(prop.get("description"), str):
+                found[f"{schema_name}.{prop_name}"] = (prop, prop["description"])
+    return found
+
+
+def semantic_review(old: JsonDict, new: JsonDict) -> list[SemanticReview]:
+    """Properties that are structurally identical but described differently.
+
+    Structurally identical is the point. A property whose type or enum also moved
+    is already reported by `diff_contracts`, and repeating it here would make the
+    semantic report mostly echo — which is how a report becomes noise.
+    """
+    before, after = _described_properties(old), _described_properties(new)
+    reviews: list[SemanticReview] = []
+
+    for location in sorted(set(before) & set(after)):
+        old_prop, old_text = before[location]
+        new_prop, new_text = after[location]
+
+        if _type_of(old_prop) != _type_of(new_prop) or _enum_of(old_prop) != _enum_of(new_prop):
+            continue  # already reported structurally
+
+        if normalise_description(old_text) != normalise_description(new_text):
+            reviews.append(SemanticReview(location=location, before=old_text, after=new_text))
+
+    return reviews

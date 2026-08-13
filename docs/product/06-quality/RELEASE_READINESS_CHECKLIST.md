@@ -5,7 +5,7 @@
 | Owner | TPM (Deepesh Kumar Gupta) |
 | Status | `READY` — checklist binding for every release |
 | Current release readiness | **NOT READY** — see §11 |
-| Last reviewed | 2026-08-05 |
+| Last reviewed | 2026-08-13 |
 
 Navigation: [Release plan](../02-delivery/RELEASE_PLAN.md) · [Test strategy](TEST_STRATEGY.md) · [Master tracker](../02-delivery/MASTER_TRACKER.md) · [Definition of done](../01-product/OUT_OF_SCOPE.md#5-definition-of-done-for-general-availability) · [00-START-HERE](../00-START-HERE.md)
 
@@ -29,6 +29,7 @@ Every box needs **evidence**, not an opinion — a test run, a report, a drill r
 - [ ] Generated clients regenerated and committed; no hand edits
 - [ ] Consumer-driven contract tests pass
 - [ ] Deprecated operations have sunset dates and no active consumers past sunset
+- [ ] **Every `REVIEW REQUIRED` from `pnpm guard:contract-compatibility` resolved.** The gate reports a property whose description changed while its shape did not, and `CONTRACT_CHANGE_POLICY` §1 treats a **meaning** change as breaking. The gate cannot tell a reworded sentence from a redefined field, so it deliberately does not fail the build — **this checkbox is where that judgement is made** (`STEP-004.09`, `ENH-001`). A change that is genuinely semantic needs the full §3 procedure: major version, migration guide, notice, dual-run window, sunset date
 
 ## 3. Database and event migration
 - [ ] Expand/migrate/contract plan documented

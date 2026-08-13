@@ -17,6 +17,8 @@ This policy governs changes to: REST APIs, domain events, JSON Schemas, database
 
 **Semantic change is the most dangerous category.** Changing what a field means while keeping its name and type passes every automated compatibility check and breaks every consumer. It is always treated as breaking.
 
+> **Partial automated coverage since `STEP-004.09`.** `pnpm guard:contract-compatibility` reports `REVIEW REQUIRED` when a property's **description** changes while its shape does not — so a *documented* semantic change is no longer invisible. An **undocumented** one still is, and no tool can fix that. The report does not fail the build, because a check that fires on a typo fix is one people learn to bypass; it is resolved at [RELEASE_READINESS_CHECKLIST](../06-quality/RELEASE_READINESS_CHECKLIST.md) §2.
+
 ---
 
 ## 2. Compatibility classification

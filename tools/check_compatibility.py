@@ -46,6 +46,7 @@ from contract_diff import (
     check_deprecation_metadata,
     diff_contracts,
     major_of,
+    semantic_review,
 )
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
@@ -169,6 +170,33 @@ def main() -> int:
             f"declares {baseline_version!r}"
         )
 
+    # --- 4. semantic change (STEP-004.09, ENH-001) ----------------------------
+    #
+    # REPORTED, NEVER FAILING, AND THAT IS THE DESIGN.
+    #   `CONTRACT_CHANGE_POLICY` §1 calls this the most dangerous category and a
+    #   structural diff cannot see it. What CAN be seen is a change the author
+    #   documented — so this converts "invisible" into "invisible only when
+    #   undocumented", which is smaller and not closed.
+    #
+    #   It does not touch the exit code. A check that fails on a typo fix is one
+    #   people learn to bypass, and `BR-029` §3 records what a signal nobody
+    #   trusts costs here. The report is consumed by
+    #   RELEASE_READINESS_CHECKLIST, at the point a semantic change stops being
+    #   free.
+    reviews = semantic_review(baseline, current)
+    if reviews:
+        print(
+            f"\n  {len(reviews)} REVIEW REQUIRED — a description changed while the shape did not."
+        )
+        print("  CONTRACT_CHANGE_POLICY §1 treats a meaning change as BREAKING. Only a")
+        print("  human can tell that from a reworded sentence, so this does not fail the")
+        print("  build — it must be resolved before release.\n")
+        for review in reviews:
+            print(f"    {review.location}")
+            print(f"      was: {review.before.strip()[:100]}")
+            print(f"      now: {review.after.strip()[:100]}")
+            print()
+
     if result.potentially_breaking:
         print(
             f"\n  {len(result.potentially_breaking)} POTENTIALLY BREAKING change(s) — "
@@ -191,6 +219,11 @@ def main() -> int:
         return 1
 
     print("\nPASS: no breaking contract change without a major version bump.")
+    if reviews:
+        print(
+            f"      {len(reviews)} semantic review(s) outstanding — see above. "
+            f"A structural pass is not a semantic one."
+        )
     return 0
 
 

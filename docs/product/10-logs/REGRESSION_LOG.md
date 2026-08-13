@@ -67,6 +67,59 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-004.09 — 2026-08-13 — Documented semantic change (ENH-001)
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `776e385` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | 736 Python + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS — and now partly semantic** | The gate this extends. Structural verdict unchanged; a semantic report added that does **not** alter the exit code |
+| R3 graph diff as expected | **PASS** | One function, one call site, one test class, three documents |
+| R4 untested requirements | **PASS — improved** | REQ-PLAT-008's semantic clause gains its first automated coverage |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…025; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `NameError: re` | `contract_diff.py` had no `re` import; I added a compiled pattern without checking | Import added. Caught immediately by running the normaliser rather than assuming it worked |
+
+### Measured, not asserted
+
+`ENH-001` made the false-positive rate the shipping condition, so it is a number:
+
+| Measurement | Result |
+| --- | --- |
+| Described properties in the contract | **54** |
+| `REVIEW REQUIRED` against the baseline | **0** |
+| Seeded semantic change (`Evidenced.status` meaning inverted) | **detected** |
+| Reflow only | not reported |
+| Emphasis / code marks only | not reported |
+| Sentence case only | not reported |
+| Structural change with a new description | not double-reported |
+
+### Notes
+
+**The owner overrode my recommendation to defer, and the override turned my
+objection into an acceptance criterion.** I argued cost-of-false-positives; the
+answer was to measure them. Zero of fifty-four, and the measurement is a test — so
+the check degrades loudly rather than quietly.
+
+**It reports and does not fail.** A check that fires on a typo fix gets bypassed,
+and `BR-029` §3 records what an untrustworthy signal costs in this repository. The
+report is consumed at `RELEASE_READINESS_CHECKLIST` §2 rather than left in build
+output, because a report nobody reads is worth as little as a check nobody trusts.
+
+---
+
 ## STEP-001.08 — 2026-08-13 — Carried-commitment guard (ENH-002)
 
 | Field | Value |

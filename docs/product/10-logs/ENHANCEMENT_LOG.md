@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Owner | Product Lead (Deepesh Kumar Gupta) |
-| Status | `ACTIVE` — 2 entries: ENH-001 `SCHEDULED` (STEP-004.09), ENH-002 **`DELIVERED`** (STEP-001.08) |
+| Status | `ACTIVE` — 2 entries, both **`DELIVERED`**: ENH-001 (STEP-004.09), ENH-002 (STEP-001.08) |
 | Purpose | Record improvements proposed or delivered beyond the stated requirement, so scope growth is visible rather than silent |
 | Last reviewed | 2026-08-12 |
 
@@ -24,7 +24,7 @@ An enhancement is work nobody asked for. It may be excellent and it may be scope
 | ID | Title | Proposed by | Date | Type | Requirement affected | Decision | Delivered in | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | ENH-002 | Guard that a carried commitment is discharged | Deepesh Kumar Gupta (during STEP-002.08) | 2026-08-12 | reliability / process | REQ-KG-008 | **ACCEPTED 2026-08-13** (owner) | STEP-001.08 | `DELIVERED` |
-| ENH-001 | Detect semantic change by description drift | Deepesh Kumar Gupta (during STEP-004.08) | 2026-08-12 | developer-experience / reliability | REQ-PLAT-008 | **ACCEPTED 2026-08-13** (owner) | STEP-004.09 | `SCHEDULED` |
+| ENH-001 | Detect semantic change by description drift | Deepesh Kumar Gupta (during STEP-004.08) | 2026-08-12 | developer-experience / reliability | REQ-PLAT-008 | **ACCEPTED 2026-08-13** (owner) | STEP-004.09 | `DELIVERED` |
 
 **Status values:** `PROPOSED` · `ACCEPTED` · `SCHEDULED` · `DELIVERED` · `DECLINED` · `DEFERRED`
 
@@ -163,6 +163,7 @@ is not driven near zero first, this should not ship.
 | Decided by | Deepesh Kumar Gupta (repository owner) |
 | Rationale | Accepted against my own recommendation to defer, which is the owner's call to make. The deferral argument was cost-of-false-positives, not that the gap is acceptable — `CONTRACT_CHANGE_POLICY` §1 calls semantic change the most dangerous category and it has no automated coverage at all |
 | Sub-step | **`STEP-004.09`** — reopens STEP-004 from `VERIFIED` 8/8 to 9/9, the same pattern as STEP-003.09 and STEP-002.08 |
+| Outcome | **Delivered in `STEP-004.09`** (`BR-040`, `IMPL-037`). The condition below was met by measurement: **0 findings across 54 described properties**, and that measurement is itself a test so the check degrades loudly rather than quietly. It reports and does not fail the build; the report is consumed at `RELEASE_READINESS_CHECKLIST` §2 |
 | Condition carried from §Risk | **The false-positive rate must be driven near zero before this ships.** A check people learn to acknowledge without reading is worse than no check — this repository already has one degraded signal that reads like a real answer (`gitnexus_query`, `BR-029` §3). That is now an acceptance criterion of `.09`, not a caveat |
 
 ---

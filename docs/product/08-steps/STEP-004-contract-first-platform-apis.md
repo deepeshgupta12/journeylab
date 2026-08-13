@@ -115,6 +115,7 @@ Nine-step fan-in. Every subsequent contract change inherits [CONTRACT_CHANGE_POL
 | STEP-004.06 | Shared JSON Schemas incl. model-output schemas — ✅ **VERIFIED** 2026-08-11 (BR-033, IMPL-030) |
 | STEP-004.07 | Client generation pipeline + no-hand-edit enforcement — ✅ **VERIFIED** 2026-08-11 (BR-034, IMPL-031, BUG-020) |
 | STEP-004.08 | Compatibility and consumer contract tests — ✅ **VERIFIED** 2026-08-12 (BR-035, IMPL-032, BUG-021, ENH-001) |
+| STEP-004.09 | Detect documented semantic change — ✅ **VERIFIED** 2026-08-13 (BR-040, IMPL-037, delivers ENH-001) |
 
 > `.03`–`.06` were verified in their own commits but this checklist was not updated
 > with them. Corrected at `.07`. The sub-step records and `MASTER_TRACKER` were
