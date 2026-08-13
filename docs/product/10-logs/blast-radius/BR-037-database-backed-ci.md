@@ -52,9 +52,21 @@ So the two paths verify different things and **neither proves the other**:
 | `pnpm ci:local` | The suite runs green on Linux against a real database, cold | That the workflow YAML is correct |
 | GitHub Actions | The workflow YAML is correct | Anything before it is pushed |
 
-The workflow change is therefore verified **only by the push that follows this
-commit**. That is stated here rather than left implicit, and it is the reason this
-record is MEDIUM confidence while the code changes around it are high.
+The workflow change was therefore unverifiable until pushed. That was stated here
+before pushing rather than discovered afterwards.
+
+**Discharged 2026-08-13 by GitHub Actions run `31681863124`:**
+
+```
+Apply migrations   JOURNEYLAB_REQUIRE_DB: 1
+Run pnpm verify    665 passed, 5 skipped, 1 warning in 4.32s
+                   R7 assertions passed: 18
+```
+
+**665 / 5 on the runner, identical to local, against 624 / 46 before.** The
+forty-one tests run, and R7 ran in CI for the first time in the repository's
+history. Confidence on the workflow is now HIGH; the record stays MEDIUM overall
+because it was written pre-push and that is what it recorded.
 
 ## 4. Change inventory
 
@@ -149,4 +161,4 @@ each is known to hold on its own.
 | Guard meta-suite | **61 passed** (up from 55) |
 | R7 | 18/18, now inside `pnpm verify` |
 | `pnpm verify`, `pnpm ci:local`, R1–R7 | Recorded in the regression entry |
-| The workflow itself | **Verified only by the push that follows** — §3 |
+| The workflow itself | ✅ **GitHub Actions run `31681863124`** — 665 passed / 5 skipped, R7 18/18 (§3) |
