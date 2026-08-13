@@ -125,6 +125,16 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 - **Alternatives rejected:** Clerk (prebuilt UI conflicts with our WCAG 2.2 AA design system); Cognito (would pre-empt `DEC-007`, weakest passkeys); WorkOS (heavier than Phase 1 needs); Keycloak (single owner cannot operate an identity service).
 - **Review trigger:** MAU approaches the paid tier; `DEC-007` resolves; passkeys prove inadequate.
 
+### [ADR-015](../../adr/ADR-015-kafka-as-the-event-backbone.md) — Kafka is the event backbone
+- **Date:** 2026-08-13 · **Owner:** Deepesh Kumar Gupta · **Status:** Accepted · **Owner directive**, not an implementer recommendation
+- **Context:** `DEC-009` blocked `STEP-006` and, less obviously, two things in `STEP-004`: AsyncAPI generated no client (`.07` §9) and was not compatibility-diffed (`.08` §9), both because delivery semantics were undecided. `STEP-004.05` wrote the contract to survive exactly this — no `servers:`, no `bindings:`, delivery stated per message in `x-journeylab-delivery`.
+- **Decision:** **Apache Kafka.**
+- **Consequences:** AsyncAPI client generation and compatibility diffing are unblocked; both named this decision as their trigger, so neither is silently obsolete. **The partition key becomes contractual** — ordering is per-partition and the channel already claims per-trip ordering and nothing more, so partitioning by trip is the only consistent choice and changing it later is breaking. At-least-once stays at-least-once: Kafka's exactly-once is *processing* within Kafka, not delivery to a PostgreSQL consumer. **Operational cost is real and arrives before Phase 1** — brokers, partitions, consumer-lag monitoring. Tenancy is unchanged; Kafka adds no boundary and topic-per-tenant is not implied.
+- **Alternatives rejected:** A managed queue for MVP with later migration — cheaper to operate and genuinely deferrable, since the contract is transport-independent; rejected by directive. NATS JetStream, already in the local stack, whose presence is a development convenience rather than an architectural commitment.
+- **Review trigger:** Operational load disproportionate to Phase 1 volume, or `DEC-007` selecting a platform that changes the calculus.
+
+---
+
 ### [ADR-014](../../adr/ADR-014-guest-session-lifetime.md) — A guest session lasts 7 days
 - **Date:** 2026-08-06 · **Owner:** Deepesh Kumar Gupta · **Status:** Accepted
 - **Context:** `REQ-PRIV-001` guarantees planning without an email, so a guest token is a bearer capability with **no recovery and no revocation channel**. Expiry is the only control bounding both loss and leak.
@@ -139,7 +149,7 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 
 | ID | Decision needed | Options under consideration | Blocks | Owner | Needed by |
 | --- | --- | --- | --- | --- | --- |
-| DEC-002 | Which destination region is the Phase 1 pack | Not yet enumerated; selection criteria must include data licensability (`ASM-011`), transit data quality, accessibility data (`ASM-020`) and crowd-signal privacy (`ASM-021`). **Constraint set by the owner 2026-08-12: open data only, zero licence spend.** Research at STEP-005 is bounded to regions with permissive transit and POI data; a candidate needing a paid feed is out of scope rather than a trade-off to weigh | STEP-005, STEP-010, all evaluation corpora, Phase 0 exit | Product Lead | Before Phase 1 start |
+| DEC-002 | Which destination region is the Phase 1 pack | **Recommendation on the table: Switzerland (`ADR-016`, PROPOSED 2026-08-13)** — awaiting owner confirmation per `ADR-007`. Constraint set by the owner 2026-08-13: **open data only, zero licence spend**. Research found two things that outrank the ranking: **OSM is ODbL and share-alike applies to the evidence pack as a derivative database** (this is `RISK-001` in concrete form), and **Open-Meteo's free tier is non-commercial**, so the obvious weather source is unusable. Runner-up Netherlands; **Greek Cyclades rejected** — the region the contract examples assume has no open ferry GTFS | STEP-005, STEP-010, all evaluation corpora, Phase 0 exit | Product Lead | Before Phase 1 start |
 | DEC-003 | Business model: affiliate-only, subscription, or hybrid | (a) affiliate-only; (b) freemium with paid comparison depth; (c) advisor-licensing-first | Whether a billing step `STEP-029` exists; [SUCCESS_METRICS](../01-product/SUCCESS_METRICS.md) `KPI-007` targets | Product Lead + Commercial | Before Phase 1 exit |
 | ~~DEC-004~~ | ~~Identity provider~~ | **CLOSED 2026-08-06 — Auth0** (`ADR-013`) | — | Security Architect | Resolved at STEP-002.05 |
 | DEC-005 | Numeric KPI thresholds | Requires Phase 0/1 baselines; must not be asserted in advance | Release gates, [RELEASE_READINESS_CHECKLIST](../06-quality/RELEASE_READINESS_CHECKLIST.md) | Product Lead | Before Phase 1 exit |
@@ -147,7 +157,7 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 | DEC-007 | Cloud provider, region, residency posture | Undetermined; `ASM-003` assumes no residency constraint | [DEPLOYMENT_ARCHITECTURE](../03-architecture/DEPLOYMENT_ARCHITECTURE.md), STEP-027 | Product Architect | Before STEP-027 |
 | DEC-008 | Routing provider and wheelchair profile support | Determines whether accessible routing is a product claim or a disclosed limitation | STEP-005, `REQ-A11Y` routing scope | Product Architect + Data | Before STEP-005 |
 | DEC-010 | What condition permits an `ops_admin` to approve a high-impact fact override | AUTHORIZATION_MATRIX §3 marks the cell `⚠️📋` but names no condition; §4's four-eyes rule names a *second curator* only. Options: (a) ops_admin cannot approve — change the cell to `❌`; (b) ops_admin may approve with a named condition, which must be written into §4 | STEP-002.03 (encoded to **fail closed** meanwhile), STEP-021 | Security Architect | Before STEP-021 |
-| DEC-009 | Event backbone for MVP: managed queue vs. Kafka 4.3 | Blueprint permits a managed queue at MVP scale while preserving AsyncAPI contracts | STEP-006 | Product Architect | Before STEP-006 |
+| ~~DEC-009~~ | ~~Event backbone~~ | **CLOSED 2026-08-13 — Kafka** (`ADR-015`), owner directive. Unblocks AsyncAPI client generation (`STEP-004.07` §9) and AsyncAPI compatibility diffing (`BR-035` §9), both of which named this decision as their trigger | — | Product Architect | Resolved before STEP-006 |
 
 ---
 
