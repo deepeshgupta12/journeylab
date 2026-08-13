@@ -194,7 +194,7 @@ docs/adr/          architecture decision records
 
 | Suite | Count | Runs in |
 | --- | --- | --- |
-| Python | 665 | `pnpm verify` |
+| Python | 727 | `pnpm verify` |
 | Design system (jsdom) | 307 | `pnpm verify` |
 | Web (unit) | 63 | `pnpm verify` |
 | **Real browser (Playwright + axe)** | **40** | `pnpm verify` |

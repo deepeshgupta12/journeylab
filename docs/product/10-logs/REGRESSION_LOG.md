@@ -67,6 +67,63 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-005.01 — 2026-08-13 — Connector framework
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `ff28714` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **727 Python** (up from 665) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched; the gate reports no diff |
+| R3 graph diff as expected | **PASS** | One new package into an empty namespace; `detect_changes()` below |
+| R4 untested requirements | **PASS — improved** | REQ-SEC-005, REQ-DATA-002 and REQ-DATA-003 newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…024; meta-suite 61/61 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched, and now runs inside `verify` |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| 3 rate-limit tests failed on the first run | `0.0` used as the "not initialised" sentinel for the token bucket and quota window; the injected clock legitimately starts at `0.0`, so the first refill saw zero elapsed time | Both sentinels are `None`. *A sentinel drawn from the value's own domain is a bug waiting for its first legitimate caller* |
+| 5 × `N818` exception naming | New exceptions did not carry the `Error` suffix the codebase uses | Renamed. **`gitnexus_rename` could not be used** and that is worth stating: the index is at `ff28714`, before these files existed, so the graph has no nodes for them. A scoped replace across the two files they appear in is correct here, and the rule still stands for indexed symbols |
+| `S104` on `0.0.0.0/8` | Ruff read a **blocklist entry** as a bind address | `noqa` with the reason at the line; the test-side cases covered by a scoped per-file ignore |
+| `S311` on jitter | Seeded RNG flagged as non-cryptographic | Suppressed with the reason: jitter spreads retries, it protects nothing |
+| 17 mypy errors | Missing `types-jsonschema`; `object` used as a return type in a test helper | Stub added; the helper types its real return |
+
+### Mutation testing
+
+| Seeded | Result |
+| --- | --- |
+| Only the first resolved address checked | **killed** |
+| IPv4-mapped IPv6 unwrapping removed | **killed** |
+| Link-local (cloud metadata) removed from the blocklist | **killed** by 3 |
+| Redirects followed without re-checking egress | **killed** by 3 |
+| **`follow_redirects=True` on the production client** | **SURVIVED** — see below |
+| Half-open admits every caller | **killed** |
+| Schema gate coerces instead of rejecting | **killed** by 3 |
+| An empty cursor may be committed | **killed** |
+
+### Notes
+
+**The survivor is the finding.** Flipping the production client to
+`follow_redirects=True` left all 61 tests green, because every test injects its own
+client and the constructor's default was never exercised. That is not cosmetic:
+`httpx` would follow the redirect internally and return the final response, so the
+second hop would never reach `egress.check_url` — the cloud-metadata bypass,
+reopened, with every redirect test still passing.
+
+Closed by asserting the constructor default directly. White-box, deliberately: a
+constructor default has nowhere else to be observed. **More test cases would not
+have found this**; the gap was in what the suite touched, not in what it asserted.
+
+---
+
 ## STEP-001.07 — 2026-08-13 — Database-backed checks run in CI
 
 | Field | Value |

@@ -60,6 +60,89 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-035 — STEP-005.01 — Connector framework
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-13 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-SEC-005, REQ-DATA-002, REQ-DATA-003 |
+| Blast radius | [BR-038](blast-radius/BR-038-connector-framework.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `ff28714` — matched HEAD at pre-change |
+
+### What was built
+
+The first code under `services/integrations/`. Six modules and 62 assertions:
+egress and SSRF, rate limit and quota, backoff and circuit breaker, a schema gate,
+resumable checkpoints, and rotating credentials — composed into one
+`HttpConnector`. Python suite 665 → **727**.
+
+### A toolbox would not have satisfied the outcome
+
+§1 asks that "no adapter reimplements resilience". A library of helpers achieves
+"no adapter *has to*", which is a weaker claim that lasts until the first adapter
+written under deadline imports `httpx` directly.
+
+So the connector owns the client and an adapter is handed a connector, never a
+URL. There is no path to an outbound request that skips the controls.
+
+### Hostname allowlisting is not SSRF protection
+
+It is the obvious control and it stops none of the three real cases: DNS rebinding
+(public at check time, private at connect time), a redirect from an allowlisted
+host, and a host that simply resolves inward through a misconfigured record. All
+three pass a name check.
+
+So the check is on the **resolved address**, on **every** address a host returns,
+on **every** redirect hop. `169.254.169.254` is the target that matters — AWS, GCP
+and Azure all serve instance credentials there — and `DEC-007` need not be decided
+for that to be true. The IPv4-mapped form `::ffff:169.254.169.254` is blocked
+explicitly because it is neither `is_private` nor `is_link_local` by the standard
+library's predicates while resolving to exactly the address being blocked.
+
+### REQ-DATA-003's second clause is the one with teeth
+
+"Must trip a circuit breaker **and must not silently degrade to unmarked stale
+data**." The tempting behaviour when a provider is down is to serve the last good
+answer; a ferry timetable from yesterday rendered without a staleness marker is a
+plausible invalid plan with a citation attached.
+
+`CircuitOpenError` therefore carries no payload — there is no channel through
+which a cached value could be returned, and the test asserts that as a property of
+the type rather than of one code path.
+
+### What surprised me
+
+**A sentinel drawn from the value's own domain.** `0.0` meant "not yet
+initialised" for the token bucket and the quota window, and the tests inject a
+clock starting at `0.0` — so the first refill computed zero elapsed time. Three
+failures on the first run. Injected time makes that class of bug arrive
+immediately rather than in production.
+
+**A mutant survived and it was a real hole.** `follow_redirects=True` on the
+production client left all 61 tests green, because every test injects its own
+client and the constructor's default was never exercised. `httpx` would have
+followed the redirect internally and returned the final response, so hop two would
+never reach the egress check — the metadata bypass, reopened, with every redirect
+test still passing. **Mutation testing found what more test cases would not have**,
+because the gap was in what the suite touched, not in what it asserted.
+
+### What was deliberately deferred
+
+`CheckpointStore` is a **port**, not a table. `DEC-007` has not chosen a platform
+and `STEP-006` owns canonical persistence; committing a schema here would decide
+someone else's design as a side effect. The in-memory implementation is enough to
+prove the commit ordering, which is the part that is easy to get wrong.
+
+The secret manager is likewise a one-method port. The sub-step's §4 asks whether
+rotation works without a restart, and that cannot be answered until `DEC-007`
+picks one. What is settled now is the shape that makes rotation possible at all —
+fetch through a port, cache with a TTL, never a module-level constant — and that
+shape does not change with the vendor.
+
+---
+
 ## IMPL-034 — STEP-001.07 — Database-backed checks run in CI
 
 | Field | Value |
