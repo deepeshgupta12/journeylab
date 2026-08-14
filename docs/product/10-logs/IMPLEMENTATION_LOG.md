@@ -60,6 +60,76 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-039 — STEP-005.03 — Weather forecasts, normals, alerts and withdrawal
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-14 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-002, REQ-DATA-005, REQ-EVID-003, REQ-DATA-003 |
+| Blast radius | [BR-042](blast-radius/BR-042-weather-adapter.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `9a2db57` — matched HEAD at pre-change |
+
+### What was built
+
+`services/integrations/src/weather/`: forecasts that cannot exist without
+uncertainty, climate normals as a **separate type**, alerts whose severity is the
+provider's, and objective withdrawal as a product state. Python 772 → **798**.
+
+### Two distinctions, and both are types rather than flags
+
+**A normal is not a forecast.** Beyond the horizon the honest answer is a
+climatological normal — legitimate input, and not a prediction about next Tuesday.
+`REQ-EVID-003` says an estimate is never rendered as confirmed, and returning a
+normal through the same type as a forecast is exactly how it gets rendered as one.
+So a consumer written only for `Forecast` fails to typecheck rather than quietly
+presenting a 30-year average as tomorrow.
+
+**A point forecast is not an input to a simulation.** `18°C` tells a simulator
+nothing about how wrong it might be, so it is treated as certain — and this
+product compares feasible futures, plural. `Forecast` cannot be constructed
+without `Uncertainty`, with no default, because a default is a fabricated
+confidence interval. Nothing widens a bare point into "probably ±2°": that would
+invent the uncertainty the requirement exists to preserve.
+
+### Withdrawal is a product state, not an error path
+
+When weather is unavailable, three things could happen and two are failures.
+Scoring from normals ranks a scenario "weather resilient" on an average presented
+as a forecast. Dropping the objective silently is *worse*, because the user still
+believes it was applied. So `weather_resilient` is **withdrawn and disclosed**.
+
+`ObjectiveWithdrawn` carries no score field at all — a nullable score is one
+`None` check away from ranking as zero, and zero is a position in the ranking. The
+disclosure is required and structured by reason, because an outage, an exceeded
+horizon and an uncovered region need different copy.
+
+### What mutation testing caught that I had not
+
+**A mutant survived**: measuring the horizon from `now()` instead of `issued_at`.
+My test used timestamps near the real present, so both readings agreed. Rewritten
+with dates well in the past, which separates them. The property is that **a stored
+forecast gives the same answer whenever it is read** — otherwise the same record
+is valid at breakfast and invalid at lunch — and the original test could not see it.
+
+**mypy caught a vacuous assertion.** `assert UNKNOWN is not MINOR` is a
+non-overlapping identity check: statically always true, so it could never fail.
+Same pattern as BUG-020 and BUG-021, this time in new code and caught by a type
+checker rather than a later reader. Replaced with the behavioural property — no
+provider string is ever promoted into a level a meteorological service did not
+assign.
+
+### The licence is why this is MeteoSwiss
+
+`ADR-016` §2 found that Open-Meteo's free tier is explicitly non-commercial, so
+using it would be a licence breach rather than a rate-limit problem.
+`LicenceRecord` refuses to construct a non-commercial entry at all, so that
+mistake cannot be made quietly — and `METEOSWISS` is registered under the same
+`opendata.swiss` terms as the rest of the Swiss sources.
+
+---
+
 ## IMPL-038 — STEP-005.02 — Places, hours and accessibility adapter
 
 | Field | Value |

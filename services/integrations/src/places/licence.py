@@ -125,8 +125,27 @@ OPENDATA_SWISS = LicenceRecord(
     commercial_use_permitted=True,
 )
 
+METEOSWISS = LicenceRecord(
+    licence_id="meteoswiss",
+    source_name="MeteoSwiss (Federal Office of Meteorology and Climatology)",
+    terms_url="https://opendata.swiss/en/terms-of-use",
+    attribution_required=True,
+    attribution_text="Source: MeteoSwiss",
+    max_cache_seconds=None,
+    share_alike=ShareAlike.NONE,
+    commercial_use_permitted=True,
+)
+"""The weather source ADR-016 chose, and the reason it is not Open-Meteo.
+
+Open-Meteo publishes CC-BY data on a free tier that is **non-commercial**, so this
+product cannot use it at any volume — a licence breach rather than a rate-limit
+problem (ADR-016 §2). `LicenceRecord` refuses to construct a non-commercial entry
+at all, so that mistake cannot be made quietly here.
+"""
+
 KNOWN_LICENCES: dict[str, LicenceRecord] = {
-    record.licence_id: record for record in (SWISS_TRANSPORT, OPENSTREETMAP, OPENDATA_SWISS)
+    record.licence_id: record
+    for record in (SWISS_TRANSPORT, OPENSTREETMAP, OPENDATA_SWISS, METEOSWISS)
 }
 
 

@@ -67,6 +67,61 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-005.03 — 2026-08-14 — Weather forecasts, normals, alerts and withdrawal
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `9a2db57` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **798 Python** (up from 772) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS** | One package plus one licence record |
+| R4 untested requirements | **PASS — improved** | REQ-EVID-003's estimate/confirmed line and REQ-DATA-003's no-silent-degradation clause newly covered on the weather path |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…025; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| **A mutant survived** — horizon measured from `now()` | The test used timestamps near the real present, so `moment - issued_at` and `moment - now()` agreed | Rewritten with dates well in the past. The property is that a stored forecast gives the same answer whenever it is read |
+| mypy `comparison-overlap` | `assert UNKNOWN is not MINOR` — statically always true, so **vacuous** | Replaced with the behavioural property over seven unrecognised inputs. Same pattern as BUG-020/021, caught here by a type checker |
+
+### Mutation testing
+
+| Seeded | Result |
+| --- | --- |
+| Beyond horizon still returns the forecast | **killed** by 2 |
+| Horizon measured from now, not issue time | **SURVIVED**, then killed after strengthening |
+| Value allowed outside its own interval | **killed** |
+| A three-year record accepted as a normal | **killed** |
+| Single-run ensemble accepted | **killed** |
+| Unknown alert severity downgraded to minor | **killed** |
+| Absent alert expiry treated as expired | **killed** |
+| Withdrawal permitted without disclosure | **killed** |
+
+### Notes
+
+**Two tools caught what my tests did not**, and in opposite ways: mutation testing
+found a test too weak to distinguish two implementations, and mypy found an
+assertion that could never fail at all. Neither would have surfaced from writing
+more cases.
+
+**Every refusal here maps to a stated requirement rather than a preference.** A
+value outside its own interval is not a wide interval but an inconsistent one; a
+withdrawn objective with a nullable score is a silent degradation; an unknown
+alert level downgraded is a national weather service's judgement replaced by ours,
+invisibly, in the one part of the product where being wrong has physical
+consequences.
+
+---
+
 ## STEP-005.02 — 2026-08-13 — Places, hours and accessibility adapter
 
 | Field | Value |
