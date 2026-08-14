@@ -107,7 +107,7 @@ Eight-step fan-out. A defect in entity resolution or freshness propagates silent
 | Sub-step | Outcome |
 | --- | --- |
 | STEP-005.01 | Connector framework: credentials, egress allowlist, rate limit, timeout, circuit breaker  — ✅ **VERIFIED** 2026-08-13 (BR-038, IMPL-035)
-| STEP-005.02 | Places/hours/accessibility adapter + fixtures |
+| STEP-005.02 | Places/hours/accessibility adapter + fixtures | — ✅ **VERIFIED** 2026-08-13 (BR-041, IMPL-038)
 | STEP-005.03 | Weather adapter with confidence/ensemble spread |
 | STEP-005.04 | Transit adapter with time-zone normalization |
 | STEP-005.05 | Routing adapter with explicit profile declaration |

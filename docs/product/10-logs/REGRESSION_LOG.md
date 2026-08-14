@@ -67,6 +67,60 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-005.02 — 2026-08-13 — Places, hours and accessibility adapter
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `9a82fa4` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **772 Python** (up from 736) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched. `CanonicalPlace` is deliberately wider than the API's `Place` |
+| R3 graph diff as expected | **PASS** | One package into `services/integrations/`, which only `.01` occupied |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-001, REQ-DATA-005 and REQ-PRIV-003's declared-only clause newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…025; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched. Place data is public and not tenant-scoped |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `B017` blind `pytest.raises(Exception)` | I asserted a bad time zone raises *something* | Narrowed to `ZoneInfoNotFoundError` — the point is that a bad zone is rejected where it is written, not stored and failing at use |
+| 2 × `RUF002` ambiguous en dash | En dashes inside a docstring showing time ranges | Replaced with hyphens. Worth the noise: an en dash in a time range is genuinely ambiguous to a reader |
+
+### Mutation testing
+
+| Seeded | Result |
+| --- | --- |
+| Unknown hours collapse to CLOSED | **killed** by 3 |
+| No applicable season reads as CLOSED | **killed** |
+| Midnight span stored without splitting | **killed** by 3 |
+| Unparseable hours guessed at instead of UNKNOWN | **killed** by 2 |
+| Accessibility vocabulary not enforced | **killed** |
+| `time_zone` no longer required | **killed** |
+| Non-commercial licence accepted | **killed** |
+| Availability evaluated in the caller's zone | **killed** |
+
+### Notes
+
+**The sub-step's stated premise had expired.** §4 says "No provider selected
+(EXT-001); build against fixtures" — written before `DEC-002` closed. `ADR-016`
+has since named the sources, so this is built against real licence terms, and
+`Provenance.licence_id` (added in STEP-004.06, unused until now) becomes
+load-bearing from the first ingestion.
+
+**Every mutant here corresponds to a defined severity.** Collapsing unknown into
+open is `REQ-CONS-004`, which the bug register defines as S1 by definition;
+collapsing it into closed is `REQ-CONS-005`. That is why the three-state type is
+the design rather than a convenience.
+
+---
+
 ## STEP-004.09 — 2026-08-13 — Documented semantic change (ENH-001)
 
 | Field | Value |

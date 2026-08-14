@@ -60,6 +60,86 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-038 — STEP-005.02 — Places, hours and accessibility adapter
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-13 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-001, REQ-DATA-005, REQ-PRIV-003 |
+| Blast radius | [BR-041](blast-radius/BR-041-places-adapter.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `9a82fa4` — matched HEAD at pre-change |
+
+### What was built
+
+`services/integrations/src/places/`: a licence register, an opening-hours parser
+and an adapter that maps a provider payload to a canonical place with provenance.
+Python suite 736 → **772**.
+
+### The sub-step's premise had expired, and that changed the work
+
+`.02` §4 says *"No provider selected (EXT-001). Build against fixtures."* That was
+written before `DEC-002` closed. `ADR-016` has since chosen Switzerland and named
+the sources, so this is built against **real licences** rather than an abstract
+provider — and `ADR-016`'s ODbL finding stops being a document and becomes a field.
+
+`Provenance.licence_id` was added in STEP-004.06 and had no user until now. From
+this sub-step ODbL and non-ODbL facts sit side by side in one pack, which is
+exactly what the posture decision owed before `STEP-010` will have to act on.
+
+### Unknown is not closed, and that is the whole module
+
+A place with no hours and a place that is shut are different facts, and a boolean
+cannot hold both. Collapsing them breaks the solver in **opposite** directions:
+
+- unknown read as **closed** → a feasible plan reported infeasible (`REQ-CONS-005`)
+- unknown read as **open** → an itinerary built on a shut place (`REQ-CONS-004`,
+  which the bug register defines as **S1 by definition**)
+
+So `Availability` has three states and every consumer must handle the third. The
+same rule governs seasons: no applicable window returns UNKNOWN, because a railway
+with summer hours and no winter entry tells us nothing about January, and
+`CLOSED` would be inventing a fact.
+
+### Refusing to parse is safe; guessing is not
+
+The parser covers a deliberate subset of the OSM `opening_hours` grammar. The full
+grammar has public holidays, sunset offsets, week numbers and month ranges, and a
+half-correct implementation of that produces confidently wrong hours — which is a
+hard-constraint violation, not a display bug.
+
+So anything outside the subset **raises**, and the adapter records the place as
+UNKNOWN, which the solver already has to handle. The place is not discarded: its
+name and location remain usable and only the hours degrade.
+
+### Midnight, in one place instead of every consumer
+
+`Fr 22:00-02:00` stored as written has `start > end`, and every comparison
+downstream silently reverses. It is split at midnight into two same-day intervals,
+so `Interval` can enforce `start < end` in its constructor and no consumer needs
+to know the rule exists.
+
+### Two refusals worth naming
+
+**A non-commercial licence cannot be recorded at all.** `LicenceRecord` raises
+rather than storing one. Open-Meteo's free tier is the live example from
+`ADR-016` §2 — CC-BY data, non-commercial terms — and a register entry marked
+"unusable" is an invitation to misread it later.
+
+**`ShareAlike` is three-valued.** "We have not read the terms" and "the terms
+impose nothing" are different facts, and a boolean loses the first one — which is
+how an obligation gets discovered after the data is already in the pack.
+
+### Accessibility is filtered, not mapped
+
+`REQ-PRIV-003` permits declaration only. An unrecognised key is **dropped with a
+warning**, never mapped to the nearest neighbour, because a wrong accessibility
+fact is worse for the person relying on it than a missing one. An empty list means
+*not declared*, never *no features*.
+
+---
+
 ## IMPL-037 — STEP-004.09 — Detect documented semantic change
 
 | Field | Value |

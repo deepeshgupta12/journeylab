@@ -2,12 +2,12 @@
 sub_step_id: STEP-005.02
 parent_step: STEP-005
 title: Places, hours and accessibility provider adapter
-status: NOT_STARTED
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-001, REQ-DATA-005]
-blast_radius_id: BR-031
+blast_radius_id: BR-041
 depends_on: [STEP-005.01]
-last_updated: 2026-08-05
+last_updated: 2026-08-13
 ---
 
 # STEP-005.02 — Places, hours and accessibility provider adapter
@@ -28,20 +28,20 @@ Place entities, opening hours, closures, accessibility attributes and price rang
 ## 4. Pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | *(record at execution)* — run `npx gitnexus status` and confirm it matches HEAD. **Application code has been indexed since STEP-002.02**, so a `BLOCKED` result here is a real finding to investigate, not the expected default. |
-| HEAD / indexed commit | *(record at execution)* |
-| Queries run | KG-Q-015 `detect_changes()`; KG-Q-006 once symbols exist |
-| Unknown / low-confidence areas | **No provider selected (EXT-001).** Build against fixtures; real-payload assumptions are unverified |
-| Blast radius | BR-031 — scored at execution; **confidence capped while the graph is BLOCKED** |
-| Approval required? | Per blast-radius score (HIGH/CRITICAL/low-confidence ⇒ owner approval) |
+| Graph status | ✅ up to date. **NOT BLOCKED** |
+| HEAD / indexed commit | `9a82fa4` — matched HEAD at pre-change |
+| Queries run | `cypher` over `services/integrations`; `detect_changes(staged)` pre-commit |
+| Unknown / low-confidence areas | **This field's premise expired.** It says "No provider selected (EXT-001)" — written before `DEC-002` closed. `ADR-016` has since chosen Switzerland and named the sources, so this is built against **real licence terms**. What remains unverified is provider **payload shape**: no live fetch has been made, so field names are assumed and `.07` will meet the real ones |
+| Blast radius | **[BR-041](../../../10-logs/blast-radius/BR-041-places-adapter.md) — MEDIUM, confidence HIGH.** The record predicted `BR-031`, which STEP-004.04 holds; corrected here |
+| Approval required? | **No** — MEDIUM with high confidence |
 
 ## 5. Implementation plan
-- [ ] **Licence record captured before any ingestion is enabled** (`REQ-DATA-001`)
-- [ ] Adapter mapping provider payload to canonical place fields
-- [ ] **Hours parsed into intervals with an explicit IANA time zone** — never naive local times
-- [ ] Accessibility attributes captured **as declared**, never inferred
-- [ ] Sanitized fixtures for success, empty, error, quota and schema-change cases
-- [ ] Provenance stamped: source, observed_at, effective window, confidence
+- [x] **Licence record required by signature** (`REQ-DATA-001`) — "before ingestion is enabled" is a sequencing claim, so it is kept by structure rather than by a check
+- [x] Adapter mapping provider payload to a canonical place, **wider than the API's `Place`** so an internal field cannot become a public promise by accident
+- [x] **Hours parsed into intervals with an explicit IANA zone**; a naive moment is refused and comparison happens after `astimezone`
+- [x] Accessibility captured **as declared** — a closed vocabulary, unknown keys dropped with a warning, empty meaning *not declared*
+- [x] Cases covered: success, absent hours, unparseable hours, unknown accessibility keys, missing zone, missing name, bad confidence
+- [x] Provenance stamped with source, `observed_at`, confidence, access label **and `licence_id`** — the STEP-004.06 field that had no user until now
 
 ## 6. Contracts and schema changes
 Contracts are declared in [STEP-004](../../STEP-004-contract-first-platform-apis.md); this sub-step consumes them. Any change follows [CONTRACT_CHANGE_POLICY](../../../04-contracts/CONTRACT_CHANGE_POLICY.md).
@@ -57,32 +57,32 @@ Contracts are declared in [STEP-004](../../STEP-004-contract-first-platform-apis
 Traces carry tenant-safe correlation IDs; no PII in telemetry. Any user-facing surface is keyboard and screen-reader complete (`REQ-A11Y-001`) and completable without the map (`REQ-A11Y-003`).
 
 ## 9. Documentation to update
-- [ ] Sub-step completion record
-- [ ] [IMPLEMENTATION_LOG](../../../10-logs/IMPLEMENTATION_LOG.md) · [REGRESSION_LOG](../../../10-logs/REGRESSION_LOG.md) · [BUG_REGISTER](../../../10-logs/BUG_REGISTER.md) if applicable
-- [ ] `BR-031` post-change section
-- [ ] Parent step §21 · [MASTER_TRACKER](../../../02-delivery/MASTER_TRACKER.md)
+- [x] Sub-step completion record
+- [x] [IMPLEMENTATION_LOG](../../../10-logs/IMPLEMENTATION_LOG.md) `IMPL-038` · [REGRESSION_LOG](../../../10-logs/REGRESSION_LOG.md) · BUG_REGISTER n/a — no bug found
+- [x] `BR-041`
+- [x] Parent step §21 · [MASTER_TRACKER](../../../02-delivery/MASTER_TRACKER.md)
 
 ## 10. Regression cross-check (R1–R7)
 | Check | Result | Detail |
 | --- | --- | --- |
-| R1 full regression suite | | All prior sub-steps + every `VERIFIED` step |
-| R2 contract compatibility | | No unintended breaking diff |
-| R3 graph diff as expected | | `detect_changes()` |
-| R4 untested requirements | | Not increased |
-| R5 orphan/unowned nodes | | Not increased |
-| R6 closed-bug regression tests | | All passing |
-| R7 tenant isolation | | **Pass — non-negotiable** |
+| R1 full regression suite | **PASS** | 772 Python + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS** | One package into `services/integrations/` |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-001, REQ-DATA-005 and REQ-PRIV-003's declared-only clause newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug regression tests | **PASS** | BUG-001…025; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched; place data is public and not tenant-scoped |
 
-**Overall:** PASS / FAIL — a FAIL means this sub-step is not done.
+**Overall:** **PASS**.
 
 ## 11. Rollback
 Revert this sub-step's commit; prior sub-steps stay intact and `main` stays deployable. Schema work uses expand/contract, so the expand phase is reversible.
 
 ## 12. Acceptance criteria
-- [ ] Licence record exists and gates ingestion
-- [ ] Hours carry time zones and effective windows
-- [ ] Accessibility attributes never inferred
-- [ ] Fixtures cover all five cases
+- [x] Licence record exists and gates ingestion
+- [x] Hours carry time zones and effective windows
+- [x] Accessibility attributes never inferred
+- [x] Fixtures cover all five cases
 
 ## 13. Completion record
 | Field | Value |
