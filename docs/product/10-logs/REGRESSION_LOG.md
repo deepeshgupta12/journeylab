@@ -67,6 +67,62 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-005.05 — 2026-08-17 — Travel-time matrices and explicit profile support
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `8bf34e0` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **863 Python** (up from 843) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS** | A new service root, `services/routing/` |
+| R4 untested requirements | **PASS — improved** | REQ-A11Y-003 gains its first enforcement outside the web layer |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…025; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| mypy: `Source file found twice under different module names` | I added `services/routing/src/__init__.py`; neither of the other two service roots has one, because `src` is a path root rather than a package | Removed. Copying a shape from memory rather than from the neighbouring service — the same mistake as `packages/contracts`' tsconfig in STEP-004.07 |
+
+### Mutation testing — 8 seeded, 8 killed
+
+| Seeded | Result |
+| --- | --- |
+| Wheelchair silently downgraded to walking | **killed** |
+| Walking support treated as implying wheelchair | **killed** by 2 |
+| Refusal permitted without a disclosure | **killed** |
+| Unattributed accessibility claim accepted | **killed** |
+| Zero-duration travel time accepted | **killed** |
+| Assumptions no longer required | **killed** |
+| Licence dropped from the cache key | **killed** |
+| Licence cache limit ignored | **killed** |
+
+### Notes
+
+**The disclosure is asserted on its wording, not merely its presence.** A correct
+type with copy that reads "no step-free data" as "step-free" would satisfy
+`REQ-A11Y-003`'s letter and fail its purpose, so the test names three phrases the
+text must contain.
+
+**One test is structural rather than behavioural**, which is unusual here and
+deliberate: it asserts the module exposes no haversine, distance or great-circle
+helper. The failure mode being guarded is somebody adding the convenience later and
+a colleague reaching for it — behaviour cannot catch that, only absence can.
+
+**`DEC-008` remains open and did not block.** The scope asked for a
+provider-independent interface, so the recommendation is put to the owner rather
+than the sub-step waiting on it.
+
+---
+
 ## STEP-005.04 — 2026-08-17 — Transit schedules, calendars, feed pinning and alerts
 
 | Field | Value |

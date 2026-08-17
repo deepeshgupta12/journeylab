@@ -110,7 +110,7 @@ Eight-step fan-out. A defect in entity resolution or freshness propagates silent
 | STEP-005.02 | Places/hours/accessibility adapter + fixtures | — ✅ **VERIFIED** 2026-08-13 (BR-041, IMPL-038)
 | STEP-005.03 | Weather adapter with confidence/ensemble spread | — ✅ **VERIFIED** 2026-08-14 (BR-042, IMPL-039)
 | STEP-005.04 | Transit adapter with time-zone normalization | — ✅ **VERIFIED** 2026-08-17 (BR-043, IMPL-040)
-| STEP-005.05 | Routing adapter with explicit profile declaration |
+| STEP-005.05 | Routing adapter with explicit profile declaration | — ✅ **VERIFIED** 2026-08-17 (BR-044, IMPL-041)
 | STEP-005.06 | Affiliate adapter: deep links + signed callbacks |
 | STEP-005.07 | Entity resolution and provider identifier graph |
 | STEP-005.08 | Field-specific freshness policy |

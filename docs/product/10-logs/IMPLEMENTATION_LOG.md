@@ -60,6 +60,84 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-041 — STEP-005.05 — Travel-time matrices and explicit profile support
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-17 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-002, REQ-A11Y-003 |
+| Blast radius | [BR-044](blast-radius/BR-044-routing-adapter.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `8bf34e0` — matched HEAD at pre-change |
+
+### What was built
+
+`services/routing/src/matrix.py`: a provider-independent profile interface,
+explicit profile-support declaration, travel times that cannot exist without
+recorded assumptions, and a matrix cache key that includes the licence. Python
+843 → **863**.
+
+### The prohibition is the sub-step
+
+*"Silent fallback from wheelchair to walking is prohibited."* If a provider cannot
+route step-free and we quietly return walking times, a wheelchair user gets an
+itinerary computed for somebody who can take stairs. **It will look correct** —
+every duration plausible, the transfer at Bern that needs a footbridge reading as
+nine minutes — and there is no way for the person to know. That is what makes it
+worse than a refusal: "we cannot route this reliably" is useful.
+
+So `resolve_profile` returns the requested profile **or** a refusal, and the return
+type admits no third outcome. `ProfileUnsupported` carries no duration field at
+all, not even a nullable one, because a nullable duration is one `or 0` away from
+becoming a travel time.
+
+**The disclosure is tested on its wording.** "No step-free data" must not read as
+"step-free", so the test requires the text to say access was *not checked*, that
+the journey is *not shown as accessible*, and that walking times were *not
+substituted*. A correct type with misleading copy would satisfy the requirement's
+letter and fail its purpose.
+
+### Two refusals that prevent an impossible plan
+
+**Straight-line distance is not a route**, enforced twice: a non-positive duration
+raises, and a test asserts the module exposes no haversine, distance or
+great-circle helper — so the substitution cannot be made by reaching for a
+convenience that happens to exist. That second test is structural rather than
+behavioural, which is unusual and deliberate: the failure mode is somebody adding
+the helper later.
+
+**A duration with no recorded assumptions is not evidence.** Walking speed,
+transfer buffer and whether a lift was trusted all change the answer, and
+`assumptions` is required even when it states the default.
+
+### The cache key carries the licence, and that is not tidiness
+
+A matrix derived from a source with a maximum cache duration must expire on that
+source's terms. Keying by mode and window alone serves results past their
+permitted retention — a contract breach that looks exactly like a cache hit. With
+`ADR-016` leaving the ODbL question open, OSM-derived and
+`opentransportdata.swiss`-derived matrices genuinely have different retention rules
+and must not share an entry.
+
+### What surprised me
+
+**A stray `__init__.py` made mypy see one file as two modules.** I created
+`services/routing/src/__init__.py` out of habit; neither `services/identity/src`
+nor `services/integrations/src` has one, because `src` is a path root rather than a
+package. Removing it fixed `Source file found twice under different module names`.
+Copying a shape from memory rather than from the neighbouring service is the same
+mistake as `packages/contracts`' tsconfig in STEP-004.07.
+
+### `DEC-008` is on the table, and did not block
+
+The sub-step's §4 asks for a provider recommendation when it is reached. It has
+been, so the recommendation is put to the owner rather than deferred — but the
+scope asked for a **provider-independent** interface, so nothing here depends on
+the answer. `DEC-008` stays open until confirmed, per `ADR-007`.
+
+---
+
 ## IMPL-040 — STEP-005.04 — Transit schedules, calendars, feed pinning and alerts
 
 | Field | Value |
