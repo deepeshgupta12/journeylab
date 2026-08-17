@@ -67,6 +67,66 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## STEP-005.04 — 2026-08-17 — Transit schedules, calendars, feed pinning and alerts
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `bb84631` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **843 Python** (up from 798) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS** | One package into `services/integrations/` |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-002's feed-version clause and REQ-NFR-011's minute-level freshness newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…025; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched; timetables are public |
+
+**Overall:** PASS
+
+### Mutation testing — 8 seeded, 7 killed, 1 survivor explained
+
+| Seeded | Result |
+| --- | --- |
+| `25:30` wrapped into a calendar time | **killed** by 2 |
+| Service day anchored at wall-clock midnight | **SURVIVED — by design; see below** |
+| Hours ≥ 24 not flagged as past midnight | **killed** by 2 |
+| Calendar pattern consulted before exceptions | **killed** by 3 |
+| Outside the feed range reads as NO | **killed** |
+| Feed drift tolerated | **killed** |
+| Unresolvable stop not recorded as a gap | **killed** |
+| Alert staleness measured from onset | **killed** by 3 |
+
+### The survivor, and why it is reported rather than fixed
+
+Replacing the GTFS noon-minus-twelve anchor with a plain wall-clock midnight does
+not fail the suite. The usual justification for the anchor is that local midnight
+may not exist on a spring-forward date, so I looked for a case: both 2026 Zurich
+transitions, plus Havana, Santiago, Beirut and Asunción, whose DST transitions fall
+at or near midnight. **The two anchors give the identical instant every time** —
+Python's `zoneinfo` normalises a non-existent or ambiguous midnight rather than
+raising.
+
+The docstring claimed the anchor prevents a defect. It now says the anchor is
+specification conformance, records the failed attempt to observe a defect, and
+points at `test_the_two_anchors_agree_in_every_zone_tested`, which pins the
+equivalence so a future tzdata change fails loudly.
+
+**Recorded as 7 of 8.** A survivor with a reason is a finding; a survivor quietly
+reclassified as "not applicable" is how a mutation score becomes decorative.
+
+### Notes
+
+**Three sub-steps, three versions of the same discipline.** `.02` established that
+unknown hours are not closed; `.03` that a normal is not a forecast; `.04` that a
+service day is not a calendar day and that "outside the feed range" is not "does
+not run". In each case the wrong answer is not a crash but a coherent, cited,
+confidently wrong plan.
+
+---
+
 ## STEP-005.03 — 2026-08-14 — Weather forecasts, normals, alerts and withdrawal
 
 | Field | Value |

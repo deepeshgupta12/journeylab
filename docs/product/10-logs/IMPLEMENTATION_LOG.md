@@ -60,6 +60,76 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-040 — STEP-005.04 — Transit schedules, calendars, feed pinning and alerts
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-17 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-002, REQ-NFR-011 |
+| Blast radius | [BR-043](blast-radius/BR-043-transit-adapter.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `bb84631` — matched HEAD at pre-change |
+
+### What was built
+
+`services/integrations/src/transit/`: GTFS service-time handling, service
+calendars with exceptions, feed pinning by content hash, stop resolution that
+refuses to approximate, and service alerts with a freshness SLO. Python 798 →
+**843**.
+
+### A service day is not a calendar day
+
+GTFS writes a 01:30 departure on the night of the 14th as `25:30` on service date
+2026-08-14. Both naive readings are wrong in opposite directions: rejecting it
+deletes the night network and the gap reads as "no service", while wrapping it to
+01:30 today moves every late departure back twenty-four hours — a train that left
+last night, which is `REQ-CONS-004` and S1 by definition.
+
+`ServiceTime` is deliberately not a `datetime.time`, because `25:30` is not
+representable as one and forcing it there is the coercion that loses the night
+network. For a region chosen partly for last-funicular constraints, this is the
+specific error that produces a confidently wrong plan.
+
+### The precedence failure is asymmetric, so the code is too
+
+Ignoring a calendar **removal** puts a train that does not run on Christmas Day
+into the plan and leaves somebody at a station. Ignoring an **addition** merely
+makes the plan worse than necessary. So `runs_on` consults exceptions first and
+returns immediately — there is no branch in which the weekly pattern is reachable
+after an explicit date has spoken.
+
+### A mutant survived, and it deserved to
+
+Replacing the GTFS noon-minus-twelve anchor with a plain wall-clock midnight did
+not fail the suite. The usual justification is that local midnight may not exist on
+a spring-forward date, so I went looking for a case — both 2026 Zurich transitions,
+plus Havana, Santiago, Beirut and Asunción, whose transitions fall at or near
+midnight. **The two anchors produce the identical instant in every one.** Python's
+`zoneinfo` normalises a non-existent or ambiguous midnight rather than raising, and
+`noon - 12h` lands on the same normalisation.
+
+So I rewrote the docstring. It had claimed the anchor prevents a defect; it now
+says the anchor is **specification conformance**, records that I tried and failed
+to observe the defect, and points at the test that pins the equivalence so a future
+tzdata change becomes a visible failure.
+
+**Reported as 7 of 8 killed, not 8 of 8.** A survivor with a reason is a finding; a
+survivor quietly reclassified is the beginning of a habit — and an untested claim
+dressed as a verified one is exactly what this repository's records exist to
+prevent.
+
+### Feed pinning is by content hash, not version string
+
+Identifiers are not stable across GTFS publications: a `stop_id` can be retired and
+reused for a different platform. An evidence pack resolving stored identifiers
+against the current feed will one day resolve them against a different stop, and
+nothing about that failure looks like one — the itinerary is coherent, the citation
+resolves, the platform is wrong. A version string cannot catch a republication that
+keeps its label and changes its contents; a content hash can.
+
+---
+
 ## IMPL-039 — STEP-005.03 — Weather forecasts, normals, alerts and withdrawal
 
 | Field | Value |
