@@ -112,6 +112,38 @@ one every twelve seconds, so the SLO and the free tier are compatible. Worth
 asserting rather than assuming: a freshness promise the licence cannot fund would be
 a commitment to overspend, and the test now says so.
 
+### The provider's own documentation disputes one of these numbers
+
+While confirming the products to subscribe to, two pages disagreed:
+
+| Source | Service Alerts limit |
+| --- | --- |
+| "Limits and costs" | *"GTFS RT & GTFS RT Service Alerts — 5 requests per minute"* |
+| GTFS-SA cookbook | *"a maximum of two requests a minute"*, own endpoint `/la/gtfs-sa` |
+
+Both are the provider's. **`REQ-EVID-002` says conflicting evidence is retained and
+never averaged** — a rule written for provider facts inside an evidence pack, and it
+applies no less to a number that decides whether this project receives an invoice.
+So both readings are recorded as named constants and a test asserts they are **not**
+averaged, because an average of two documented claims is a third figure nobody
+published.
+
+Code uses the lower. That is not splitting the difference but an asymmetry:
+under-polling costs freshness we can measure, over-polling costs money and, past the
+limit, the provider's goodwill.
+
+**The dispute blocks nothing.** Even at two polls a minute — one every thirty
+seconds — `.04`'s five-minute alert SLO holds comfortably. Had it not, the SLO would
+have needed revisiting rather than the limit being rounded up. It is resolvable the
+moment a key exists, from the response headers.
+
+### The GTFS-RT figure, by contrast, is corroborated
+
+Two independent sources agree on 5 per minute: the "Limits and costs" page, and the
+API Manager's own plan line at subscription time — *"Quota: unlimited, Rate limit:
+5 calls / 1 minute(s)"*. A second source appearing in a UI I did not fetch is
+better evidence than a second reading of the same page.
+
 ### Not the same as Open-Meteo
 
 Free-below-a-limit is not non-commercial. `ADR-016` §2 rejected Open-Meteo because

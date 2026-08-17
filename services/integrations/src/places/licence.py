@@ -122,9 +122,40 @@ SWISS_TRANSPORT = LicenceRecord(
 #   else's system needs a citation or a test. `BUG-026` was exactly that mistake —
 #   a forecast horizon justified in a comment rather than read from the provider.
 
-#: GTFS-RT and GTFS-RT Service Alerts: 5 requests per minute per API key.
-#: No daily quota published for this tier.
+#: GTFS-RT: 5 requests per minute per API key, no daily quota.
+#:
+#: Corroborated by two independent sources, which is why this one is trusted:
+#:   - https://opentransportdata.swiss/en/limits-and-costs/
+#:   - the API Manager's own plan line at subscription time, which reads
+#:     "Quota: unlimited, Rate limit: 5 calls / 1 minute(s)"
 SWISS_TRANSPORT_GTFS_RT_PER_MINUTE = 5
+
+# THE SERVICE-ALERTS LIMIT IS DISPUTED BY THE PROVIDER'S OWN DOCUMENTATION.
+#
+#   "Limits and costs" groups them:  "GTFS RT & GTFS RT Service Alerts — 5/minute"
+#   The GTFS-SA cookbook says:       "a maximum of two requests a minute"
+#                                     (own endpoint, /la/gtfs-sa)
+#
+#   Both are the provider's, and they disagree. `REQ-EVID-002` says conflicting
+#   evidence is retained and never averaged — a rule written for provider facts in
+#   an evidence pack, and it applies no less to a number that decides whether we
+#   get an invoice. So both are recorded and the SAFER one is what code uses.
+#
+#   Choosing the lower is not splitting the difference: under-polling costs
+#   freshness we can measure, over-polling costs money and, past the limit, the
+#   provider's goodwill. The asymmetry decides it.
+#
+#   Resolvable the moment a key exists, by reading the response headers. Until then
+#   this is two documented claims, not one fact.
+
+#: The conservative reading of the disputed Service Alerts limit — cookbook figure.
+SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE = 2
+
+#: The permissive reading — the "Limits and costs" grouping, matching GTFS-RT.
+SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_OPTIMISTIC = 5
+
+#: What code uses. The lower, until a live response settles it.
+SWISS_TRANSPORT_GTFS_SA_PER_MINUTE = SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE
 
 #: OJP, OJPFare, Train Formation, CKAN: 50/minute and 20,000/day per key.
 SWISS_TRANSPORT_OJP_PER_MINUTE = 50

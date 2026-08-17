@@ -20,6 +20,9 @@ from framework.resilience import RateLimitedError, TokenBucket
 from places.licence import (
     SWISS_TRANSPORT,
     SWISS_TRANSPORT_GTFS_RT_PER_MINUTE,
+    SWISS_TRANSPORT_GTFS_SA_PER_MINUTE,
+    SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE,
+    SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_OPTIMISTIC,
     SWISS_TRANSPORT_OJP_PER_DAY,
     SWISS_TRANSPORT_OJP_PER_MINUTE,
 )
@@ -68,3 +71,38 @@ class TestABucketBuiltFromTheDocumentedLimitStaysFree:
         """Free-below-a-limit is not the same as non-commercial. Open-Meteo was
         rejected for the latter (ADR-016 §2); this is the former."""
         assert SWISS_TRANSPORT.commercial_use_permitted
+
+
+class TestTheDisputedServiceAlertsLimit:
+    """The provider's own two pages disagree, so both are kept.
+
+    `REQ-EVID-002`: conflicting evidence is retained, never averaged. That rule was
+    written for provider facts inside an evidence pack, and it applies no less to a
+    number that decides whether this project receives an invoice.
+    """
+
+    def test_both_readings_are_recorded(self) -> None:
+        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE == 2
+        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_OPTIMISTIC == 5
+
+    def test_they_are_not_averaged(self) -> None:
+        """The specific wrong move. An average of two documented claims is a third
+        figure nobody published."""
+        average = (
+            SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE
+            + SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_OPTIMISTIC
+        ) / 2
+        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE != average
+
+    def test_code_uses_the_safer_reading(self) -> None:
+        """Not a compromise — an asymmetry. Under-polling costs freshness we can
+        measure; over-polling costs money and the provider's goodwill."""
+        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE == SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE
+
+    def test_the_freshness_slo_survives_the_pessimistic_reading(self) -> None:
+        """The reason the dispute does not block anything: even at two polls a
+        minute, one poll every thirty seconds is well inside `.04`'s five-minute
+        alert SLO. Had it not been, the SLO would have needed revisiting."""
+        seconds_between_polls = 60 / SWISS_TRANSPORT_GTFS_SA_PER_MINUTE
+        assert seconds_between_polls == 30
+        assert seconds_between_polls < 5 * 60
