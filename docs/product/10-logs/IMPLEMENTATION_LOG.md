@@ -60,6 +60,84 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-042 — Live-provider reconnaissance, DEC-008, and BUG-026
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-17 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-EVID-003, REQ-DATA-005, REQ-A11Y-003, REQ-CONS-006 |
+| Blast radius | Covered by `BR-042` (weather) and `BR-044` (routing); no new record — no new capability |
+| Commit | see git log for this entry |
+| Graph indexed commit | `e4399d2` — matched HEAD at pre-change |
+| Bugs closed | [BUG-026](BUG_REGISTER.md) |
+| Decisions closed | `DEC-008` — OpenTripPlanner 2, self-hosted (`ADR-018`) |
+
+### Why this happened before STEP-005.06
+
+Five adapters had been built against **no live provider response**. Each sub-step
+disclosed that honestly, and disclosure is not closure. The specific worry was that
+`.03` makes ensemble uncertainty mandatory — if MeteoSwiss published point values
+only, the design was unbuildable and every later sub-step would inherit the mistake.
+
+That question resolved in the design's favour, and a different one turned out to be
+a real defect.
+
+### What the reconnaissance established
+
+| Question | Answer |
+| --- | --- |
+| Does MeteoSwiss publish ensemble spread? | **Yes** — ICON-CH1-EPS 11 members, ICON-CH2-EPS 21. `.03`'s mandatory uncertainty is satisfiable |
+| Forecast horizon | **33 h and 120 h.** My shipped default said **ten days** — `BUG-026` |
+| Data retention | **24 hours only** after publication |
+| API key needed? | **No** for MeteoSwiss and OSM. **Yes** for `opentransportdata.swiss` GTFS-RT |
+
+### BUG-026: the module produced the violation it was built to prevent
+
+`DEFAULT_HORIZON = timedelta(days=10)`, justified in a comment as "the usual limit
+for deterministic skill in public models" — a general belief about meteorology
+rather than a figure read from the provider.
+
+`.03` exists so a climatological normal is never presented as a forecast. Its whole
+argument rests on the horizon check, and a ten-day default waved day seven through —
+so the module produced a `REQ-EVID-003` violation **from its own default**. The types
+were sound; the constant was wrong. Every test passed because every test used the
+same wrong number.
+
+The fix is no default at all. A plausible-looking default is worse than none,
+because it is the failure mode that does not announce itself.
+
+### The 24-hour retention is an architectural constraint, not a defect
+
+`REQ-CONS-006` requires a scenario reproducible from its inputs and versions. If the
+forecast that produced a scenario is unavailable 24 hours later, **the stored
+evidence pack is the only record** — it cannot be re-derived from source.
+
+That is not a bug in anything built so far, and it is a real constraint on
+`STEP-010`: the pack must persist the forecast values it used, not a reference to
+them. Carried to STEP-010, where evidence-pack assembly is designed.
+
+### What I want from the owner, precisely
+
+**One credential: an `opentransportdata.swiss` API key** for GTFS-RT, obtained free
+from their API Manager. It needs an account, which is the owner's to create, and it
+goes into `.env` (mode 600, gitignored) — never into chat, the same rule as the Auth0
+secret.
+
+Everything else needs nothing: MeteoSwiss and OSM are open, and outbound network from
+this machine works.
+
+### What remains unverified, and it is no longer symmetric
+
+`.03`'s ensemble question is settled. Still shapes this code demands rather than facts
+about anyone's API: `.02`'s field names, `.04`'s five-minute alert SLO, and `.05`'s
+wheelchair profile support. The last is the one that matters most — if OSM step-free
+coverage in the chosen corridor is too sparse, the honest answer is to declare
+`WHEELCHAIR` unsupported rather than lower the bar, and `.05` was built so that
+answer is available.
+
+---
+
 ## IMPL-041 — STEP-005.05 — Travel-time matrices and explicit profile support
 
 | Field | Value |

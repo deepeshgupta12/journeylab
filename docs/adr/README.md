@@ -37,6 +37,7 @@ decision log.
 | [ADR-015](ADR-015-kafka-as-the-event-backbone.md) | Kafka is the event backbone | Accepted |
 | [ADR-016](ADR-016-phase-1-destination-region.md) | Phase 1 destination region is Switzerland | Accepted |
 | [ADR-017](ADR-017-direct-pushes-to-main.md) | Direct pushes to `main` while there is one owner | Accepted |
+| [ADR-018](ADR-018-opentripplanner-as-the-routing-engine.md) | OpenTripPlanner 2, self-hosted, is the routing engine | Accepted |
 
 ## Rules
 

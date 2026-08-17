@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Owner | Engineering (Deepesh Kumar Gupta) |
-| Status | `ACTIVE` — 25 bugs recorded, all closed with regression tests |
+| Status | `ACTIVE` — 26 bugs recorded, all closed with regression tests |
 | Rule | **Every fixed bug gets a regression test.** Check R6 verifies they all still pass at every sub-step |
 | Last reviewed | 2026-08-13 |
 
@@ -28,6 +28,7 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 | ID | Title | Sev | Found in | Found by | Symptom | Root cause | Fix commit | Regression test | Status | Closed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| BUG-026 | A ten-day forecast horizon MeteoSwiss cannot meet | **S3** | STEP-005.05 close-out — **the first live check of any provider** | Reading the provider's published specification | `outlook_for` would return a `Forecast` for day seven, which MeteoSwiss cannot forecast | `DEFAULT_HORIZON = timedelta(days=10)`, invented from a general belief about forecast skill rather than read from the provider. ICON-CH1-EPS is 33 h, ICON-CH2-EPS is 120 h | *(this commit)* | `TestBug026TheHorizonHasNoDefault` — 6 assertions; restoring the ten-day value fails 3 | **CLOSED** | 2026-08-17 |
 | BUG-025 | BUG-009 reintroduced: socket `pg_isready` in CI and the mirror | **S2** | STEP-004.09 pre-work, by the mirror failing twice | `pnpm ci:local` | "the mirror database never became ready"; container status `Up 1 second`, log ending at "ready for start up" | STEP-001.07 wrote the default socket `pg_isready` into `verify.yml` and `ci-mirror.sh`. The entrypoint's first-boot temporary server is socket-only, so the probe reports ready against a server about to be destroyed | *(this commit)* | `tests/guards/postgres-healthcheck.sh` — 11 probes checked; seeded and killed | **CLOSED** | 2026-08-13 |
 | BUG-024 | Three tenant-context tests depended on another suite's seed data | **S3** | STEP-001.07 — **the first CI-mirror run with a real database** | `pnpm ci:local` | 3 failed on a clean database, `assert 0 == 1`; all 3 pass locally | They asserted counts against rows `test_tenant_isolation.sh` creates as a side effect, so they passed on any machine where R7 had ever run | *(this commit)* | `_ensure_seed()` makes them self-seeding and idempotent; mutation-verified by neutering it against a bare schema | **CLOSED** | 2026-08-13 |
 | BUG-023 | CI ran none of the database-backed security tests | **S2** | STEP-002.08 close-out | Comparing local and CI skip counts | 624 passed / 46 skipped in CI versus 665 / 5 locally; R7 never ran in CI at all | No database in CI, and `pnpm test:security` was not in `pnpm verify`. Five copies of the skip decision meant it could not be changed centrally | *(this commit)* | 6 meta-tests in `run-all.sh`, both ratchet layers proven independently | **CLOSED** | 2026-08-13 |
@@ -42,6 +43,92 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 | BUG-003 | Sub-step committed without required documentation | **S3** | STEP-001.04 close-out | Post-commit verification | `8a9af9b` shipped without IMPL-004, regression entry or status update | Log script failed; commit ran in the same shell invocation regardless | *(this commit)* | `tests/guards/substep-docs.sh` | **CLOSED** | 2026-08-05 |
 | BUG-002 | `node_modules/` tracked in git | **S3** | STEP-001.02 pre-change analysis | Pre-change inventory | 2 dependency files committed; `.gitignore` contained only `.gitnexus` | `.gitignore` written without dependency/build exclusions in STEP-001.01 | *(this commit)* | `tests/guards/no-tracked-artifacts.sh` | **CLOSED** | 2026-08-05 |
 | BUG-001 | Stray authoring markup in 110 committed files | **S2** | STEP-001.01 | `pnpm install` failure | `package.json` invalid JSON at position 1180 | Authoring tool's file-write wrapper leaked a closing-tag line into every file body | *(this commit)* | `tests/guards/no-stray-markup.sh` | **CLOSED** | 2026-08-05 |
+
+---
+
+## BUG-026 — A ten-day forecast horizon that MeteoSwiss cannot meet
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — no runtime path consumes it yet, so nothing shipped wrong to a user. Had it reached STEP-012 it would have been S1: a hard-constraint violation built on a fabricated forecast |
+| Found during | STEP-005.05 close-out, by the **first live check of any provider in this project** |
+| Date found | 2026-08-17 |
+| Affected requirements | REQ-EVID-003 (an estimate never rendered as confirmed), REQ-DATA-005 |
+
+### Symptom
+
+`outlook_for(moment=day 7, ...)` returned a `Forecast`. MeteoSwiss cannot forecast
+day seven at all.
+
+### Root cause
+
+```python
+DEFAULT_HORIZON = timedelta(days=10)   # STEP-005.03
+```
+
+The comment justified it as *"the usual limit for deterministic skill in public
+models"* — a general belief about meteorology, **invented rather than read from the
+provider**. The published figures are:
+
+| Model | Horizon | Ensemble members |
+| --- | --- | --- |
+| ICON-CH1-EPS | **33 hours** | 11 |
+| ICON-CH2-EPS | **120 hours** | 21 |
+
+Neither is ten days. The nearest is less than half of it.
+
+### Why this is the specific defect `.03` was written to prevent
+
+`STEP-005.03` exists so that a climatological normal is never presented as a
+forecast. Its `ClimateNormal` type, its separate `Outlook.beyond_horizon` flag and
+its whole argument rest on the horizon check being right.
+
+A ten-day default meant the check itself waved day-seven through — so the module
+produced the `REQ-EVID-003` violation it was built to stop, **from its own default
+rather than from a caller's mistake**. The types were sound and the constant was
+wrong, which is the harder failure to see: every test passed because every test used
+the same wrong number.
+
+### Why nothing caught it
+
+Nothing could. `.03` had 26 assertions and 8 mutants, and none of them could know
+what MeteoSwiss publishes — the number was unverifiable inside the repository. The
+sub-step record said so explicitly: *"whether MeteoSwiss publishes ensemble spread
+on the open endpoints is **unverified** — no live fetch has been made."*
+
+**The gap was correctly disclosed and then not closed for two sub-steps.** That is
+the honest finding: the record was accurate, and accuracy about a gap is not the
+same as closing it.
+
+### Fix
+
+The horizon is now a **required argument with no default**, plus named constants for
+the provider `ADR-016` chose. A plausible-looking default is worse than none here,
+because it is the failure mode that does not announce itself.
+
+### Regression test
+
+`TestBug026TheHorizonHasNoDefault`: the published figures pinned; an explicit
+assertion that neither horizon is ten days; that omitting the horizon raises; and
+that day seven returns a normal. **Mutation-verified** — restoring
+`timedelta(days=10)` fails 3 tests.
+
+### What the same check found that is not a bug
+
+- **MeteoSwiss publishes a genuine ensemble** (11 and 21 members), so `.03`'s
+  mandatory-uncertainty design is satisfiable rather than a requirement no provider
+  could meet. That was the question that could have invalidated the design, and it
+  resolved in its favour.
+- **Forecast data is retained for 24 hours only.** Recorded as an architectural
+  constraint for `STEP-010`, not a defect — see `IMPL-042`.
+- **No API key is required** for MeteoSwiss or OSM. `opentransportdata.swiss`
+  GTFS-RT does require one.
+
+### Prevention
+
+A constant describing someone else's system needs a citation or a test, and this one
+had a justification instead. The pattern generalises: `.02`'s field names, `.04`'s
+alert SLO and `.05`'s profile support are the same shape and remain unverified.
 
 ---
 

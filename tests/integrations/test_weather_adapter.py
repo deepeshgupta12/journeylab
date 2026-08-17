@@ -27,7 +27,8 @@ from weather.degradation import (
     withdraw_weather_objective,
 )
 from weather.forecast import (
-    DEFAULT_HORIZON,
+    ICON_CH1_EPS_HORIZON,
+    ICON_CH2_EPS_HORIZON,
     ClimateNormal,
     Forecast,
     Uncertainty,
@@ -113,14 +114,22 @@ class TestNormalIsNotAForecast:
 
     def test_beyond_the_horizon_returns_a_normal_marked_as_such(self) -> None:
         outlook = outlook_for(
-            ISSUED + timedelta(days=20), forecast=a_forecast(), normal=a_normal(), issued_at=ISSUED
+            ISSUED + timedelta(days=20),
+            forecast=a_forecast(),
+            normal=a_normal(),
+            issued_at=ISSUED,
+            horizon=ICON_CH2_EPS_HORIZON,
         )
         assert outlook.kind is ValueKind.CLIMATE_NORMAL
         assert outlook.beyond_horizon is True
 
     def test_within_the_horizon_returns_the_forecast(self) -> None:
         outlook = outlook_for(
-            ISSUED + timedelta(days=2), forecast=a_forecast(), normal=a_normal(), issued_at=ISSUED
+            ISSUED + timedelta(days=2),
+            forecast=a_forecast(),
+            normal=a_normal(),
+            issued_at=ISSUED,
+            horizon=ICON_CH2_EPS_HORIZON,
         )
         assert outlook.kind is ValueKind.FORECAST
         assert outlook.beyond_horizon is False
@@ -129,7 +138,11 @@ class TestNormalIsNotAForecast:
         """A provider that returns nothing for a variable is not a reason to
         invent one; it is the same substitution, and it is marked the same way."""
         outlook = outlook_for(
-            ISSUED + timedelta(days=1), forecast=None, normal=a_normal(), issued_at=ISSUED
+            ISSUED + timedelta(days=1),
+            forecast=None,
+            normal=a_normal(),
+            issued_at=ISSUED,
+            horizon=ICON_CH2_EPS_HORIZON,
         )
         assert outlook.kind is ValueKind.CLIMATE_NORMAL
         assert outlook.beyond_horizon is True
@@ -150,13 +163,14 @@ class TestNormalIsNotAForecast:
         """
         old_issue = datetime(2026, 1, 1, 6, 0, tzinfo=UTC)
         far_moment = datetime(2026, 1, 20, 12, 0, tzinfo=UTC)
-        assert far_moment - old_issue > DEFAULT_HORIZON
+        assert far_moment - old_issue > ICON_CH2_EPS_HORIZON
 
         outlook = outlook_for(
             far_moment,
             forecast=a_forecast(issued_at=old_issue, valid_at=far_moment),
             normal=a_normal(),
             issued_at=old_issue,
+            horizon=ICON_CH2_EPS_HORIZON,
         )
         assert outlook.beyond_horizon is True
         assert outlook.kind is ValueKind.CLIMATE_NORMAL
@@ -288,3 +302,68 @@ class TestWeatherLicence:
     def test_attribution_is_recorded(self) -> None:
         assert METEOSWISS.attribution_required
         assert "MeteoSwiss" in METEOSWISS.attribution_text
+
+
+class TestBug026TheHorizonHasNoDefault:
+    """BUG-026 — a wrong default is worse than no default.
+
+    `DEFAULT_HORIZON = timedelta(days=10)` shipped in STEP-005.03 on the reasoning
+    that ten days is the usual limit for deterministic skill. The first live check
+    of MeteoSwiss established the real figures, and neither is ten days:
+    ICON-CH1-EPS is 33 hours with 11 members, ICON-CH2-EPS is 120 hours with 21.
+
+    A ten-day default would have returned a `Forecast` for a moment the provider
+    cannot forecast at all — the exact REQ-EVID-003 violation this module exists to
+    prevent, produced by the module's own default rather than a caller's mistake.
+    """
+
+    def test_the_provider_horizons_match_the_published_figures(self) -> None:
+        """Pinned so a future edit cannot quietly restore a plausible wrong number."""
+        assert ICON_CH1_EPS_HORIZON == timedelta(hours=33)
+        assert ICON_CH2_EPS_HORIZON == timedelta(hours=120)
+
+    def test_neither_horizon_is_ten_days(self) -> None:
+        """The specific wrong value, named. This is the regression."""
+        assert ICON_CH1_EPS_HORIZON < timedelta(days=10)
+        assert ICON_CH2_EPS_HORIZON < timedelta(days=10)
+
+    def test_a_horizon_must_be_supplied(self) -> None:
+        """No default at all — the caller states the provider's limit or fails."""
+        with pytest.raises(TypeError):
+            outlook_for(  # type: ignore[call-arg]
+                ISSUED + timedelta(days=2),
+                forecast=a_forecast(),
+                normal=a_normal(),
+                issued_at=ISSUED,
+            )
+
+    def test_a_non_positive_horizon_is_refused(self) -> None:
+        for bad in (timedelta(0), timedelta(hours=-1)):
+            with pytest.raises(WeatherError, match="horizon must be positive"):
+                outlook_for(
+                    ISSUED + timedelta(hours=1),
+                    forecast=a_forecast(),
+                    normal=a_normal(),
+                    issued_at=ISSUED,
+                    horizon=bad,
+                )
+
+    def test_day_seven_is_beyond_meteoswiss_and_returns_a_normal(self) -> None:
+        """The bug's concrete consequence, asserted directly. Under the old ten-day
+        default this returned a forecast for a day MeteoSwiss cannot forecast."""
+        outlook = outlook_for(
+            ISSUED + timedelta(days=7),
+            forecast=a_forecast(valid_at=ISSUED + timedelta(days=7)),
+            normal=a_normal(),
+            issued_at=ISSUED,
+            horizon=ICON_CH2_EPS_HORIZON,
+        )
+        assert outlook.kind is ValueKind.CLIMATE_NORMAL
+        assert outlook.beyond_horizon is True
+
+    def test_the_ensemble_member_counts_are_representable(self) -> None:
+        """11 and 21 members: the live check confirmed MeteoSwiss publishes an
+        ensemble, which is what makes `.03`'s mandatory uncertainty satisfiable at
+        all rather than a requirement no provider could meet."""
+        for members in (11, 21):
+            assert Uncertainty(16.0, 20.0, ensemble_members=members).ensemble_members == members

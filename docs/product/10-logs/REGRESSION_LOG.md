@@ -67,6 +67,48 @@ trending up, coverage gaps accepted with a reason.
 
 ## Entries
 
+## Live-provider reconnaissance — 2026-08-17 — DEC-008 and BUG-026
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `e4399d2` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **869 Python** (up from 863) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS** | One constant removed, two added, one signature tightened |
+| R4 untested requirements | **PASS — improved** | REQ-EVID-003 gains a regression that pins a provider fact rather than a belief |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…**026**; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched |
+
+**Overall:** PASS
+
+### Mutation testing
+
+| Seeded | Result |
+| --- | --- |
+| `ICON_CH2_EPS_HORIZON` restored to `timedelta(days=10)` — the exact original bug | **killed by 3** |
+
+### Notes
+
+**A gap correctly disclosed for two sub-steps was still a gap.** `.03`, `.04` and
+`.05` each recorded that no live fetch had been made. Every record was accurate.
+Accuracy about a gap is not the same as closing it, and the thing hiding in it was a
+constant that made `.03` produce the violation it was written to prevent.
+
+**The design question resolved favourably; an unasked one did not.** I checked
+whether MeteoSwiss publishes ensemble spread, because a "no" would have invalidated
+`.03`. The answer was yes. The horizon — which I had not thought to question,
+because I had justified it — was wrong by more than a factor of two.
+
+**A constant describing someone else's system needs a citation or a test.** This one
+had a justification, which is a different thing and a weaker one.
+
+---
+
 ## STEP-005.05 — 2026-08-17 — Travel-time matrices and explicit profile support
 
 | Field | Value |

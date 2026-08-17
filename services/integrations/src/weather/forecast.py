@@ -149,12 +149,31 @@ class ClimateNormal:
         return ValueKind.CLIMATE_NORMAL
 
 
-#: How far ahead a provider's forecast is meaningful. Beyond it, normals.
-#:
-#: Ten days is the usual limit for deterministic skill in public models. It is a
-#: property of the PROVIDER, so it is passed in rather than assumed — a different
-#: source with a different horizon must not inherit this number silently.
-DEFAULT_HORIZON = timedelta(days=10)
+# HOW FAR AHEAD A FORECAST IS MEANINGFUL — AND WHY THERE IS NO DEFAULT
+#
+#   There was one, and it was wrong. `DEFAULT_HORIZON = timedelta(days=10)` shipped
+#   in STEP-005.03 on the reasoning that ten days is "the usual limit for
+#   deterministic skill". The first live check of MeteoSwiss (STEP-005.06 recon,
+#   `BUG-026`) established the real numbers, and neither is ten days:
+#
+#       ICON-CH1-EPS    33 hours,  11 ensemble members
+#       ICON-CH2-EPS   120 hours,  21 ensemble members
+#
+#   A ten-day default would have let a day-seven request return a `Forecast` for a
+#   moment the provider cannot forecast at all — producing exactly the
+#   `REQ-EVID-003` violation this module exists to prevent, and producing it from
+#   the module's own default rather than from a caller's mistake.
+#
+#   So the horizon is now a REQUIRED argument. A plausible-looking default is worse
+#   than no default here: it is the failure mode that does not announce itself.
+#   Named constants exist for the provider `ADR-016` chose, and a new provider must
+#   state its own rather than inheriting Switzerland's.
+
+#: MeteoSwiss ICON-CH1-EPS — 1 km grid, 11 members, refreshed 8 times daily.
+ICON_CH1_EPS_HORIZON = timedelta(hours=33)
+
+#: MeteoSwiss ICON-CH2-EPS — 2.1 km grid, 21 members. The longer of the two.
+ICON_CH2_EPS_HORIZON = timedelta(hours=120)
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,7 +196,7 @@ def outlook_for(
     forecast: Forecast | None,
     normal: ClimateNormal,
     issued_at: datetime,
-    horizon: timedelta = DEFAULT_HORIZON,
+    horizon: timedelta,
 ) -> Outlook:
     """The honest answer for a moment, forecast or normal.
 
@@ -185,7 +204,12 @@ def outlook_for(
     issued yesterday for eleven days out is beyond the horizon whatever time it is
     when someone asks. Using wall-clock time here would make the same stored
     forecast valid or invalid depending on when it was read.
+
+    `horizon` is **required** and deliberately has no default — see the note above
+    the provider constants. `BUG-026` was a wrong default, not a wrong caller.
     """
+    if horizon <= timedelta(0):
+        raise WeatherError("horizon must be positive")
     if moment.tzinfo is None or issued_at.tzinfo is None:
         raise WeatherError("both moment and issued_at must be timezone-aware")
 

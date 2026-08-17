@@ -31,7 +31,7 @@ Forecasts, alerts and historical normals are ingested **with confidence or ensem
 | Graph status | ✅ up to date. **NOT BLOCKED** |
 | HEAD / indexed commit | `9a2db57` — matched HEAD at pre-change |
 | Queries run | `cypher` over `services/integrations/src/weather` — 0 nodes, additive; `detect_changes(staged)` pre-commit |
-| Unknown / low-confidence areas | **"Not all providers expose spread" is now a hard constraint, not a caution.** `Forecast` cannot be built without `Uncertainty`, so a provider that publishes only point values cannot be ingested through this type at all. That is deliberate — it makes the constraint visible at integration time rather than at simulation time. Whether MeteoSwiss publishes ensemble spread on the open endpoints is **unverified**: no live fetch has been made |
+| Unknown / low-confidence areas | **"Not all providers expose spread" is now a hard constraint, not a caution.** `Forecast` cannot be built without `Uncertainty`, so a provider that publishes only point values cannot be ingested through this type at all. That is deliberate — it makes the constraint visible at integration time rather than at simulation time. **RESOLVED 2026-08-17** by the live reconnaissance (`IMPL-042`): MeteoSwiss publishes a genuine ensemble — ICON-CH1-EPS 11 members, ICON-CH2-EPS 21 — so mandatory uncertainty is satisfiable. The same check found the horizon default was wrong by more than a factor of two (`BUG-026`) |
 | Blast radius | **[BR-042](../../../10-logs/blast-radius/BR-042-weather-adapter.md) — MEDIUM, confidence HIGH.** The record predicted `BR-032`, which STEP-004.05 holds; corrected here |
 | Approval required? | **No** — MEDIUM with high confidence |
 
