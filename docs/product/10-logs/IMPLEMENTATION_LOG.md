@@ -112,6 +112,36 @@ one every twelve seconds, so the SLO and the free tier are compatible. Worth
 asserting rather than assuming: a freshness promise the licence cannot fund would be
 a commitment to overspend, and the test now says so.
 
+### The dispute is settled by the provisioned plan, which outranks both pages
+
+The API Manager issued two credentials, and each shows its own plan:
+
+| Credential | Product | Plan |
+| --- | --- | --- |
+| 1 | `tedp_gtfs_rt` | `tedp_gtfs_rt_plan` — 5 calls/minute, unlimited quota |
+| 2 | `tedp_gtfs_sa` | `tedp_gtfs_sa_plan` — **5 calls/minute**, unlimited quota |
+
+So the GTFS-SA cookbook's "two requests a minute" is stale, and the "Limits and
+costs" grouping was right. **A documentation page describes a limit; the plan is the
+limit** — it is the artefact the gateway enforces and bills against, which is why it
+outranks both pages rather than being a third opinion.
+
+The stale figure is retained rather than deleted. `REQ-EVID-002` retains conflicts,
+and a resolved conflict is still evidence about how trustworthy each source proved:
+the cookbook was wrong once and may be wrong again.
+
+### Separate credentials mean separate budgets, which I had assumed otherwise
+
+One credential per product, each with its own 5/minute allowance. The published
+limits say "per API-key", and with two keys that is two budgets — so polling both
+feeds does not halve either, and each connector needs **its own** `TokenBucket`.
+Sharing one across both would discard half the allowance for nothing.
+
+I had flagged the opposite as a possible constraint when reading the docs. The
+credentials answered it.
+
+### The original dispute, kept for the record
+
 ### The provider's own documentation disputes one of these numbers
 
 While confirming the products to subscribe to, two pages disagreed:

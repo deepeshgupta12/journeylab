@@ -130,32 +130,48 @@ SWISS_TRANSPORT = LicenceRecord(
 #:     "Quota: unlimited, Rate limit: 5 calls / 1 minute(s)"
 SWISS_TRANSPORT_GTFS_RT_PER_MINUTE = 5
 
-# THE SERVICE-ALERTS LIMIT IS DISPUTED BY THE PROVIDER'S OWN DOCUMENTATION.
+# THE SERVICE-ALERTS LIMIT WAS DISPUTED, AND IS NOW SETTLED.
 #
-#   "Limits and costs" groups them:  "GTFS RT & GTFS RT Service Alerts — 5/minute"
-#   The GTFS-SA cookbook says:       "a maximum of two requests a minute"
-#                                     (own endpoint, /la/gtfs-sa)
+#   Two provider pages disagreed:
+#       "Limits and costs"    "GTFS RT & GTFS RT Service Alerts — 5/minute"
+#       GTFS-SA cookbook      "a maximum of two requests a minute"
 #
-#   Both are the provider's, and they disagree. `REQ-EVID-002` says conflicting
-#   evidence is retained and never averaged — a rule written for provider facts in
-#   an evidence pack, and it applies no less to a number that decides whether we
-#   get an invoice. So both are recorded and the SAFER one is what code uses.
+#   `REQ-EVID-002` says conflicting evidence is retained and never averaged, so both
+#   were recorded and code used the lower on an asymmetry argument: under-polling
+#   costs freshness we can measure, over-polling costs money.
 #
-#   Choosing the lower is not splitting the difference: under-polling costs
-#   freshness we can measure, over-polling costs money and, past the limit, the
-#   provider's goodwill. The asymmetry decides it.
+#   RESOLVED 2026-08-17 by the PROVISIONED PLAN itself — `tedp_gtfs_sa_plan` reads
+#   "Quota: unlimited, Rate limit: 5 calls / 1 minute(s)" in the API Manager.
 #
-#   Resolvable the moment a key exists, by reading the response headers. Until then
-#   this is two documented claims, not one fact.
+#   That outranks both pages, and the reason is worth stating: the plan is the
+#   artefact the gateway ENFORCES and bills against. A documentation page describes
+#   the limit; the plan *is* the limit. The cookbook's figure is stale.
+#
+#   The disputed reading is kept rather than deleted. `REQ-EVID-002` retains
+#   conflicts, and a conflict that has been resolved is still evidence about how
+#   trustworthy each source proved to be — the cookbook was wrong once and may be
+#   wrong again.
 
-#: The conservative reading of the disputed Service Alerts limit — cookbook figure.
-SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE = 2
+#: The stale cookbook figure. Retained as history, NOT used.
+SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_STALE_DOC = 2
 
-#: The permissive reading — the "Limits and costs" grouping, matching GTFS-RT.
-SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_OPTIMISTIC = 5
+#: The operative limit, from the provisioned plan `tedp_gtfs_sa_plan`.
+SWISS_TRANSPORT_GTFS_SA_PER_MINUTE = 5
 
-#: What code uses. The lower, until a live response settles it.
-SWISS_TRANSPORT_GTFS_SA_PER_MINUTE = SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE
+# SEPARATE CREDENTIALS MEAN SEPARATE BUDGETS, WHICH I HAD ASSUMED OTHERWISE.
+#
+#   The API Manager issued one credential per product — `tedp_gtfs_rt` and
+#   `tedp_gtfs_sa` — each with its own plan and its own 5/minute allowance. The
+#   published limits say "per API-key", and with two keys that is two budgets.
+#
+#   So polling both feeds does not halve either. Each connector needs its OWN
+#   `TokenBucket` sized from its own plan, and sharing one bucket across both would
+#   throw away half the allowance for no reason.
+
+#: Environment variables holding each key. Values live in `.env` (mode 600,
+#: gitignored) and never in source, a log line, or a transcript.
+SWISS_TRANSPORT_GTFS_RT_KEY_ENV = "JOURNEYLAB_OTD_GTFS_RT_KEY"
+SWISS_TRANSPORT_GTFS_SA_KEY_ENV = "JOURNEYLAB_OTD_GTFS_SA_KEY"
 
 #: OJP, OJPFare, Train Formation, CKAN: 50/minute and 20,000/day per key.
 SWISS_TRANSPORT_OJP_PER_MINUTE = 50

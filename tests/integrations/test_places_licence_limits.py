@@ -19,10 +19,11 @@ import pytest
 from framework.resilience import RateLimitedError, TokenBucket
 from places.licence import (
     SWISS_TRANSPORT,
+    SWISS_TRANSPORT_GTFS_RT_KEY_ENV,
     SWISS_TRANSPORT_GTFS_RT_PER_MINUTE,
+    SWISS_TRANSPORT_GTFS_SA_KEY_ENV,
     SWISS_TRANSPORT_GTFS_SA_PER_MINUTE,
-    SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE,
-    SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_OPTIMISTIC,
+    SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_STALE_DOC,
     SWISS_TRANSPORT_OJP_PER_DAY,
     SWISS_TRANSPORT_OJP_PER_MINUTE,
 )
@@ -73,36 +74,58 @@ class TestABucketBuiltFromTheDocumentedLimitStaysFree:
         assert SWISS_TRANSPORT.commercial_use_permitted
 
 
-class TestTheDisputedServiceAlertsLimit:
-    """The provider's own two pages disagree, so both are kept.
+class TestTheServiceAlertsLimitIsSettled:
+    """Resolved by the provisioned plan, which outranks both doc pages.
 
-    `REQ-EVID-002`: conflicting evidence is retained, never averaged. That rule was
-    written for provider facts inside an evidence pack, and it applies no less to a
-    number that decides whether this project receives an invoice.
+    `tedp_gtfs_sa_plan` reads "Rate limit: 5 calls / 1 minute(s)" in the API
+    Manager. A documentation page *describes* a limit; the plan *is* the limit — it
+    is the artefact the gateway enforces and bills against.
     """
 
-    def test_both_readings_are_recorded(self) -> None:
-        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE == 2
-        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_OPTIMISTIC == 5
+    def test_the_operative_limit_comes_from_the_provisioned_plan(self) -> None:
+        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE == 5
 
-    def test_they_are_not_averaged(self) -> None:
-        """The specific wrong move. An average of two documented claims is a third
-        figure nobody published."""
-        average = (
-            SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE
-            + SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_OPTIMISTIC
-        ) / 2
-        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE != average
+    def test_the_stale_figure_is_retained_but_unused(self) -> None:
+        """`REQ-EVID-002` retains conflicts. A resolved conflict is still evidence
+        about how trustworthy each source proved — the cookbook was wrong once."""
+        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_STALE_DOC == 2
+        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE != SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_STALE_DOC
 
-    def test_code_uses_the_safer_reading(self) -> None:
-        """Not a compromise — an asymmetry. Under-polling costs freshness we can
-        measure; over-polling costs money and the provider's goodwill."""
-        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE == SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_CONSERVATIVE
+    def test_the_two_feeds_have_independent_budgets(self) -> None:
+        """One credential per product, each with its own 5/minute allowance. I had
+        assumed they might share one, which would have halved both."""
+        assert SWISS_TRANSPORT_GTFS_RT_PER_MINUTE == 5
+        assert SWISS_TRANSPORT_GTFS_SA_PER_MINUTE == 5
 
-    def test_the_freshness_slo_survives_the_pessimistic_reading(self) -> None:
-        """The reason the dispute does not block anything: even at two polls a
-        minute, one poll every thirty seconds is well inside `.04`'s five-minute
-        alert SLO. Had it not been, the SLO would have needed revisiting."""
-        seconds_between_polls = 60 / SWISS_TRANSPORT_GTFS_SA_PER_MINUTE
-        assert seconds_between_polls == 30
-        assert seconds_between_polls < 5 * 60
+    def test_each_feed_gets_its_own_bucket(self) -> None:
+        """Sharing one bucket across two independently-budgeted keys would discard
+        half the allowance for nothing."""
+        rt = TokenBucket(capacity=SWISS_TRANSPORT_GTFS_RT_PER_MINUTE, refill_per_second=5 / 60)
+        sa = TokenBucket(capacity=SWISS_TRANSPORT_GTFS_SA_PER_MINUTE, refill_per_second=5 / 60)
+        for _ in range(5):
+            rt.take(0.0)
+        with pytest.raises(RateLimitedError):
+            rt.take(0.0)
+        # The alerts budget is untouched by exhausting the departures budget.
+        for _ in range(5):
+            sa.take(0.0)
+
+    def test_the_keys_are_named_not_inlined(self) -> None:
+        """The env var name is in source; the value never is."""
+        assert SWISS_TRANSPORT_GTFS_RT_KEY_ENV == "JOURNEYLAB_OTD_GTFS_RT_KEY"
+        assert SWISS_TRANSPORT_GTFS_SA_KEY_ENV == "JOURNEYLAB_OTD_GTFS_SA_KEY"
+        assert SWISS_TRANSPORT_GTFS_RT_KEY_ENV != SWISS_TRANSPORT_GTFS_SA_KEY_ENV
+
+
+class TestTheFreshnessSloUnderTheSettledLimit:
+    """The dispute is settled; the SLO held under either reading."""
+
+    def test_the_slo_holds_under_the_settled_limit(self) -> None:
+        """Five polls a minute is one every twelve seconds — comfortably inside
+        `.04`'s five-minute alert SLO. It also held under the stale figure of two,
+        which is why the dispute never blocked anything."""
+        settled = 60 / SWISS_TRANSPORT_GTFS_SA_PER_MINUTE
+        stale = 60 / SWISS_TRANSPORT_GTFS_SA_PER_MINUTE_STALE_DOC
+        assert settled == 12
+        assert stale == 30
+        assert max(settled, stale) < 5 * 60
