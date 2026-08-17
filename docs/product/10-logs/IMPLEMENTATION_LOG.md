@@ -60,6 +60,67 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-043 — The transit key is free below a limit, and the limiter is a cost control
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-17 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-002 (rate limiting), `ADR-016` zero-spend constraint |
+| Blast radius | Covered by `BR-038` (the framework this configures); no new capability |
+| Commit | see git log for this entry |
+| Graph indexed commit | `fc6a6ac` — matched HEAD at pre-change |
+
+### The question and the honest answer
+
+Asked whether the `opentransportdata.swiss` key is free with no paid integration.
+**Free — with a cliff**, and the shape matters more than the yes:
+
+| | |
+| --- | --- |
+| Static GTFS (file-based) | No registration, no payment at all |
+| GTFS-RT (service-based) | Free key required; free **below 5 requests per minute** |
+| Above the limit | *"These limits can be exceeded, but then costs will be incurred."* Paid tiers from CHF 500/month |
+
+So `ADR-016`'s zero-spend constraint is **not** satisfied by choosing this provider.
+It is satisfied by staying under 5 requests per minute.
+
+### That changes what the rate limiter is for
+
+`STEP-005.01` built a `TokenBucket` and a `Quota` and justified them as avoiding a
+provider's own limiter — "being refused here is how we avoid being refused there,
+where the penalty may be a ban". Under this provider the penalty is **not a ban, it
+is an invoice**. A runaway retry loop bills us.
+
+That reframes the limiter from good-citizenship to a commercial control, and it means
+its configuration cannot be guessed. The documented figures are now constants beside
+the licence record, with their citation and their verification date.
+
+### Why constants rather than a comment
+
+`BUG-026` was precisely this mistake: a forecast horizon justified in a comment
+rather than read from the provider, wrong by more than a factor of two, producing the
+violation its own module existed to prevent. **A constant describing someone else's
+system needs a citation or a test.** These have both — six assertions, including one
+that a bucket built from the documented limit refuses the sixth call in a minute,
+because that refusal is the intended outcome.
+
+### One reassuring cross-check
+
+`.04` promises minute-level alert freshness at 5 minutes. Five polls a minute allows
+one every twelve seconds, so the SLO and the free tier are compatible. Worth
+asserting rather than assuming: a freshness promise the licence cannot fund would be
+a commitment to overspend, and the test now says so.
+
+### Not the same as Open-Meteo
+
+Free-below-a-limit is not non-commercial. `ADR-016` §2 rejected Open-Meteo because
+its free tier forbids commercial use outright — a licence breach at any volume. This
+is a volume ceiling on permitted commercial use, which is a different and manageable
+thing.
+
+---
+
 ## IMPL-042 — Live-provider reconnaissance, DEC-008, and BUG-026
 
 | Field | Value |

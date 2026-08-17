@@ -101,6 +101,35 @@ SWISS_TRANSPORT = LicenceRecord(
     commercial_use_permitted=True,
 )
 
+# DOCUMENTED FREE-TIER LIMITS — THESE ARE A COST CONTROL, NOT POLITENESS
+#
+#   Verified 2026-08-17 against https://opentransportdata.swiss/en/limits-and-costs/
+#
+#   The platform is free in two different senses, and the difference matters:
+#
+#       file-based data (static GTFS)   no registration, no payment at all
+#       service-based data (GTFS-RT)    registration required; free BELOW the limit
+#
+#   Above the limit the page is explicit: "These limits can be exceeded, but then
+#   costs will be incurred." Published paid tiers start at CHF 500/month.
+#
+#   So `ADR-016`'s zero-spend constraint is not satisfied merely by choosing this
+#   provider — it is satisfied by STAYING UNDER THESE NUMBERS. That makes the
+#   `TokenBucket` and `Quota` in `framework/resilience.py` a commercial control:
+#   a runaway retry loop here produces an invoice, not just an annoyed provider.
+#
+#   Recorded as constants with their citation because a constant describing someone
+#   else's system needs a citation or a test. `BUG-026` was exactly that mistake —
+#   a forecast horizon justified in a comment rather than read from the provider.
+
+#: GTFS-RT and GTFS-RT Service Alerts: 5 requests per minute per API key.
+#: No daily quota published for this tier.
+SWISS_TRANSPORT_GTFS_RT_PER_MINUTE = 5
+
+#: OJP, OJPFare, Train Formation, CKAN: 50/minute and 20,000/day per key.
+SWISS_TRANSPORT_OJP_PER_MINUTE = 50
+SWISS_TRANSPORT_OJP_PER_DAY = 20_000
+
 OPENSTREETMAP = LicenceRecord(
     licence_id="ODbL-1.0",
     source_name="OpenStreetMap contributors",

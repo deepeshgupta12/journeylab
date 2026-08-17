@@ -69,7 +69,7 @@ which again ties weather to the region choice rather than being independent of i
 
 | Criterion | Switzerland |
 | --- | --- |
-| **Transit (`ASM-011`)** | `opentransportdata.swiss` — national GTFS covering **all operators**, plus GTFS-RT with a three-hour prediction window. Terms of use permit processing, analysis and publication, require attribution to the source URL, and impose **no share-alike**. Best-in-class in Europe |
+| **Transit (`ASM-011`)** | `opentransportdata.swiss` — national GTFS covering **all operators**, plus GTFS-RT with a three-hour prediction window. Terms of use permit processing, analysis and publication, require attribution, and impose **no share-alike**. **Verified 2026-08-17:** static GTFS needs no registration and no payment; GTFS-RT needs a free key and is free **below 5 requests per minute** — above that "costs will be incurred", with paid tiers from CHF 500/month. So zero spend is satisfied by staying under the limit, not by choosing the provider, which makes the framework's rate limiter a **commercial control** |
 | **Weather** | MeteoSwiss publishes via `opendata.swiss` under the same permissive Swiss open-government terms — **commercial use permitted**, avoiding the Open-Meteo trap entirely |
 | **Places / hours (`ASM-011`)** | Partly `opendata.swiss` (non-ODbL, attribution-only), OSM as fallback. This is posture **(c)** above and is the weakest leg **everywhere** under zero spend |
 | **Accessibility (`ASM-020`)** | Swiss public transport carries a **statutory** accessibility-information duty, so stop-level accessibility is in the official feed rather than crowd-sourced — materially better than OSM `wheelchair=*` tags alone |
