@@ -60,6 +60,72 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-047 — STEP-005.09 — Reconciliation that says what it did not check
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-18 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-002 |
+| Blast radius | [BR-048](blast-radius/BR-048-reconciliation.md) (LOW, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `77f5abf` — matched HEAD at pre-change |
+
+### What was built
+
+`services/ingestion/src/reconciliation.py`: count and identity-digest reconciliation,
+an explicit `Unreconciled` verdict, a replay-safe cancellable backfill runner built
+on the framework's `ResumableRun`, and an append-only evidence log. Python 1011 →
+**1036**.
+
+### Three ways a completeness check reports success while being wrong
+
+**A count match is weak evidence.** A hundred against a hundred proves a hundred of
+something arrived. One dropped and one duplicated reconciles exactly. Both methods
+are implemented and the weaker one carries its limitation as data —
+`detects_substitution` is `False` and the detail says so — because a verdict that
+overstates what it checked retires the suspicion that would have led someone to look
+properly.
+
+**"No count endpoint" is not a pass.** Treating it as one makes every unverifiable
+provider report perfect completeness forever, and the dashboard is cleanest exactly
+where the evidence is weakest. `Unreconciled` is the honest value.
+
+**A tolerance band hides a slow leak.** Under one percent, pass — and the gap widens
+for a year without ever crossing the line in a single step. So every discrepancy is
+recorded whatever its size and the threshold decides only loudness. A test seeds four
+runs at 0%, 0.2%, 0.4% and 0.6%: none alert, all are recorded, and the trend is
+obvious in the series and invisible anywhere else.
+
+### Surprises
+
+**The fourth module to need the same shape.** `Unreconciled` sits beside
+`ProfileUnsupported`, `TransitUnavailable` and `ObjectiveWithdrawn` — four sub-steps
+independently arriving at "a value meaning *we could not answer this*, carried where
+it can be seen". At four occurrences it is the house pattern rather than four
+decisions, and worth naming as one.
+
+**The surviving mutant lived at the seam between two modules.** Passing
+`handled=len(identities)` instead of `len(fresh)` breaks nothing here — `reconcile`
+reads the applied identities, not the checkpoint — so all 24 tests passed. What it
+corrupts is `Checkpoint.records_seen` in the *other* module, a field the framework
+added, in its own words, "so a resume that re-delivers a batch is visible in the
+numbers rather than only in theory". Inflated with duplicates, three fresh records
+and three replays report the same number.
+
+My tests covered this module; the framework's tests covered that one. **Nothing
+asserted on what this module writes through the seam into the other's state**, and
+that is where the defect lived. The fix asserts on the stored checkpoint rather than
+on the runner's own counters.
+
+**Re-delivery is the normal path, not the disaster path.** The framework commits
+after handling, so a crash in between replays the batch — the correct trade, because
+the alternative loses records and only one of the two is detectable. It means replay
+safety has to hold in ordinary operation, which is why the test replays a batch
+instead of asserting idempotence in a docstring.
+
+---
+
 ## IMPL-046 — STEP-005.08 — Freshness measured from the source's clock, not ours
 
 | Field | Value |

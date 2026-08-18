@@ -114,7 +114,7 @@ Eight-step fan-out. A defect in entity resolution or freshness propagates silent
 | STEP-005.06 | Affiliate adapter: deep links + signed callbacks | — ✅ **VERIFIED** 2026-08-18 (BR-045, IMPL-044)
 | STEP-005.07 | Entity resolution and provider identifier graph | — ✅ **VERIFIED** 2026-08-18 (BR-046, IMPL-045; closes BUG-027)
 | STEP-005.08 | Field-specific freshness policy | — ✅ **VERIFIED** 2026-08-18 (BR-047, IMPL-046)
-| STEP-005.09 | Reconciliation, backfill and checkpointing |
+| STEP-005.09 | Reconciliation, backfill and checkpointing | — ✅ **VERIFIED** 2026-08-18 (BR-048, IMPL-047)
 | STEP-005.10 | Provider health events and admin surface wiring |
 
 ## 22. Test and evaluation plan

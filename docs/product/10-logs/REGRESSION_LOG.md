@@ -109,6 +109,58 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-005.09 — 2026-08-18 — Reconciliation, backfill and checkpointing
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `77f5abf` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1036 Python** (up from 1011) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS** | One new module, one new test module. `ResumableRun` is wrapped, not modified |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-002's reconciliation and backfill clauses newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+No test failed during implementation. The one defect was found by mutation testing.
+
+### `RISK-016` reproduced — fourth consecutive sub-step
+
+| Symbol | Graph | Grep |
+| --- | --- | --- |
+| `ResumableRun` | 0, LOW | 11 |
+| `commit_batch` | **4**, LOW | 7 |
+
+`commit_batch` is the new information: the graph found four dependants where grep
+found seven, so the under-reporting is **partial rather than total**. A zero is at
+least conspicuous; four out of seven looks like a real answer.
+
+### Mutation testing — 12 seeded, 12 killed
+
+One survived: `commit_batch(handled=len(identities))` instead of `len(fresh)`, which
+counts replayed records as newly handled.
+
+Every test still passed, correctly — `reconcile` reads the applied identities, not
+the checkpoint. What the mutant corrupts is `Checkpoint.records_seen` in the
+framework module, the field added there "so a resume that re-delivers a batch is
+visible in the numbers rather than only in theory". Inflated with duplicates, three
+fresh records and three replays report the same value.
+
+**The gap was at the seam.** This module's tests covered this module and the
+framework's covered that one; nothing asserted on what this one writes *through* the
+seam into the other's state. The new test asserts on the stored checkpoint rather
+than on the runner's own counters.
+
+---
+
 ## STEP-005.08 — 2026-08-18 — Field-specific freshness policy
 
 | Field | Value |
