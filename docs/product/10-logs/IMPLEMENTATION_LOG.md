@@ -60,6 +60,76 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-049 — STEP-006.01 — Immutable is not undeletable
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-18 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-007, REQ-SEC-001, REQ-CONS-006, REQ-PRIV-006, REQ-BOOK-002 |
+| Blast radius | [BR-050](blast-radius/BR-050-core-schema.md) (**HIGH**, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `c346697` — matched HEAD at pre-change |
+
+### What was built
+
+`db/migrations/010_domain.sql`: fifteen tables covering DATA-003…016, thirteen RLS
+policies, three immutability triggers, a segregated `booking` schema with its own
+role, and lineage columns that make an unreproducible scenario unstorable. Python
+1062 → **1080**.
+
+### The distinction the design turns on
+
+`TripBrief`, `EvidencePack` and `ScenarioVersion` reject `UPDATE` at the database,
+because `REQ-CONS-006` makes a scenario reproducible from its inputs and an editable
+input reduces "reproducible" to "reproduces whatever it says now".
+
+**`DELETE` stays permitted.** `REQ-PRIV-006` requires deletion to traverse every
+store, so a table that could not be deleted from would make the right to erasure
+unimplementable — a privacy defect manufactured by a reproducibility control. Two
+requirements that look opposed are satisfied by blocking exactly one verb, and a test
+asserts the deletion half rather than only the refusal.
+
+### Reproducibility as a NOT NULL
+
+`scenarios` has four lineage columns — brief, pack, solver config, seed — and all
+four are `NOT NULL`. `REQ-CONS-006` stops being something a write path must remember
+and becomes something the database will not accept without. A parametrised test omits
+each in turn.
+
+### Surprises
+
+**The mandated pre-change check has nothing to say about a migration.** Every `.sql`
+file is one node in the graph — no tables, no columns, no policies — and
+`app_current_org`, being a SQL function, returns `UNKNOWN`. For the change type this
+step's own §20 calls low-reversibility, `REQ-KG-008`'s release gate confirms that the
+file exists and nothing else. That is worse than `RISK-016`: a wrong number can be
+cross-checked, but no answer at all is indistinguishable from a clean one. Logged as
+`RISK-017`.
+
+**Mutating the file proves nothing, so I mutated the database.** The migration is
+`CREATE ... IF NOT EXISTS`; re-applying a mutated file leaves the schema untouched and
+everything passes. Eleven mutants weaken the **deployed** schema — trigger dropped,
+`UPDATE` granted, `FORCE` removed, policy widened to `USING (true)`, booking schema
+opened, lineage made nullable, a `card_number` column added — and all eleven die.
+
+**The restore step found its own defect, and only because I verified it.** A mutant
+that lets a *write* through leaves the row behind, and the row blocks its own
+restore: dropping the Null Island check let a `0,0` place be inserted, and re-adding
+the constraint then failed against it. The run printed `11/11 killed` and `SCHEMA NOT
+RESTORED` together. Without the final verification line it would have read as a clean
+pass while leaving the database weakened — a mutation suite that damages the thing it
+is testing and reports success.
+
+**A derived check is only as complete as the schema in front of it.** `test_tenant_
+isolation.sh` derives its FORCE-RLS assertion from the catalogue precisely so new
+tables are covered automatically. But it applied only migrations 001 and 003, so on a
+standalone run the thirteen new tables would not exist and the assertion would pass
+having checked tables that were not there. Derivation removes the stale-list risk, not
+the incomplete-schema risk.
+
+---
+
 ## IMPL-048 — STEP-005.10 — Health that is visible without being nameable
 
 | Field | Value |

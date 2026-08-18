@@ -109,6 +109,51 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-006.01 — 2026-08-18 — Canonical core schema, RLS and immutability
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `c346697` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1080 Python** (up from 1062) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched. Column names match `temporal-validity.json` and `provenance.json` so schema and contract cannot drift under different names |
+| R3 graph diff as expected | **PASS — by inspection.** `RISK-017`: the graph holds one node per `.sql` file, so it cannot report a schema diff at all | One new migration, one new test module, one line in the R7 script |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-007 and REQ-SEC-001 gain schema-level coverage |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18, and now over 18 tenant tables instead of 6** | The derived FORCE-RLS assertion covers every new table. The script now applies 010, without which it would have passed having checked tables that did not exist |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `SET LOCAL app.current_org = %s` — syntax error | `SET` takes no parameters | `set_config(..., true)`. **`auth/db.py` had documented this exact trap at STEP-002**; I hit it anyway by writing the test before reading the module that already solved it |
+| Schema not restored after mutation testing | A mutant that permits a **write** leaves the row behind, and the row blocks its own restore | Cleanup folded into the restore, and the verification step that caught it is now permanent |
+
+### `RISK-017` — a new and worse variant of `RISK-016`
+
+`cypher` over `*.sql` returns **one node per file**. No tables, columns, constraints
+or policies exist as symbols, and `app_current_org` returns `UNKNOWN`.
+
+For migrations — the change type STEP-006 §20 calls low-reversibility — the
+`REQ-KG-008` release gate confirms the file exists and nothing more. `RISK-016`
+returns a wrong number that grep can contradict; this returns **no answer**, which is
+indistinguishable from a clean one.
+
+### Mutation testing — 11 seeded, 11 killed, against the deployed schema
+
+Mutating the `.sql` file proves nothing: it is `CREATE ... IF NOT EXISTS`, so
+re-applying a mutated file changes nothing and every test passes. Each mutant weakens
+the **live** schema, runs the tests and restores — the same construction as the R7
+meta-test.
+
+---
+
 ## STEP-005.10 — 2026-08-18 — Provider health, coverage and trip refusal
 
 | Field | Value |

@@ -1,7 +1,7 @@
 ---
 step_id: STEP-006
 title: Canonical data model and event backbone
-status: DISCOVERY
+status: IN_PROGRESS
 release: Phase 1
 owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-005]
@@ -101,7 +101,7 @@ Eight-step fan-out and a schema foundation. Migration errors are **low reversibi
 ## 21. Implementation task checklist — sub-steps
 | Sub-step | Outcome |
 | --- | --- |
-| STEP-006.01 | Core schema, constraints, indexes, RLS |
+| STEP-006.01 | Core schema, constraints, indexes, RLS | — ✅ **VERIFIED** 2026-08-18 (BR-050, IMPL-049; raises RISK-017)
 | STEP-006.02 | Temporal model: observed/effective/recorded across all fact tables |
 | STEP-006.03 | Domain entities and invariants |
 | STEP-006.04 | Repositories and unit-of-work boundaries |

@@ -63,8 +63,16 @@ if ! $PGC -tAc "SELECT 1;" >/dev/null 2>&1; then
 fi
 echo "  connection: $CONNECTION"
 
-echo "=== applying migrations 001 and 003 ==="
-for mig in db/migrations/001_identity_tenancy.sql db/migrations/003_sessions.sql; do
+# STEP-006.01 ADDED 010. The FORCE-RLS assertion below is derived from the schema
+# rather than a list, which means it only covers tables that EXIST when it runs. On
+# a database where this script applies a subset of migrations, the domain tables
+# would be absent, the derived query would find nothing to complain about, and the
+# assertion would pass having checked thirteen tables that were not there.
+#
+# A derived check is only as complete as the schema in front of it. That is the
+# half of "derived, not listed" the original comment did not say.
+echo "=== applying migrations 001, 003 and 010 ==="
+for mig in db/migrations/001_identity_tenancy.sql db/migrations/003_sessions.sql db/migrations/010_domain.sql; do
   if $PGC -q -f - < "$mig" >/tmp/jl_mig.log 2>&1; then
     echo "  applied $(basename "$mig")"
   else

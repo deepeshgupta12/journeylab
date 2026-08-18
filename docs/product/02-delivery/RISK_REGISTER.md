@@ -164,6 +164,16 @@ Scores below are **initial estimates by the documentation author**, not owner-ac
 | Stop condition | None — but no record may cite a `0 dependants` result as evidence of isolation without the cross-check |
 | Related | `RISK-014` (downgraded — the graph does index Python; this is a different and narrower defect), `BR-046` |
 
+### RISK-017 — The code graph cannot see a migration
+| Field | Value |
+| --- | --- |
+| L × I | 4 × 4 = **16** |
+| Description | Every `.sql` file in this repository is **one node** in the graph: no tables, columns, constraints, policies, grants or triggers. Measured at STEP-006.01. `app_current_org`, a SQL function, returns `UNKNOWN` from `gitnexus impact` rather than a dependant list. So for migrations — the change type STEP-006 §20 calls *"low reversibility: a destructive migration cannot be undone by reverting code"* — the mandated pre-change check confirms only that the file exists |
+| Why it is worse than `RISK-016` | `RISK-016` returns a wrong number, and a wrong number can be cross-checked against grep. This returns **no answer at all** about the object being changed, and nothing in the protocol notices the difference between "checked and found nothing" and "cannot check". `REQ-KG-008` makes the check a release gate |
+| Mitigation | For any schema change, the blast radius is derived from the migration itself and from **mutation testing against the deployed schema** — weaken the live guarantee, confirm the tests fail, restore, and verify the restore. `BR-050` §7 is the worked example. No schema record may cite a graph result as evidence of impact |
+| Stop condition | None — but a schema sub-step whose blast radius rests only on the graph is not adequately assessed |
+| Related | `RISK-016`, `BR-050`, `REQ-KG-008` |
+
 ---
 
 ## 5. Exposure summary
@@ -171,6 +181,7 @@ Scores below are **initial estimates by the documentation author**, not owner-ac
 | Exposure | Risks | Required action |
 | --- | --- | --- |
 | **20** | `RISK-001` (data availability), `RISK-011` (no owners) | Phase-gate review before proceeding |
+| **16** | `RISK-017` (the graph cannot see a migration) | Mutation testing against the deployed schema, per `BR-050` §7 |
 | **15** | `RISK-002` (scenario sameness), `RISK-006` (location privacy) | Active mitigation owner + tracker blocker |
 | **12** | `RISK-003`, `RISK-005`, `RISK-008`, `RISK-009`, `RISK-013`, `RISK-014`, `RISK-016` | Named mitigation, reviewed each phase |
 | **≤10** | `RISK-004`, `RISK-007`, `RISK-010`, `RISK-012` | Monitored; mitigations are mandatory controls |
