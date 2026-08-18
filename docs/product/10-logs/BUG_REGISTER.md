@@ -46,6 +46,94 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-027 — The place record could not say where a place is
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — no runtime path consumes the adapter yet. Had it reached STEP-006 it would have been S2: a canonical store keyed on fabricated identifiers, with no way to correct it after the fact |
+| Found during | STEP-005.07 pre-change analysis, by trying to write the next sub-step against it |
+| Date found | 2026-08-18 |
+| Affected requirements | `DC-EXT-001` (data contract), REQ-DATA-004, REQ-EVID-003 |
+
+### Symptom
+
+`CanonicalPlace` — the record STEP-005.02 produces for every ingested venue — had
+`place_id`, `name`, `time_zone`, `hours`, `accessibility`, `provenance` and
+`warnings`. It had **no coordinate and no category**. And when a payload arrived
+without a `place_id`, the adapter manufactured one:
+
+```python
+place_id=str(payload.get("place_id") or "").strip() or f"{licence.licence_id}:{name}"
+```
+
+### Root cause
+
+`DC-EXT-001` states the required fields for a place record: *"stable ID,
+coordinates, category"*, and the drift rule for the same source: *"Schema drift ⇒
+**reject and alert**, never coerce."* One of the three was present, and the one that
+was present could be fabricated.
+
+Each part fails differently:
+
+- **No coordinate.** A place that cannot be located cannot be routed to, cannot be
+  drawn, and cannot be told apart from a different place with the same name — which
+  is the entire problem STEP-005.07 exists to solve. Switzerland has a
+  `Restaurant Bahnhof` in most towns.
+- **No category.** A cafe inside a museum shares the museum's coordinate to the
+  metre and is frequently listed under the museum's name. The declared category is
+  the only field that distinguishes them, so without it the two are unmergeable *and*
+  indistinguishable.
+- **A synthesised identifier is worse than a missing one.** It is indistinguishable
+  from a real one at every point downstream. Rename the venue and every stored
+  reference dangles; re-ingest and the same venue arrives as a second place. This is
+  `REQ-EVID-003`'s shape exactly — a value we made up, rendered as a value we were
+  given.
+
+### Why existing tests did not catch it
+
+Every test in `test_places_adapter.py` asserted on hours, accessibility, licence
+gating or provenance. **Not one asserted what a place record must contain.**
+
+That is the general lesson rather than an oversight about three field names: the
+missing fields were not a broken behaviour anybody could observe. Nothing threw,
+nothing returned a wrong value, every assertion held. An absence is only visible
+against the contract that requires it, and no test read `DC-EXT-001`.
+
+It surfaced the moment something tried to *use* the record. `ProviderRecord.
+from_place` could not be written — there was no coordinate to measure with and no
+category to compare.
+
+### Fix
+
+`services/integrations/src/places/adapter.py`:
+
+- `Coordinate` — a validated type, not two floats. Range-checked, and **`0.0, 0.0`
+  is refused**: providers emit Null Island for "unknown", it is a valid pair of
+  floats, and stored it is not one bad record but a collision point. Every unlocated
+  place in a corpus lands on the same spot in the Gulf of Guinea, zero metres apart,
+  where a proximity matcher merges the lot. It has to fail here, where it is one
+  record, rather than there, where it is all of them.
+- `coordinate` and `category` are required fields on `CanonicalPlace`.
+- A missing `place_id`, `category` or `coordinate` **raises**. Nothing is derived
+  from the name.
+
+### Regression test
+
+`TestBug027RequiredFieldsAreRefusedNotManufactured` — six tests in
+`tests/integrations/test_places_adapter.py`, one per refusal plus one asserting the
+fields survive onto the record. Two mutants confirm they bite: reinstating the
+name-derived fallback and accepting Null Island are both killed.
+
+### Prevention
+
+The adapter's module docstring now lists this as its fourth refusal, alongside the
+three it already had, in the same terms: *it refuses more than it accepts.* The
+deeper prevention is the one this bug demonstrates rather than states — a data
+contract with required fields needs a test that reads the contract, and this
+repository has none. Recorded as `ENH-004`.
+
+---
+
 ## BUG-026 — A ten-day forecast horizon that MeteoSwiss cannot meet
 
 | Field | Value |

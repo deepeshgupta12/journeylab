@@ -12,6 +12,11 @@ WHAT MAKES THIS AN ADAPTER RATHER THAN A PARSER
       3. It will not infer accessibility. REQ-PRIV-003 permits declaration only,
          and "step-free because the building is new" is inference wearing a fact's
          clothes.
+      4. It will not manufacture an identifier, a coordinate or a category
+         (BUG-027). `DC-EXT-001` lists all three as required and says schema drift
+         is rejected, "never coerce". The previous version coerced: a payload with
+         no `place_id` was given `f"{licence_id}:{name}"`, which looks stable and
+         is not — rename the venue and every stored reference to it dangles.
 
 PROVENANCE IS ASSEMBLED HERE, NOT LATER
     Every field arrives with its source, observation time and licence. Attaching
@@ -60,6 +65,37 @@ class Provenance:
 
 
 @dataclass(frozen=True, slots=True)
+class Coordinate:
+    """Where a place is. Required, because a place that cannot be located cannot be
+    routed to, drawn on a map, or told apart from a different place with the same
+    name — which is `STEP-005.07`'s whole problem.
+
+    NULL ISLAND IS REFUSED
+        Providers emit `0.0, 0.0` for "we do not know", and it is a valid pair of
+        floats, so nothing downstream can tell it from a real reading. Left alone it
+        is not one bad record but a **collision point**: every unlocated place in
+        the corpus lands on the same spot in the Gulf of Guinea, zero metres apart,
+        and a proximity matcher merges the lot. A missing coordinate must fail here,
+        where it is one record, rather than there, where it is all of them.
+    """
+
+    latitude: float
+    longitude: float
+
+    def __post_init__(self) -> None:
+        if not -90.0 <= self.latitude <= 90.0:
+            raise AdapterError(f"latitude {self.latitude} out of range")
+        if not -180.0 <= self.longitude <= 180.0:
+            raise AdapterError(f"longitude {self.longitude} out of range")
+        if self.latitude == 0.0 and self.longitude == 0.0:
+            raise AdapterError(
+                "0.0, 0.0 is Null Island — the value providers emit for an unknown "
+                "location. It is refused rather than stored, because every unlocated "
+                "place shares it and a proximity matcher would merge them all."
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class CanonicalPlace:
     """What ingestion produces. Wider than the API's `Place`, deliberately.
 
@@ -70,6 +106,12 @@ class CanonicalPlace:
 
     place_id: str
     name: str
+    #: What kind of venue this is, as the provider declared it. Required by
+    #: `DC-EXT-001` and load-bearing in entity resolution: a cafe and a museum at
+    #: the same coordinate are two places, not one, and the category is the only
+    #: field that says so.
+    category: str
+    coordinate: Coordinate
     time_zone: str
     hours: OpeningHours
     #: Declared accessibility features. Empty means NOT DECLARED — never "no
@@ -107,6 +149,43 @@ def adapt(
     if not name:
         raise AdapterError("a place without a name cannot be rendered or cited")
 
+    # BUG-027. A synthesised identifier is the most dangerous kind of missing
+    # value, because it is indistinguishable from a real one at every point
+    # downstream. `f"{licence_id}:{name}"` changes when the venue is renamed, so a
+    # stored reference silently stops resolving and a re-ingest arrives as a second
+    # place. `DC-EXT-001`: reject and alert, never coerce.
+    place_id = str(payload.get("place_id") or "").strip()
+    if not place_id:
+        raise AdapterError(
+            f"{name!r}: place_id is required and is NOT derived from the name. "
+            f"A name-derived identifier looks stable and is not — it changes when "
+            f"the venue is renamed, dangling every stored reference "
+            f"(DC-EXT-001: reject, never coerce)."
+        )
+
+    category = str(payload.get("category") or "").strip()
+    if not category:
+        raise AdapterError(
+            f"{name!r}: category is required (DC-EXT-001). Entity resolution uses "
+            f"it to keep a cafe inside a museum from being merged into the museum; "
+            f"defaulting it would silently disable that."
+        )
+
+    raw_coordinate = payload.get("coordinate")
+    if not isinstance(raw_coordinate, dict):
+        raise AdapterError(
+            f"{name!r}: coordinate is required (DC-EXT-001). A place that cannot be "
+            f"located cannot be routed to or told apart from a same-named place "
+            f"elsewhere."
+        )
+    try:
+        coordinate = Coordinate(
+            latitude=float(raw_coordinate["latitude"]),
+            longitude=float(raw_coordinate["longitude"]),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise AdapterError(f"{name!r}: unusable coordinate: {exc}") from exc
+
     time_zone = str(payload.get("time_zone") or "").strip()
     if not time_zone:
         # Required by the contract's `Place`, and required for hours to mean
@@ -140,8 +219,10 @@ def adapt(
             warnings.append(f"accessibility keys not in the declared vocabulary: {dropped}")
 
     return CanonicalPlace(
-        place_id=str(payload.get("place_id") or "").strip() or f"{licence.licence_id}:{name}",
+        place_id=place_id,
         name=name,
+        category=category,
+        coordinate=coordinate,
         time_zone=time_zone,
         hours=hours,
         accessibility=accessibility,

@@ -30,6 +30,102 @@ An enhancement is work nobody asked for. It may be excellent and it may be scope
 
 ---
 
+## ENH-004 — Test the data contract's required fields, not just behaviour
+
+| Field | Value |
+| --- | --- |
+| Proposed by | Deepesh Kumar Gupta, during STEP-005.07 |
+| Date | 2026-08-18 |
+| Type | reliability / test coverage |
+| Status | **PROPOSED** |
+| Trigger | **`BUG-027`** — a place record shipped without two of the three fields `DC-EXT-001` marks required, and every test passed |
+
+### Current behavior
+
+`DATA_CONTRACTS.md` states required fields per source: `DC-EXT-001` requires *"stable
+ID, coordinates, category"* on a place record, `DC-EXT-003` requires *"stop
+coordinates resolvable; service calendar complete"*, and so on. **Nothing reads that
+table.** The requirements live in prose and are satisfied by whoever remembers them.
+
+`BUG-027` is what that costs, and the interesting part is how invisible it was. The
+adapter did not throw, did not return a wrong value, and passed 36 tests. The
+missing fields were an **absence**, and an absence is only visible against the
+contract that requires it.
+
+### Proposed change
+
+Parse the required-fields column out of `DATA_CONTRACTS.md` and assert that each
+ingestion type carries them — the same shape as `tools/carried_commitments.py`
+(`ENH-002`) and the authorization-matrix sync test: a document is the source of
+truth and a test reads it.
+
+### Risk
+
+The column is prose (*"Hours must parse to intervals with a time zone"*) and not all
+of it is a field list. A parser that silently skips what it cannot understand would
+report a green check over the clauses it ignored — which is `RISK-016`'s failure
+mode again. It must fail loudly on an unparseable row, and the unparseable rows must
+be enumerated rather than skipped.
+
+### Recommendation
+
+**Worth doing, and not urgently.** Four ingestion types exist and the fifth arrives
+at STEP-006, so the cost of remembering is still low. It becomes worthwhile at the
+point where nobody can hold the table in their head — which is soon, and is
+predictable, so it should be scheduled rather than triggered by the next `BUG-027`.
+
+---
+
+## ENH-003 — A place has no location in the public contract
+
+| Field | Value |
+| --- | --- |
+| Proposed by | Deepesh Kumar Gupta, during STEP-005.07 |
+| Date | 2026-08-18 |
+| Type | contract gap |
+| Status | **PROPOSED** |
+| Trigger | Found while fixing `BUG-027`: the internal record now carries a coordinate and the public one still cannot |
+
+### Current behavior
+
+`components.schemas.Place` is `{name, time_zone, place_id}` with
+`additionalProperties: false`. `ItineraryItem` has times, cost and evidence, and no
+location either. **No schema in `contracts/openapi.yaml` can express where anything
+is.**
+
+`REQ-A11Y-003` requires that no core action need the map and that every task
+complete with map rendering disabled — which presumes a map exists. It has nothing
+to draw. `DC-EXT-001` requires coordinates on the ingested record, so the data will
+be there and the contract cannot carry it.
+
+### Proposed change
+
+Add a `GeoPoint` schema and an optional `coordinate` on `Place`. Optional rather
+than required, because the API's `Place` is the *published* view and a venue whose
+location is licence-restricted must still be returnable.
+
+### Risk
+
+Two, and the second is the one that matters:
+
+1. `Place` is `additionalProperties: false`, so adding a property is a compatible
+   change in the response direction and a breaking one in the request direction —
+   `.08`'s direction-aware classifier will say which.
+2. **A coordinate on a public response is a privacy surface.** `REQ-PRIV-008` and
+   `RISK-006` are about location, and `EVENT_CONTRACTS` already bans *"precise
+   location"* from event payloads. A venue's coordinate is not a person's, but the
+   two become the same thing the moment an itinerary is attributed to a traveller.
+   That argument belongs to whoever owns the privacy review, not to this log.
+
+### Recommendation
+
+**Do it before STEP-013 and not in STEP-005.** It is a contract change, it needs the
+privacy question answered first, and it is cheap right now — `BASELINE.md` §2:
+nothing is released, so a breaking contract change costs nothing today and costs a
+major version, a dual-run window and a migration guide after the first release.
+
+---
+
 ## ENH-002 — Guard that a carried commitment is discharged
 
 | Field | Value |

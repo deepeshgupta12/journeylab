@@ -109,6 +109,69 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-005.07 — 2026-08-18 — Entity resolution and the provider identifier graph
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `5eac52e` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **985 Python** (up from 925) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched. `CanonicalPlace` is the internal record and is deliberately wider than the contract's `Place` |
+| R3 graph diff as expected | **PASS — by inspection, not by the tool** | `detect-changes` reported only the excluded agent-config files (`AGENTS.md`, `CLAUDE.md`) and none of the 17 staged files, so R3 was verified from `git diff --cached --name-only`: one new service package, one modified adapter, two modified test modules, nine documents. Second instance of `RISK-016` in one sub-step |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-004 newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72. `BUG-027` regression tests added this sub-step |
+| R7 tenant isolation | **PASS — 18/18** | Untouched. Places are reference data and carry no tenant by design — `BR-046` §7 states why, and makes it STEP-006's job to enforce at the table |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `BUG-027` — the place record had no coordinate and no category, and manufactured its identifier | `DC-EXT-001` requires all three; nothing read the contract, and an absence throws no exception | Fixed forward with six regression tests. Logged; `ENH-004` proposes reading the contract table in a test |
+| 36 adapter tests failed after the fix | They passed payloads missing the now-required fields | A `payload()` helper builds a complete payload, so a test that omits a field is visibly testing that omission |
+| Category demotion was unreachable code | Applied at two call sites, both of which passed an auto-merge, so the guard clause could never fire and a mutant against it changed nothing | Restructured — two call sites remembering to apply an invariant is how an invariant stops holding |
+| The `.05` straight-line guard no longer guarded | It blocks the substrings `haversine`, `distance`, `euclidean`, `great_circle`. This sub-step's function is `metres_between` | List extended and the check strengthened to refuse any import of the resolution module from routing. A blocklist only blocks the names somebody thought of |
+| `Coordinate` re-export failed mypy strict | Re-exported implicitly through an import | Explicit `as` re-export, with the reason recorded at the import |
+
+### The pre-change check was wrong, and that is the finding
+
+`impact CanonicalPlace --direction upstream --include-tests` returned
+`impactedCount: 0, risk: LOW`. Grep found **11 call sites** in one test file.
+
+The test files are indexed — 55 nodes for `test_places_adapter.py` — but the
+cross-file call and import edges from test modules are absent, and `--include-tests`
+does not supply them. Because no application code wires `services/` yet, **tests are
+the only callers of every service symbol**, so this verdict understates the blast
+radius of essentially every change in that directory while reading exactly like
+reassurance.
+
+Logged as `RISK-016`. Until it is fixed, every blast-radius record cross-checks the
+graph against a grep and records both, and a contradicted `LOW` caps confidence at
+MEDIUM.
+
+### Mutation testing — 13 seeded, 13 killed
+
+Three survived the first run, and each survival was a real gap rather than a
+nuisance:
+
+| Mutant | Why it survived | What was added |
+| --- | --- | --- |
+| Identifier conflict merged when the records are close | The sample's conflict pair had names similar enough that the same-doorstep rule caught it anyway — **the conflict rule was never actually exercised** | A pair where distance, name and category all demand a merge and only the conflict prevents it |
+| Category promotes as well as demotes | No pair had two distinct venues sharing one point *and* one category | The station concourse: two restaurants, one coordinate, one category, different names |
+| One name normalisation instead of two | The assertion was `>= 0.9` and diacritic-stripping alone scores 0.974 on `Zürich`/`Zuerich` | The case where it actually matters — short names. `Bär` against `Baer` is **0.857** stripped, which fails the merge gate, and **1.000** with umlaut expansion |
+
+The third is the one worth remembering. The two-variant design was **indistinguishable
+from the one-variant design** by every test I had written, and the fix was to find
+the narrow class where it changes the answer and pin the number — not to assert
+harder on cases that pass either way.
+
+---
+
 ## STEP-005.06 — 2026-08-18 — Deep links, signed callbacks and attribution
 
 | Field | Value |

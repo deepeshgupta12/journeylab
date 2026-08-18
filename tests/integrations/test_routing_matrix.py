@@ -14,6 +14,7 @@ THE ONE THAT MATTERS MOST IN THIS STEP
 
 from __future__ import annotations
 
+import pathlib
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -144,6 +145,14 @@ class TestTravelTimeIsAlwaysComputed:
         There is no haversine, no distance helper and no coordinate-taking
         constructor — so the substitution cannot be made by reaching for a
         convenience that happens to exist.
+
+        STEP-005.07 EXTENDED THIS LIST, AND THE REASON IS THE POINT
+            Entity resolution needs a great-circle distance for a different
+            question — "are these the same venue" — and named it `metres_between`.
+            That name contains none of the substrings above, so the convenience this
+            test exists to keep out of reach became importable without the test
+            noticing. A blocklist of names only blocks the names somebody thought
+            of, so the check now also refuses any import from that module.
         """
         import matrix
 
@@ -154,8 +163,18 @@ class TestTravelTimeIsAlwaysComputed:
             "as_the_crow_flies",
             "euclidean",
             "great_circle",
+            "metres",
+            "meters",
+            "coordinate",
         ):
             assert not any(forbidden in n.lower() for n in names), forbidden
+
+        source = pathlib.Path(matrix.__file__).read_text()
+        assert "entity_resolution" not in source, (
+            "routing must not import the resolution module's distance function: it "
+            "answers whether two records are the same place, never how long it "
+            "takes to travel between two"
+        )
 
     def test_naive_timestamps_are_refused(self) -> None:
         with pytest.raises(RoutingError, match="timezone-aware"):

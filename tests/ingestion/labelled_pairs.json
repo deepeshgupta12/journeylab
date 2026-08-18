@@ -1,0 +1,309 @@
+{
+  "_what_this_is": "A hand-labelled sample of place pairs used to measure the matcher (STEP-005.07, REQ-DATA-004). Every pair carries a ground-truth label and the reason it was labelled that way, so the label can be argued with rather than trusted.",
+  "_where_it_came_from": "Written by hand from Swiss venue patterns. NO PROVIDER FETCH HAS BEEN MADE. It is not a random draw from a real corpus, so it measures whether the matcher is CORRECT on the hard cases, and it does NOT estimate how often those cases occur. The review rate it produces is an upper bound on a deliberately adversarial sample, not a forecast of production review load.",
+  "_why_it_is_adversarial": "Every pair is one that a naive matcher gets wrong: identical names far apart, identical coordinates for different venues, the same venue in three languages, and identifiers that look like identity and are not.",
+  "pairs": [
+    {
+      "label": "same",
+      "note": "One museum, two providers, both citing the same Wikidata entity. The easy case, included so a matcher that fails it fails loudly.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "way/12345",
+        "name": "Kunstmuseum Bern",
+        "category": "museum",
+        "latitude": 46.95,
+        "longitude": 7.44,
+        "external_ids": {
+          "wikidata": "Q194266"
+        }
+      },
+      "right": {
+        "provider_id": "opendata_swiss",
+        "provider_place_id": "be-kmb",
+        "name": "Kunstmuseum Bern",
+        "category": "museum",
+        "latitude": 46.95002,
+        "longitude": 7.44003,
+        "external_ids": {
+          "wikidata": "Q194266"
+        }
+      }
+    },
+    {
+      "label": "same",
+      "note": "The same museum in German and French, no shared identifier. Almost no characters in common. This is the case no string comparison can solve, and it is not rare in Switzerland — it is how the country writes everything.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "way/12345",
+        "name": "Kunstmuseum Bern",
+        "category": "museum",
+        "latitude": 46.95,
+        "longitude": 7.44,
+        "external_ids": {}
+      },
+      "right": {
+        "provider_id": "partner_fr",
+        "provider_place_id": "mba-berne",
+        "name": "Musee des Beaux-Arts de Berne",
+        "category": "museum",
+        "latitude": 46.95001,
+        "longitude": 7.44001,
+        "external_ids": {}
+      }
+    },
+    {
+      "label": "same",
+      "note": "Federal parliament building, German and French names, same point.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "way/999",
+        "name": "Bundeshaus",
+        "category": "government",
+        "latitude": 46.9465,
+        "longitude": 7.4441,
+        "external_ids": {}
+      },
+      "right": {
+        "provider_id": "partner_fr",
+        "provider_place_id": "pal-fed",
+        "name": "Palais federal",
+        "category": "government",
+        "latitude": 46.94651,
+        "longitude": 7.44411,
+        "external_ids": {}
+      }
+    },
+    {
+      "label": "same",
+      "note": "Zurich main station spelled with the umlaut and with the ue expansion. Both spellings are in everyday Swiss use.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "node/77",
+        "name": "Zürich Hauptbahnhof",
+        "category": "station",
+        "latitude": 47.3779,
+        "longitude": 8.5403,
+        "external_ids": {}
+      },
+      "right": {
+        "provider_id": "partner_de",
+        "provider_place_id": "zue-hb",
+        "name": "Zuerich Hauptbahnhof",
+        "category": "station",
+        "latitude": 47.37791,
+        "longitude": 8.54031,
+        "external_ids": {}
+      }
+    },
+    {
+      "label": "same",
+      "note": "Same station, the English spelling without any umlaut handling at all.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "node/77",
+        "name": "Zürich Hauptbahnhof",
+        "category": "station",
+        "latitude": 47.3779,
+        "longitude": 8.5403,
+        "external_ids": {}
+      },
+      "right": {
+        "provider_id": "partner_en",
+        "provider_place_id": "zrh-hb",
+        "name": "Zurich Hauptbahnhof",
+        "category": "station",
+        "latitude": 47.37789,
+        "longitude": 8.54029,
+        "external_ids": {}
+      }
+    },
+    {
+      "label": "same",
+      "note": "One venue, two providers, coordinates 80 m apart because one geocoded the postal address and the other took the entrance. Real and common; must not be lost.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "way/500",
+        "name": "Kunsthaus Zürich",
+        "category": "museum",
+        "latitude": 47.3701,
+        "longitude": 8.5484,
+        "external_ids": {}
+      },
+      "right": {
+        "provider_id": "partner_de",
+        "provider_place_id": "kh-zrh",
+        "name": "Kunsthaus Zürich",
+        "category": "museum",
+        "latitude": 47.3708,
+        "longitude": 8.54855,
+        "external_ids": {}
+      }
+    },
+    {
+      "label": "different",
+      "note": "Two branches of one chain on two streets with the same name in two cities. Identical names, 95 km apart. A weighted scorer merges these; gated signals cannot.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "node/1",
+        "name": "Coop Bahnhofstrasse",
+        "category": "supermarket",
+        "latitude": 47.373,
+        "longitude": 8.539,
+        "external_ids": {}
+      },
+      "right": {
+        "provider_id": "osm",
+        "provider_place_id": "node/2",
+        "name": "Coop Bahnhofstrasse",
+        "category": "supermarket",
+        "latitude": 46.948,
+        "longitude": 7.44,
+        "external_ids": {}
+      }
+    },
+    {
+      "label": "different",
+      "note": "Restaurant Bahnhof in Thun and Restaurant Bahnhof in Spiez, 12 km apart. Every Swiss town has one.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "node/10",
+        "name": "Restaurant Bahnhof",
+        "category": "restaurant",
+        "latitude": 46.755,
+        "longitude": 7.629,
+        "external_ids": {}
+      },
+      "right": {
+        "provider_id": "osm",
+        "provider_place_id": "node/11",
+        "name": "Restaurant Bahnhof",
+        "category": "restaurant",
+        "latitude": 46.686,
+        "longitude": 7.68,
+        "external_ids": {}
+      }
+    },
+    {
+      "label": "different",
+      "note": "A cafe inside a museum, listed by the provider under the museum's exact name and at the museum's coordinate. Identical name, zero metres: every other signal says merge, and merging gives the traveller the museum's opening hours for the cafe. The declared category is the only thing standing between this pair and a false merge, which is what earns that rule its place.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "way/500",
+        "name": "Kunsthaus Zürich",
+        "category": "museum",
+        "latitude": 47.3701,
+        "longitude": 8.5484,
+        "external_ids": {}
+      },
+      "right": {
+        "provider_id": "osm",
+        "provider_place_id": "node/501",
+        "name": "Kunsthaus Zürich",
+        "category": "cafe",
+        "latitude": 47.3701,
+        "longitude": 8.5484,
+        "external_ids": {}
+      }
+    },
+    {
+      "label": "different",
+      "note": "Two supermarkets of the same chain 169 m apart sharing a brand website. A website is a chain, not a venue; treating it as identity merges every branch in the country into one place.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "node/20",
+        "name": "Migros Aarbergergasse",
+        "category": "supermarket",
+        "latitude": 46.949,
+        "longitude": 7.4395,
+        "external_ids": {
+          "website": "https://www.migros.ch"
+        }
+      },
+      "right": {
+        "provider_id": "osm",
+        "provider_place_id": "node/21",
+        "name": "Migros Marktgasse",
+        "category": "supermarket",
+        "latitude": 46.9481,
+        "longitude": 7.4413,
+        "external_ids": {
+          "website": "https://www.migros.ch"
+        }
+      }
+    },
+    {
+      "label": "different",
+      "note": "Two neighbouring venues five metres apart carrying different Wikidata entities. The identifiers disagree; proximity does not settle which source is right, and merging would silently pick one.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "way/30",
+        "name": "Zytglogge",
+        "category": "landmark",
+        "latitude": 46.9479,
+        "longitude": 7.4474,
+        "external_ids": {
+          "wikidata": "Q683385"
+        }
+      },
+      "right": {
+        "provider_id": "partner_de",
+        "provider_place_id": "bern-30",
+        "name": "Zytglogge Bern",
+        "category": "landmark",
+        "latitude": 46.94793,
+        "longitude": 7.44744,
+        "external_ids": {
+          "wikidata": "Q99999999"
+        }
+      }
+    },
+    {
+      "label": "different",
+      "note": "Two different offices in one building, sharing a postal address. An address denotes a container, not a venue.",
+      "left": {
+        "provider_id": "partner_de",
+        "provider_place_id": "off-1",
+        "name": "Tourist Information Bern",
+        "category": "information",
+        "latitude": 46.949,
+        "longitude": 7.4398,
+        "external_ids": {
+          "address": "Bahnhofplatz 10a, 3011 Bern"
+        }
+      },
+      "right": {
+        "provider_id": "partner_de",
+        "provider_place_id": "off-2",
+        "name": "Ticketshop Bern",
+        "category": "shop",
+        "latitude": 46.94901,
+        "longitude": 7.43981,
+        "external_ids": {
+          "address": "Bahnhofplatz 10a, 3011 Bern"
+        }
+      }
+    },
+    {
+      "label": "different",
+      "note": "Two restaurants in the same station concourse: one coordinate, one declared category, different names. This is the pair that stops 'same point and same category, therefore the same place' from ever being added as an optimisation — a concourse holds a dozen venues that all declare restaurant.",
+      "left": {
+        "provider_id": "osm",
+        "provider_place_id": "node/60",
+        "name": "Restaurant Bahnhofbuffet",
+        "category": "restaurant",
+        "latitude": 47.3779,
+        "longitude": 8.5403,
+        "external_ids": {}
+      },
+      "right": {
+        "provider_id": "osm",
+        "provider_place_id": "node/61",
+        "name": "Trattoria Da Vinci",
+        "category": "restaurant",
+        "latitude": 47.3779,
+        "longitude": 8.54031,
+        "external_ids": {}
+      }
+    }
+  ]
+}

@@ -47,6 +47,24 @@ def at(year: int, month: int, day: int, hour: int, minute: int = 0) -> datetime:
     return datetime(year, month, day, hour, minute, tzinfo=ZURICH)
 
 
+def payload(**overrides: object) -> dict[str, object]:
+    """A complete, valid provider payload.
+
+    Every field `DC-EXT-001` marks required is present, so a test that omits one is
+    visibly testing that omission rather than relying on a default the adapter no
+    longer has (BUG-027).
+    """
+    base: dict[str, object] = {
+        "place_id": "way/12345",
+        "name": "Kunsthaus",
+        "category": "museum",
+        "coordinate": {"latitude": 47.3701, "longitude": 8.5484},
+        "time_zone": "Europe/Zurich",
+    }
+    base.update(overrides)
+    return {k: v for k, v in base.items() if v is not None}
+
+
 # --- TST-DATA-001: no licence, no ingestion -----------------------------------
 
 
@@ -55,7 +73,7 @@ class TestLicenceGate:
         """REQ-DATA-001 says "before ingestion is enabled". A sequencing claim is
         kept by structure or not at all — there is no call that omits it."""
         with pytest.raises(TypeError):
-            adapt({"name": "x", "time_zone": "Europe/Zurich"})  # type: ignore[call-arg]
+            adapt(payload())  # type: ignore[call-arg]
 
     def test_a_non_commercial_licence_cannot_be_recorded_at_all(self) -> None:
         """Open-Meteo's free tier is the live example (ADR-016 §2): CC-BY data,
@@ -302,34 +320,20 @@ class TestSeasons:
 
 class TestAccessibility:
     def test_declared_features_are_kept(self) -> None:
-        place = adapt(
-            {
-                "name": "Kunsthaus",
-                "time_zone": "Europe/Zurich",
-                "accessibility": ["wheelchair", "step_free"],
-            },
-            licence=OPENSTREETMAP,
-        )
+        place = adapt(payload(accessibility=["wheelchair", "step_free"]), licence=OPENSTREETMAP)
         assert place.accessibility == ("step_free", "wheelchair")
 
     def test_an_unknown_key_is_dropped_not_mapped_to_a_neighbour(self) -> None:
         """A wrong accessibility fact is worse for the person relying on it than a
         missing one, so nothing is guessed at."""
-        place = adapt(
-            {
-                "name": "Kunsthaus",
-                "time_zone": "Europe/Zurich",
-                "accessibility": ["wheelchair", "probably_fine"],
-            },
-            licence=OPENSTREETMAP,
-        )
+        place = adapt(payload(accessibility=["wheelchair", "probably_fine"]), licence=OPENSTREETMAP)
         assert place.accessibility == ("wheelchair",)
         assert any("not in the declared vocabulary" in w for w in place.warnings)
 
     def test_absent_accessibility_is_empty_and_that_means_not_declared(self) -> None:
         """Empty is "the source is silent", NOT "this place is inaccessible"
         (REQ-PRIV-003). The warning list is where the difference is visible."""
-        place = adapt({"name": "Kunsthaus", "time_zone": "Europe/Zurich"}, licence=OPENSTREETMAP)
+        place = adapt(payload(), licence=OPENSTREETMAP)
         assert place.accessibility == ()
 
 
@@ -341,27 +345,23 @@ class TestAdapter:
         """`Provenance.licence_id` was added in STEP-004.06 and had no user until
         now. ADR-016 makes it load-bearing: ODbL and non-ODbL facts will sit side
         by side in one pack from the first ingestion."""
-        place = adapt({"name": "Kunsthaus", "time_zone": "Europe/Zurich"}, licence=OPENSTREETMAP)
+        place = adapt(payload(), licence=OPENSTREETMAP)
         assert place.provenance.licence_id == "ODbL-1.0"
         assert place.provenance.observed_at.tzinfo is not None
 
     def test_a_place_without_a_time_zone_is_refused(self) -> None:
         with pytest.raises(AdapterError, match="time_zone is required"):
-            adapt({"name": "Kunsthaus"}, licence=OPENSTREETMAP)
+            adapt(payload(time_zone=None), licence=OPENSTREETMAP)
 
     def test_a_place_without_a_name_is_refused(self) -> None:
         with pytest.raises(AdapterError, match="cannot be rendered or cited"):
-            adapt({"time_zone": "Europe/Zurich"}, licence=OPENSTREETMAP)
+            adapt(payload(name=None), licence=OPENSTREETMAP)
 
     def test_unparseable_hours_do_not_discard_the_whole_place(self) -> None:
         """The name and location remain usable facts. Only the hours are unknown,
         and saying so is more useful than dropping the record."""
         place = adapt(
-            {
-                "name": "Kunsthaus",
-                "time_zone": "Europe/Zurich",
-                "opening_hours": "whenever the curator feels like it",
-            },
+            payload(opening_hours="whenever the curator feels like it"),
             licence=OPENSTREETMAP,
         )
         assert place.name == "Kunsthaus"
@@ -371,15 +371,65 @@ class TestAdapter:
     def test_naive_observed_at_is_refused(self) -> None:
         with pytest.raises(AdapterError, match="timezone-aware"):
             adapt(
-                {"name": "K", "time_zone": "Europe/Zurich"},
+                payload(),
                 licence=OPENSTREETMAP,
                 observed_at=datetime(2026, 8, 12, 12),  # noqa: DTZ001
             )
 
     def test_confidence_outside_zero_to_one_is_refused(self) -> None:
         with pytest.raises(AdapterError, match="confidence"):
+            adapt(payload(), licence=OPENSTREETMAP, confidence=1.5)
+
+
+# --- BUG-027 regression: refuse, never coerce ---------------------------------
+
+
+class TestBug027RequiredFieldsAreRefusedNotManufactured:
+    """`DC-EXT-001` requires a stable identifier, coordinates and a category, and
+    says schema drift is rejected — "never coerce". The adapter coerced: a payload
+    with no `place_id` was given `f"{licence_id}:{name}"`.
+
+    WHY THE TESTS DID NOT CATCH IT
+        Every test here asserted on hours, accessibility or provenance and none
+        asserted on what a place record must contain. The missing fields were not a
+        broken behaviour anybody could observe — they were an absence, and an
+        absence is only visible against the contract that requires it. It surfaced
+        in STEP-005.07, where entity resolution could not be written at all: there
+        was nothing to match on and no coordinate to measure.
+    """
+
+    def test_a_name_derived_identifier_is_never_manufactured(self) -> None:
+        """The synthesised value looked stable and was not. Rename the venue and
+        every stored reference to it dangles, while a re-ingest arrives as a second
+        place — which entity resolution then has to clean up after."""
+        with pytest.raises(AdapterError, match="NOT derived from the name"):
+            adapt(payload(place_id=None), licence=OPENSTREETMAP)
+
+    def test_a_place_without_a_coordinate_is_refused(self) -> None:
+        with pytest.raises(AdapterError, match="coordinate is required"):
+            adapt(payload(coordinate=None), licence=OPENSTREETMAP)
+
+    def test_a_place_without_a_category_is_refused(self) -> None:
+        with pytest.raises(AdapterError, match="category is required"):
+            adapt(payload(category=None), licence=OPENSTREETMAP)
+
+    def test_null_island_is_refused_rather_than_stored(self) -> None:
+        """`0.0, 0.0` is the value providers emit for "we do not know", and it is a
+        valid pair of floats. Stored, it is a collision point rather than one bad
+        record: every unlocated place in the corpus lands on the same spot, zero
+        metres apart, and a proximity matcher merges the lot."""
+        with pytest.raises(AdapterError, match="Null Island"):
             adapt(
-                {"name": "K", "time_zone": "Europe/Zurich"},
+                payload(coordinate={"latitude": 0.0, "longitude": 0.0}),
                 licence=OPENSTREETMAP,
-                confidence=1.5,
             )
+
+    def test_a_malformed_coordinate_is_refused_with_the_place_named(self) -> None:
+        with pytest.raises(AdapterError, match="unusable coordinate"):
+            adapt(payload(coordinate={"latitude": "north"}), licence=OPENSTREETMAP)
+
+    def test_the_required_fields_survive_onto_the_record(self) -> None:
+        place = adapt(payload(), licence=OPENSTREETMAP)
+        assert place.place_id == "way/12345"
+        assert place.category == "museum"
+        assert (place.coordinate.latitude, place.coordinate.longitude) == (47.3701, 8.5484)

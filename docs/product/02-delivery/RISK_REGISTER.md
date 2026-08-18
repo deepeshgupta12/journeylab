@@ -154,6 +154,16 @@ Scores below are **initial estimates by the documentation author**, not owner-ac
 | Stop condition | None — but pre-change checks stay `BLOCKED` (fallback only) until code is indexed, and the fallback explicitly does not satisfy the release gate |
 | Related | `ASM-025` |
 
+### RISK-016 — The code graph reports no dependants for symbols that have them
+| Field | Value |
+| --- | --- |
+| L × I | 4 × 3 = **12** |
+| Description | `gitnexus impact --include-tests` returns `impactedCount: 0, risk: LOW` for symbols with live test call sites. Measured at STEP-005.07: `CanonicalPlace` and `adapt` each reported zero dependants while `tests/integrations/test_places_adapter.py` imports `adapt` and calls it **11 times**. The test files are indexed (55 nodes for that file); the missing thing is the cross-file call and import edges from test modules. Because no application code wires `services/` yet, **tests are currently the only callers of every service symbol**, so this understates the blast radius of essentially every change in `services/` |
+| Why it is dangerous | The failure is silent and reads as reassurance. `LOW / 0 dependants` is indistinguishable from a genuinely isolated symbol, which is exactly the `gitnexus_query` failure mode recorded in `BR-029` §3 — a degraded signal that reads like a real answer. `REQ-KG-008` makes this check a release gate |
+| Mitigation | Until it is fixed, every blast-radius record cross-checks the graph's dependant list against a grep and records **both**. A `LOW` verdict that grep contradicts caps that record's confidence at MEDIUM. `BR-046` §2 is the worked example |
+| Stop condition | None — but no record may cite a `0 dependants` result as evidence of isolation without the cross-check |
+| Related | `RISK-014` (downgraded — the graph does index Python; this is a different and narrower defect), `BR-046` |
+
 ---
 
 ## 5. Exposure summary
@@ -162,7 +172,7 @@ Scores below are **initial estimates by the documentation author**, not owner-ac
 | --- | --- | --- |
 | **20** | `RISK-001` (data availability), `RISK-011` (no owners) | Phase-gate review before proceeding |
 | **15** | `RISK-002` (scenario sameness), `RISK-006` (location privacy) | Active mitigation owner + tracker blocker |
-| **12** | `RISK-003`, `RISK-005`, `RISK-008`, `RISK-009`, `RISK-013`, `RISK-014` | Named mitigation, reviewed each phase |
+| **12** | `RISK-003`, `RISK-005`, `RISK-008`, `RISK-009`, `RISK-013`, `RISK-014`, `RISK-016` | Named mitigation, reviewed each phase |
 | **≤10** | `RISK-004`, `RISK-007`, `RISK-010`, `RISK-012` | Monitored; mitigations are mandatory controls |
 
-**Two risks are already realised, not prospective:** `RISK-011` (no owners assigned) and `RISK-014` (graph covers documentation only). Both are reflected as blockers in [MASTER_TRACKER](MASTER_TRACKER.md).
+**Three risks are already realised, not prospective:** `RISK-011` (no owners assigned), `RISK-014` (graph covers documentation only) and `RISK-016` (the graph under-reports dependants — measured at STEP-005.07). All three are reflected in [MASTER_TRACKER](MASTER_TRACKER.md).

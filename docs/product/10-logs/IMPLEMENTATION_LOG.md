@@ -60,6 +60,120 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-045 — STEP-005.07 — Entity resolution, and a place that could not say where it is
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-18 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-004 |
+| Blast radius | [BR-046](blast-radius/BR-046-entity-resolution.md) (MEDIUM, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `5eac52e` — matched HEAD at pre-change |
+| Closes | `BUG-027` |
+
+### What was built
+
+`services/ingestion/src/entity_resolution.py`: identifier-first matching, gated
+geo-and-name scoring, a provider identifier graph with reversible audited merges,
+and a review queue with no way to approve anything automatically. Plus the
+`BUG-027` fix in `places/adapter.py`, without which none of it could be written.
+Python 925 → **985**.
+
+### The asymmetry that decided every other choice
+
+A missed merge leaves a duplicate in a list. A false merge produces an itinerary
+that is internally consistent, carries plausible travel times, and sends the
+traveller to the wrong building — silently, because a merged record looks exactly
+like a correct one.
+
+So the matcher is not tuned for accuracy. It is tuned so the only automatic answer
+is one that cannot be wrong, and everything else is asked about. **The review queue
+is the main path, not the exception**, and the measured rate is reported rather than
+buried.
+
+### Three decisions worth the space
+
+**Signals are gated, never summed.** The obvious implementation weights distance and
+name similarity and merges above a threshold — which is exactly how two branches of
+a chain get merged, because an identical name buys enough score to pay for being
+400 m apart. Compensation between independent signals *is* the false-merge
+mechanism. Each signal clears its own gate or nothing happens.
+
+**Category demotes and never promotes.** A cafe inside a museum sits at the museum's
+coordinate under the museum's name; only the declared category separates them. But
+"same point and same category, therefore the same place" is wrong in the other
+direction — a station concourse holds a dozen venues that all declare `restaurant`.
+Both pairs are in the labelled sample, so neither mistake can be introduced later
+without a test failing.
+
+**An identifier conflict outranks proximity.** Two records four metres apart with
+different Wikidata entities are two sources asserting different identities, not a
+near-certain match with a small problem. `REQ-EVID-002` forbids averaging that away,
+so it goes to review however close it is. What an identifier is *allowed* to mean is
+an allowlist with a stated test: a namespace carries identity only if its
+identifiers denote at most one venue. An address, a phone number or a chain website
+denotes something **coarser** than a venue, so matching on one merges distinct
+venues with the confidence of an exact match.
+
+### What "canonical" means here
+
+One identity, not one set of values. `CanonicalEntity` keeps its members verbatim
+and never flattens them. Flattening would make the merge irreversible the moment a
+field disagreed, and would resolve conflicting evidence by picking a winner —
+`REQ-EVID-002` again, from the other end.
+
+### Measured, and what the measurement is not
+
+Precision **1.000**, zero true duplicates discarded, recall 0.500, review rate
+0.538, over 13 labelled pairs. Two metrics rather than one because **precision alone
+is satisfiable by merging nothing** — a matcher that answers DISTINCT to everything
+scores a perfect 1.000, and what it loses is the duplicates nobody will ever be
+asked about.
+
+The sample is hand-written from Swiss venue patterns and **no provider fetch has
+been made** — the same disclosure carried through `.02`–`.06`. Every pair in it is a
+case a naive matcher gets wrong, so it measures correctness on the hard cases and
+says nothing about how often they occur. The 0.538 review rate is an upper bound on
+an adversarial sample, not a forecast of production load; at corpus scale it would
+be operationally impossible, and the real figure needs a real corpus.
+
+### Surprises
+
+**The graph told me the change was safe and it was wrong.** `impact CanonicalPlace
+--include-tests` reported `0 dependants, LOW`. Eleven call sites exist. The test
+file is indexed; the cross-file edges from test modules are not. Since no
+application code wires `services/` yet, tests are the *only* callers of every
+service symbol — so that verdict has been understating the blast radius of
+essentially every change in this directory, and it reads exactly like reassurance.
+Logged as `RISK-016`; this record's confidence is MEDIUM because of it.
+
+**Writing the next sub-step is how I found the last one's defect.** `BUG-027` was
+not visible from inside `.02`: nothing threw, nothing returned a wrong value, 36
+tests passed. It became obvious the instant something tried to *use* the record —
+`ProviderRecord.from_place` could not be written, because there was no coordinate to
+measure and no category to compare. An absence is only visible against the contract
+that requires it, and no test read `DC-EXT-001`.
+
+**A guard from `.05` went stale, and this sub-step is what staled it.** The routing
+test blocks the names `haversine`, `distance`, `euclidean`, `great_circle`. The
+distance function here is `metres_between` — none of those substrings. The
+convenience that test exists to keep out of routing's reach had just become
+importable without the test noticing. A blocklist only blocks the names somebody
+thought of.
+
+**Three mutants survived the first run and all three were real gaps.** The
+conflicting-identifier rule was never actually exercised, because the sample's
+conflict pair had names similar enough that a different rule caught it anyway. The
+category-promotion mistake had no pair that could detect it. And the two-normalisation
+name comparison could not be distinguished from one normalisation by any assertion I
+had written — it only changes a verdict on **short** names, where `Bär` against
+`Baer` scores 0.857 stripped and fails the merge gate, against 1.000 with umlaut
+expansion. That number is now pinned, because "it helps with umlauts" is not a claim
+anything can check.
+
+---
+
 ## IMPL-044 — STEP-005.06 — Deep links, signed callbacks and attribution
 
 | Field | Value |
