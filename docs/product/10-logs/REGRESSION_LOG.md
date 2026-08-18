@@ -109,6 +109,53 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-005.08 — 2026-08-18 — Field-specific freshness policy
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `a7a5a04` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1011 Python** (up from 985) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched. `TemporalFact` mirrors `temporal-validity.json` rather than changing it |
+| R3 graph diff as expected | **PASS** | One new module, one new test module. Nothing else modified |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-005 and REQ-EVID-005 newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+No test failed during implementation. The one gap was found by mutation testing
+rather than by a failing test, which is recorded below.
+
+### `RISK-016` reproduced, as the protocol now requires
+
+| Symbol | Graph | Grep |
+| --- | --- | --- |
+| `Provenance` | 0 dependants, LOW | 11 call sites |
+| `ResumableRun` | 0 dependants, LOW | 11 call sites |
+| `CircuitBreaker` | 1 dependant, LOW | 12 call sites |
+
+Third consecutive reproduction. The cross-check is now doing real work rather than
+confirming a one-off.
+
+### Mutation testing — 10 seeded, 10 killed
+
+One survived the first run: `age <= policy.max_age` flipped to `<`. No test
+exercised the instant where age equals the threshold, so **nothing pinned which side
+of the boundary is inclusive** — a missing decision rather than a missing assertion.
+
+Inclusive: "expires after six hours" should not expire *at* six hours, and an
+exclusive bound makes the verdict depend on clock resolution, so the same fact
+assessed a microsecond apart would flip between fresh and expired.
+
+---
+
 ## STEP-005.07 — 2026-08-18 — Entity resolution and the provider identifier graph
 
 | Field | Value |

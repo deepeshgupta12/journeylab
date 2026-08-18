@@ -60,6 +60,76 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-046 — STEP-005.08 — Freshness measured from the source's clock, not ours
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-18 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-005, REQ-EVID-005 |
+| Blast radius | [BR-047](blast-radius/BR-047-freshness-policy.md) (LOW, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `a7a5a04` — matched HEAD at pre-change |
+
+### What was built
+
+`services/ingestion/src/freshness.py`: a field-class registry with per-class
+thresholds and severities, age-at-use computed from observation time, an
+applicability check independent of freshness, and a verdict that either blocks the
+option or marks the fact. Python 985 → **1011**.
+
+### The failure that is invisible if you measure from the wrong clock
+
+Fetch a value at 09:00 that the provider last refreshed three days ago. Measured
+from ingestion it is zero seconds old and every dashboard is green.
+
+The reason that is dangerous rather than merely wrong: **the staler the upstream
+cache gets, the fresher our numbers look**, because each re-fetch resets the clock
+we chose to read. Polling more often improves the reported freshness and changes the
+data not at all. A provider quietly serving three-day-old cache is precisely what a
+freshness policy is for, and ingestion time makes it structurally undetectable.
+
+Both timestamps are carried anyway. With only `observed_at` the mistake would be
+unrepresentable — and so would the proof that we avoided it.
+
+### Two axes, and the order they are reported in
+
+A fact observed sixty seconds ago about last summer's timetable is fresh and
+inapplicable. A fact observed in March, effective to October, is four months old in
+July and exactly right. `temporal-validity.json` already warned that one timestamp
+either discards good data or serves expired data.
+
+Applicability is checked **first**, and that is a decision rather than an accident.
+When both fail, reporting "stale" sends someone to re-fetch, and re-fetching cannot
+fix a fact about the wrong dates.
+
+### What it refuses to decide
+
+`REQ-EVID-005` allows a stale fact to lower confidence *or* block. Blocking is
+decided here because it follows from the field class. The confidence **curve** is
+not: the module publishes `staleness_ratio` and leaves the shape to the scenario
+scorer. A multiplier invented here would be a magic constant in the wrong module —
+`BUG-026`'s shape exactly.
+
+### Surprises
+
+**A provisional constant can still be tested.** `DEC-005` has not signed off the
+four thresholds, and the instinct after `BUG-026` was to treat any unsigned number
+as untestable. But `REQ-DATA-005` does not state a value — it states an **ordering**:
+hours and disruptions must expire faster than descriptive content. That is a
+property of the table, it is the requirement itself, and it survives whatever
+`DEC-005` decides. Test the property the requirement states, not the number somebody
+picked.
+
+**The surviving mutant was a boundary nobody had an opinion about.** Nine of ten died
+immediately; the tenth flipped `<=` to `<` at exactly `max_age`, and no test
+exercised that instant. Inclusive is right — "expires after six hours" should not
+expire *at* six hours, and an exclusive bound makes the verdict depend on clock
+resolution, so the same fact assessed a microsecond apart would flip. The gap was not
+a missing assertion so much as a missing decision.
+
+---
+
 ## IMPL-045 — STEP-005.07 — Entity resolution, and a place that could not say where it is
 
 | Field | Value |

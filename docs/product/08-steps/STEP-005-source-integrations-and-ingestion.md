@@ -113,7 +113,7 @@ Eight-step fan-out. A defect in entity resolution or freshness propagates silent
 | STEP-005.05 | Routing adapter with explicit profile declaration | — ✅ **VERIFIED** 2026-08-17 (BR-044, IMPL-041)
 | STEP-005.06 | Affiliate adapter: deep links + signed callbacks | — ✅ **VERIFIED** 2026-08-18 (BR-045, IMPL-044)
 | STEP-005.07 | Entity resolution and provider identifier graph | — ✅ **VERIFIED** 2026-08-18 (BR-046, IMPL-045; closes BUG-027)
-| STEP-005.08 | Field-specific freshness policy |
+| STEP-005.08 | Field-specific freshness policy | — ✅ **VERIFIED** 2026-08-18 (BR-047, IMPL-046)
 | STEP-005.09 | Reconciliation, backfill and checkpointing |
 | STEP-005.10 | Provider health events and admin surface wiring |
 
@@ -131,7 +131,7 @@ Disable the provider flag; canonical facts from that source are marked stale and
 - [ ] Every connector implements all eleven framework capabilities (`REQ-DATA-002`)
 - [ ] Provider failure trips a circuit breaker; no unmarked stale data is served (`REQ-DATA-003`)
 - [x] Places deduplicate into canonical entities with a provider identifier graph (`REQ-DATA-004`) — STEP-005.07
-- [ ] Freshness policy is field-specific (`REQ-DATA-005`)
+- [x] Freshness policy is field-specific (`REQ-DATA-005`) — STEP-005.08
 - [ ] Raw payloads encrypted and minimally retained (`REQ-DATA-006`)
 - [ ] Egress allowlist, SSRF protection and timeouts enforced (`REQ-SEC-005`)
 
