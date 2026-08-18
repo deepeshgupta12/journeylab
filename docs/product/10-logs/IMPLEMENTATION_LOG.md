@@ -60,6 +60,72 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-048 — STEP-005.10 — Health that is visible without being nameable
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-18 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-EVID-006, REQ-TRIP-002 |
+| Blast radius | [BR-049](blast-radius/BR-049-provider-health.md) (MEDIUM, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `2411165` — matched HEAD at pre-change |
+
+### What was built
+
+`services/ingestion/src/provider_health.py`: a four-state health machine with
+recovery hysteresis, `EVT-008` emission on published-state change, a coverage model
+that refuses trips in uncovered regions, and a public projection with nowhere to put
+a provider's name. Python 1036 → **1062**. **STEP-005 is complete at 10/10.**
+
+### Two requirements that look opposed
+
+`REQ-EVID-006` requires degradation to be surfaced rather than masked by cached data
+presented as current. The `Coverage` contract requires the opposite of detail: *"an
+aggregate. Never a list, never named, never a count — each of those leaks the shape
+of the supply chain."*
+
+Both hold, because they are about different things. The traveller learns **that** the
+answer is degraded and never **who** degraded it. `PublicRegion` and `PublicCoverage`
+have no field for a provider, a count or a quota — the same construction as `.06`'s
+attribution record, where the field a leak would need does not exist. A count alone
+reveals the supply chain's size, and quota proximity tells an attacker precisely when
+the product degrades.
+
+### Four internal states, three published
+
+§5 asks for four; `EVT-008`'s enum has three and is closed. The internal machine
+describes our mechanics, the event tells a consumer what it can do, and no consumer
+responds differently to "circuit open" than to "unavailable". `RECOVERING` maps to
+`degraded` rather than `healthy`, because publishing recovery on the strength of one
+probe sends full traffic back to a half-recovered provider.
+
+### Surprises
+
+**Writing a test for the mapping found that I had misunderstood my own design.** The
+first version used `DEGRADED → CIRCUIT_OPEN → RECOVERING` and failed, because that
+path crosses `unavailable → degraded` and does publish an event. Working out why
+exposed the real structure: **the four-to-three mapping collapses at exactly one
+adjacency**, `RECOVERING → DEGRADED`, when a provider starts answering and then fails
+again without tripping the breaker. Every other transition crosses a published
+boundary. That single case is the flap, it is the only one the design needed, and my
+test had been written for a case that cannot occur.
+
+**A mutant survived that was my own equivalent mutant.** "Degradation accepted with
+no disclosure" seeded as `disclosures=() or (...)` — which still evaluates to a
+non-empty tuple, so nothing was mutated. Re-seeded as `disclosures=()` it dies
+immediately. It also exposed a weak assertion: the test only checked the tuple was
+non-empty, so a disclosure saying nothing would pass. A second mutant now checks the
+text actually reports degradation.
+
+**Hysteresis is a traveller-facing property, not an operational one.** The obvious
+argument for it is event-storm suppression. The real one is that a flapping provider
+makes coverage accept and refuse at random — and an intermittent refusal is worse for
+a traveller than a steady one, because it is not reproducible. They retry, it works,
+they retry later, it does not, and nothing they can see explains the difference.
+
+---
+
 ## IMPL-047 — STEP-005.09 — Reconciliation that says what it did not check
 
 | Field | Value |

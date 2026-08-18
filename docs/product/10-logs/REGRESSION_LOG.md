@@ -109,6 +109,51 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-005.10 — 2026-08-18 — Provider health, coverage and trip refusal
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `2411165` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1062 Python** (up from 1036) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | `EVT-008` and `Coverage` are **consumed, not changed**. `HealthChanged` matches the AsyncAPI payload including its dedupe key; `PublicRegion.freshness` matches `CoverageRegion.freshness` |
+| R3 graph diff as expected | **PASS** | One new module, one new test module |
+| R4 untested requirements | **PASS — improved** | REQ-EVID-006 and REQ-TRIP-002 newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched |
+
+**Overall:** PASS — and **STEP-005 closes at 10/10**.
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| The published-state-collapse test failed | I wrote it for `DEGRADED → CIRCUIT_OPEN → RECOVERING`, which crosses `unavailable → degraded` and **does** publish | Rewritten for `RECOVERING → DEGRADED`, the one adjacency where the four-to-three mapping actually collapses. The failure taught me the structure of my own state machine |
+| The provider-leak test failed on `provider_health` | The contract's own aggregate field contains the word "provider" | Allowlisted that single name; everything else containing it still fails |
+| The identity-drop test scanned a docstring | Fragile and meaningless — it was matching prose | Replaced with an assertion on the exact public surface of both types |
+
+### `RISK-016` reproduced — fifth consecutive sub-step
+
+`CircuitBreaker`, `CircuitState`, `Quota` and `Reconciliation` each reported **one**
+dependant against 12–16 real references. Five sub-steps, five reproductions.
+
+### Mutation testing — 14 seeded, 14 killed
+
+One appeared to survive and was an **equivalent mutant of my own making**:
+`disclosures=() or (...)` still evaluates to a non-empty tuple, so nothing was
+mutated. Re-seeded honestly as `disclosures=()` it dies at once.
+
+It exposed a weak assertion in passing — the test only required the tuple to be
+non-empty, so a disclosure that said nothing useful would satisfy it. A fourteenth
+mutant now blanks the disclosure text, and the test requires it to actually report
+degradation.
+
+---
+
 ## STEP-005.09 — 2026-08-18 — Reconciliation, backfill and checkpointing
 
 | Field | Value |
