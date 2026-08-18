@@ -46,7 +46,7 @@ USER_B = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 
 # Not a credential: an opaque string the stub recognises. S105 flags the literal
 # comparison, so it is named once here rather than suppressed at each use.
-VALID_TOKEN = "valid-token-for-org-a"  # noqa: S105
+VALID_TOKEN = "valid-token-for-org-a"
 
 
 class StubVerifier:

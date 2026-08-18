@@ -60,6 +60,88 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-044 — STEP-005.06 — Deep links, signed callbacks and attribution
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-18 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-BOOK-001, REQ-BOOK-002 |
+| Blast radius | [BR-045](blast-radius/BR-045-affiliate-adapter.md) (MEDIUM, confidence HIGH) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `5656b75` — matched HEAD at pre-change |
+
+### What was built
+
+`services/integrations/src/affiliate/`: deep-link generation with observed
+parameter preservation, signed-callback receipt, and attribution records with
+nowhere to put a payment credential. Python 881 → **925**.
+
+### Verify before parse is an ordering, not a step
+
+The natural way to write a webhook handler parses the body to find the signature,
+then verifies — by which point a JSON parser has consumed attacker-controlled
+bytes, which is the entire surface the signature was meant to stand in front of.
+
+So the entry point takes **raw bytes** and returns a parsed payload only after the
+HMAC matches, and there is deliberately no function that verifies against a parsed
+object. That helper is what everyone reaches for, and reaching for it is the bug.
+A test asserts the module's whole public function set, because a new public
+function here is a new chance to reintroduce it.
+
+Two consequences worth stating: the signature is over the **exact bytes received**
+(re-serialising breaks it, and "fixing" that by canonicalising quietly restores
+parse-before-verify), and the **timestamp is inside the signed material** (a window
+checked against an attacker-editable timestamp is not a window).
+
+### Two requirements that pull against each other
+
+Replay protection rejects requests that are **old**; idempotency accepts requests
+that are **duplicate**. §5 asks for both. A partner retrying after a timeout is
+legitimate and must not be treated as an attack.
+
+Resolved by ordering rather than by a special case: age is checked first, so a
+duplicate reaching the seen-set is inside the window by construction. Both edges of
+the window are enforced — a future-dated callback is rejected too, because without
+that an attacker mints a request valid for as long as they chose.
+
+### "No payment credential anywhere" means nowhere to put one
+
+Redaction cannot satisfy `TST-BOOK-002`: it runs after the value is in memory and
+one forgotten call from a log. `AttributionRecord` is frozen, slotted and closed —
+no `payment_method`, no `card_last_four`, not redacted but **absent**. The same
+argument as `service_identities` having no secret column in migration 001.
+
+`reject_payment_fields` refuses rather than strips. A partner sending card data has
+changed the contract, and filtering silently means nobody finds out while the value
+still passes through our process on the way to being dropped.
+
+### The mutant that could not be killed behaviourally
+
+Replacing `hmac.compare_digest` with `!=` left the entire suite green — correctly,
+since a unit test cannot observe a timing side channel. That is the worst state for
+a security property: believed to hold, checked by nothing.
+
+So the check moved to where the property lives. A test now asserts
+`hmac.compare_digest` appears in `verify_and_parse` and that plain equality against
+the signature does not, and with it the mutant dies. Same technique as `.05`'s
+assertion that no haversine helper exists: **when behaviour cannot see a property,
+the source can.**
+
+### What my own tests caught in my own code
+
+The payment matcher missed **`ccnum`** — a name I had listed in my own
+parametrised test and then failed to cover in the regex. The test found it
+immediately, which is the argument for naming the cases explicitly rather than
+trusting the pattern to be obviously complete.
+
+Also a `None` sentinel where a dataclass `default_factory` belonged, flagged by
+mypy as an unreachable branch. The same shape as `.03`'s zero-sentinel bug: a
+sentinel drawn from the value's own domain, or a manual `__post_init__` doing what
+the language already offers.
+
+---
+
 ## IMPL-043 — The transit key is free below a limit, and the limiter is a cost control
 
 | Field | Value |

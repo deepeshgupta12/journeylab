@@ -63,6 +63,8 @@ ignore = [
     # Seeded RNG is how the backoff-jitter bounds are asserted deterministically
     # instead of sampled and hoped for.
     "S311",
+    # A shared secret in a webhook-signature test is a fixture, not a credential.
+    "S105",
 ]
 
 [tool.mypy]

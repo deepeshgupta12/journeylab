@@ -109,6 +109,67 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-005.06 — 2026-08-18 — Deep links, signed callbacks and attribution
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `5656b75` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **925 Python** (up from 881) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS** | One package into `services/integrations/` |
+| R4 untested requirements | **PASS — improved** | REQ-BOOK-001 and REQ-BOOK-002 newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…026; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched. `AttributionRecord` requires a tenant, so the shape STEP-006 persists cannot omit one |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| The payment matcher missed `ccnum` | A name I listed in my own parametrised test and did not cover in the regex | Widened. **The test found it on the first run** — the argument for naming cases explicitly rather than trusting a pattern to be obviously complete |
+| Introspection test read dataclass internals | `dir()` plus `getattr` hit the frozen `__setattr__` | Rewritten with `inspect.signature`, and filtered to functions *defined* in the module — `dataclass` is imported into that namespace and is not part of its surface |
+| `first.annotation is bytes` compared a string | `from __future__ import annotations` stringifies them | `eval_str=True`. Without it the test passes or fails for a cosmetic reason rather than the real one |
+| mypy: unreachable statement | A `None` sentinel where `field(default_factory=dict)` belonged | Fixed. Same shape as `.03`'s zero-sentinel bug |
+| N818, S105, RUF043 | Exception naming, a test fixture secret, an unescaped regex | Renamed; test-scoped ignore with a reason; `re.escape` |
+
+### Mutation testing — 10 seeded, 10 killed
+
+| Seeded | Result |
+| --- | --- |
+| Parse before verify | **killed** by 2 |
+| Constant-time comparison replaced with `!=` | **survived**, then killed — see below |
+| Timestamp excluded from signed material | **killed** |
+| Future-dated callbacks accepted | **killed** |
+| Stale callbacks accepted | **killed** |
+| Rejection reasons distinguishable | **killed** |
+| Seen-set grows unbounded | **killed** |
+| Payment fields stripped instead of refused | **killed** by 15 |
+| Nested payload unchecked | **killed** |
+| Unverified parameter treated as preserved | **killed** by 2 |
+
+### Notes
+
+**A timing property is not observable from a unit test**, so replacing
+`compare_digest` with `!=` passed everything. Believed-to-hold and checked-by-nothing
+is the worst state for a security control, so the assertion moved into the source:
+`compare_digest` must appear, plain equality must not. The mutant then dies.
+
+Reported as **9 of 10 before that test existed and 10 of 10 after**. The sequence is
+the finding; the final number alone would hide it.
+
+**Third sub-step running where a control was made structural rather than
+behavioural** — `.05`'s absent haversine helper, `.04`'s derived FORCE-RLS check,
+and now this. The pattern: when behaviour cannot see a property, assert what the
+source does or does not contain.
+
+---
+
 ## STEP-005.05 — 2026-08-17 — Travel-time matrices and explicit profile support
 
 | Field | Value |
