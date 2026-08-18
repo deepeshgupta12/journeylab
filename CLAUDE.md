@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (7072 symbols, 10385 relationships, 66 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (8020 symbols, 11933 relationships, 66 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -257,11 +257,14 @@ These are product promises, not preferences. Breaking one is a defect regardless
 | ID | Blocker | Effect |
 | --- | --- | --- |
 | ~~BLK-001~~ | **CLOSED** — Deepesh Kumar Gupta owns all roles (`ADR-010`) | **New gap:** four-eyes approval unsatisfiable with one owner |
-| ~~BLK-002~~ | **PARTIALLY CLOSED** (STEP-002.02) — application code now exists: `apps/api/src/auth/`, 6 modules, 29 tests | Contracts remain `PROPOSED` (STEP-004). Graph coverage of Python is **unconfirmed** — see `RISK-014` |
-| `DEC-002` | Destination region undecided | Blocks `STEP-005`/`STEP-010` — critical path |
+| ~~BLK-002~~ | **PARTIALLY CLOSED** — application code exists: **985 Python tests** across `apps/api`, four services and `tools/` | **The open half is real:** every contract is `PROPOSED` and **no handler implements one**. The services are tested; nothing serves them over HTTP |
+| ~~`DEC-002`~~ | **CLOSED 2026-08-13 — Switzerland** (`ADR-016`) | **`RISK-001` is not closed by it** — OSM is ODbL and the evidence pack is a derivative database; a posture is owed **before STEP-010** |
+| ~~`DEC-008`~~ | **CLOSED 2026-08-17 — OpenTripPlanner 2, self-hosted** (`ADR-018`) | Self-hosting arrives before Phase 1 and couples to `DEC-007`. Accepted knowingly |
+| ~~`DEC-009`~~ | **CLOSED 2026-08-13 — Kafka** (`ADR-015`), owner directive | Unblocks AsyncAPI client generation and compatibility diffing |
 | ~~`DEC-004`~~ | **CLOSED 2026-08-06 — Auth0** (`ADR-013`). Deferred behind a verifier port through .01–.04; resolved at .05 where OIDC sign-in had to actually run | **Unverified against a live tenant** — no Auth0 account exists. Passkey enrolment and rotation-under-concurrency are unproven (`BR-014` §9) |
 | `DEC-007` | Cloud provider / region / residency | Blocks `STEP-027` |
 | `RISK-001` | Provider licence viability unproven (exposure 20) | Highest delivery risk |
+| `RISK-016` | **The code graph reports 0 dependants for symbols that have them** (measured STEP-005.07: `CanonicalPlace` reported LOW/0 against 11 live call sites) | Test modules are indexed; their cross-file edges are not. Tests are currently the **only** callers of every symbol under `services/`, so `impact` understates essentially every change there — and reads like reassurance. **Cross-check every `LOW` verdict against a grep** |
 | ~~`RISK-014`~~ | **DOWNGRADED** (STEP-002.02) — the graph indexes Python: 8/8 files, 13 functions, 5 classes under `apps/api`. `KG-Q-014` ran for real and reproduced the manual auth trace | Pre-change checks are **runnable from `STEP-002.03`**. A `BLOCKED` status from here on is a real gap, not a vacuous one |
 
 ---

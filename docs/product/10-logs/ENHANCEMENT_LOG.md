@@ -30,6 +30,50 @@ An enhancement is work nobody asked for. It may be excellent and it may be scope
 
 ---
 
+## ENH-005 — Guard that a closed decision is closed everywhere
+
+| Field | Value |
+| --- | --- |
+| Proposed by | Deepesh Kumar Gupta, 2026-08-18, after the owner asked why five closed items were listed as open |
+| Date | 2026-08-18 |
+| Type | reliability / process |
+| Status | **PROPOSED** |
+| Trigger | `DEC-002`, `DEC-004`, `DEC-008` and `DEC-009` were all recorded **CLOSED** in `DECISION_LOG` while `MASTER_TRACKER`'s blocker table still listed them as open blockers — one of them for five days |
+
+### Current behavior
+
+A decision closure touches three places: `DECISION_LOG` (the ADR row),
+`MASTER_TRACKER`'s blocker table, and `CLAUDE.md` §7. Nothing links them. Each
+closure this session updated the log and the relevant step row and left the blocker
+table alone, so the tracker — which rule 10 names as **the only source of delivery
+status** — carried four false blockers.
+
+The failure mode is worth stating precisely, because it is not forgetfulness. A
+closure is *interesting* at the moment it happens and the log entry gets written
+carefully; the blocker table is a **removal**, and removals have no author. Nobody
+reads a table to check whether a row should be gone.
+
+### Proposed change
+
+A guard, in the shape `ENH-002` already established for carried commitments: parse
+`DECISION_LOG` for every `DEC-NNN`/`BLK-NNN` whose row says `CLOSED`, then fail if
+that identifier still appears un-struck in `MASTER_TRACKER`'s blocker table or in
+`CLAUDE.md` §7.
+
+### Risk
+
+Low, and the shape is proven. The one trap is the same as `ENH-004`'s: a parser that
+cannot read a row must **fail on it** rather than skip it, or the guard reports green
+over the rows it did not understand.
+
+### Recommendation
+
+**Worth doing.** It is small, it is mechanical, and the cost of not having it is
+already measured: the owner had to ask, which is the most expensive way to discover
+a stale document. Not urgent enough to interrupt `STEP-005`.
+
+---
+
 ## ENH-004 — Test the data contract's required fields, not just behaviour
 
 | Field | Value |
