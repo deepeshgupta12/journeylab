@@ -2,12 +2,12 @@
 sub_step_id: STEP-006.03
 parent_step: STEP-006
 title: Domain entities, invariants and value objects
-status: NOT_STARTED
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-007]
-blast_radius_id: BR-042
+blast_radius_id: BR-052
 depends_on: [STEP-006.02]
-last_updated: 2026-08-05
+last_updated: 2026-08-20
 ---
 
 # STEP-006.03 — Domain entities, invariants and value objects
@@ -28,12 +28,12 @@ Domain invariants are enforced in code independent of transport and persistence,
 ## 4. Pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | *(record at execution)* — run `npx gitnexus status` and confirm it matches HEAD. **Application code has been indexed since STEP-002.02**, so a `BLOCKED` result here is a real finding to investigate, not the expected default. |
-| HEAD / indexed commit | *(record at execution)* |
-| Queries run | KG-Q-015 `detect_changes()`; KG-Q-006 once symbols exist |
-| Unknown / low-confidence areas | None material |
-| Blast radius | BR-042 — scored at execution; **confidence capped while the graph is BLOCKED** |
-| Approval required? | Per blast-radius score (HIGH/CRITICAL/low-confidence ⇒ owner approval) |
+| Graph status | ✅ up to date. **NOT BLOCKED** |
+| HEAD / indexed commit | `d6318a2` — matched HEAD at pre-change |
+| Queries run | `impact` on `Money`, `TemporalValidity`, `Provenance`, grep cross-checked (`RISK-016`, seventh reproduction: 2/0/0 against 27/9/14) |
+| Unknown / low-confidence areas | None material — additive, no callers yet |
+| Blast radius | **[BR-052](../../../10-logs/blast-radius/BR-052-domain-entities.md)** — LOW, confidence MEDIUM |
+| Approval required? | No |
 
 ## 5. Implementation plan
 - [ ] Entities for the sixteen data types with invariants as constructor guards
@@ -77,18 +77,19 @@ Traces carry tenant-safe correlation IDs; no PII in telemetry. Any user-facing s
 Revert this sub-step's commit; prior sub-steps stay intact and `main` stays deployable. Schema work uses expand/contract, so the expand phase is reversible.
 
 ## 12. Acceptance criteria
-- [ ] Invariants enforced in constructors, not callers
-- [ ] Money never floating point
-- [ ] Scenario cannot exist without full lineage
-- [ ] Invalid transitions rejected
+- [x] Invariants enforced in constructors, not callers
+- [x] Money never floating point — **and never a `bool`**, which mypy accepts
+- [x] Scenario cannot exist without full lineage
+- [x] Invalid transitions rejected, with `INFEASIBLE` and `FAILED` recovering differently
 
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
-| Commit SHA | — |
-| Pushed | — |
-| Graph re-indexed at | — |
-| `main` green and deployable | — |
-| Bugs found | — |
-| Notes / surprises | Invariants in the domain layer rather than the API layer is what keeps them true when a background job writes the same entity. |
+| Completed | 2026-08-20 |
+| Commit SHA | *(this commit)* |
+| Pushed | ✅ |
+| Graph re-indexed at | post-commit |
+| `main` green and deployable | ✅ |
+| Mutation testing | **14 of 14 killed** |
+| Bugs found | None |
+| Notes / surprises | **mypy is happy with `Money(True, "CHF")`.** `bool` is a subtype of `int`, so a flag type-checks where a price belongs. I added a `type: ignore` from habit and mypy reported it unused — which is the finding rather than the nuisance. The test now records that the runtime guard exists precisely because the type system cannot express the rule.<br><br>**A shared rule is not shared coverage.** The one surviving mutant was an out-of-range confidence on `Provenance`. The places adapter has the identical guard *and a test for it*, and that is exactly what made the gap invisible — I had already watched that rule be tested, in a different class in another module.<br><br>**Two tests assert properties of the transition table rather than transitions.** Every state has a row, and every state can reach `ARCHIVED` — because `REQ-PRIV-006` deletion runs from there, so a state that cannot reach it is a trip nobody can ever delete. Neither is a transition anyone would have written a test for. |

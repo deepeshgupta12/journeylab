@@ -103,7 +103,7 @@ Eight-step fan-out and a schema foundation. Migration errors are **low reversibi
 | --- | --- |
 | STEP-006.01 | Core schema, constraints, indexes, RLS | — ✅ **VERIFIED** 2026-08-18 (BR-050, IMPL-049; raises RISK-017)
 | STEP-006.02 | Temporal model: observed/effective/recorded across all fact tables | — ✅ **VERIFIED** 2026-08-20 (BR-051, IMPL-050)
-| STEP-006.03 | Domain entities and invariants |
+| STEP-006.03 | Domain entities and invariants | — ✅ **VERIFIED** 2026-08-20 (BR-052, IMPL-051)
 | STEP-006.04 | Repositories and unit-of-work boundaries |
 | STEP-006.05 | Provider→canonical normalizers |
 | STEP-006.06 | Transactional outbox publisher with idempotency |

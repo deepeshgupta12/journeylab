@@ -60,6 +60,61 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-051 — STEP-006.03 — What the type checker cannot catch
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-20 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-007, REQ-CONS-002, REQ-CONS-006, REQ-CONS-011 |
+| Blast radius | [BR-052](blast-radius/BR-052-domain-entities.md) (LOW, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `d6318a2` — matched HEAD at pre-change |
+
+### What was built
+
+`apps/api/src/domain/models.py`: `Money`, `Provenance`, `TemporalValidity`,
+`ScenarioLineage`, `Scenario`, `ItineraryItem`, `TripBrief`, `TripAggregate` and the
+trip transition table. Python 1103 → **1143**.
+
+### Illegal states, made unrepresentable where that is possible
+
+`ScenarioLineage` is a separate required argument rather than four optional fields,
+so `Scenario` cannot be built with three of them and repaired later. `REQ-CONS-006`
+has no recovery point: a run whose inputs were never recorded is unreproducible
+permanently, and there is no downstream check that can fix it.
+
+### Infeasible is not Failed
+
+The transition table encodes the two recovery paths `BACKEND_ARCHITECTURE` §3 draws:
+infeasibility relaxes constraints and returns to the brief, failure retries and
+returns to the evidence. Neither can reach the other's target, and an invalid
+transition raises — telling a traveller "no plan fits your constraints" when a
+provider timed out is a different product answer, not a cosmetic difference.
+
+Two tests check the table rather than a transition: every state has a row, and
+**every state can reach `ARCHIVED`**, because `REQ-PRIV-006` deletion runs from
+there and a state that cannot get there is a trip nobody can delete.
+
+### Surprises
+
+**mypy is happy with `Money(True, "CHF")`.** `bool` is a subtype of `int`, so the
+static checker accepts a flag where a price belongs. I added a `type: ignore` out of
+habit and mypy told me it was unused — which is the finding, not the nuisance. The
+ignore is gone and the test now records that the guard exists precisely because the
+type system cannot express it.
+
+**A shared rule is not shared coverage.** The surviving mutant was an out-of-range
+confidence on `Provenance`. The places adapter has the identical guard *and a test
+for it*, which is exactly what made the gap invisible — I had already seen that rule
+tested, in a different class, in another module.
+
+**A seed of zero is a seed.** Validating lineage with a falsy check would reject it
+and the run would look unreproducible for a reason nobody could see from the error.
+Tested explicitly.
+
+---
+
 ## IMPL-050 — STEP-006.02 — The DST bug, found inside the module written to prevent it
 
 | Field | Value |

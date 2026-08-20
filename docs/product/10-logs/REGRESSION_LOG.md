@@ -109,6 +109,41 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-006.03 — 2026-08-20 — Domain entities and invariants
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `d6318a2` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1143 Python** (up from 1103) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched. The generated Pydantic `Money` is the wire shape and stays separate from the domain shape |
+| R3 graph diff as expected | **PASS** | One new module, one new test module |
+| R4 untested requirements | **PASS — improved** | REQ-CONS-002, REQ-CONS-006 and REQ-CONS-011 gain model-level coverage |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| mypy: unused `type: ignore` on `Money(True, ...)` | `bool` is a subtype of `int`, so the call type-checks | Ignore removed, and the test now records that the runtime guard exists **because** the type system cannot express the rule |
+| mypy narrowed a set to a `Literal` union | The reachability loop seeded its set from a filtered iteration | Explicit annotations |
+| RUF043 on `match="confidence must be 0..1"` | `.` is a regex metacharacter | Raw string with escapes |
+
+### Mutation testing — 14 seeded, 14 killed
+
+One survived first time: out-of-range confidence on `Provenance`. The places adapter
+has the identical guard **and a test for it**, which is what made the gap invisible —
+a shared rule is not shared coverage.
+
+---
+
 ## STEP-006.02 — 2026-08-20 — Temporal model and DST-safe arithmetic
 
 | Field | Value |
