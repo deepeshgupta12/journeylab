@@ -109,6 +109,43 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-006.02 — 2026-08-20 — Temporal model and DST-safe arithmetic
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `e918c3b` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1103 Python** (up from 1080) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS — by inspection** | `RISK-017` for the migration half; one new module, one new package init, one new test module |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-007 gains DST property coverage; REQ-EVID-002 gains a schema-level test |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `elapsed_between` returned 24h for a 23-hour day | Two aware datetimes sharing a `tzinfo` subtract as **wall clock** — documented Python behaviour, invisible because both offsets are correct | Convert to UTC before subtracting. `is_dst_transition_day` had the same bug and called spring-forward an ordinary day |
+| My test asserted `+ timedelta` moves the clock | It does not: under `zoneinfo`, addition is wall-clock. **I had the asymmetry backwards** | Test rewritten to pin the real asymmetry — addition safe, subtraction not |
+| Exclusion constraint did not fire on NULL `place_id` | A NULL never conflicts in an exclusion key, so region-level facts escaped it entirely | Key coalesced. Found by the test written for the constraint |
+| `ALTER TABLE ... ADD CONSTRAINT` failed | Rows left behind by the failed test above violated the constraint being created | Cleaned and re-applied. Same shape as `.01`'s mutation-restore failure, one sub-step later |
+| mypy could not resolve `domain.temporal` | No `__init__.py`, while every sibling under `apps/api/src` is a package | Added — and noted that the opposite call was correct in STEP-005.05, where the siblings are not packages |
+
+### Mutation testing — 11 seeded, 11 killed
+
+Eight against the module and three against the deployed constraint: dropped, widened
+to all sources (which would forbid `REQ-EVID-002` conflict), and left nullable (so
+region-level facts escape).
+
+---
+
 ## STEP-006.01 — 2026-08-18 — Canonical core schema, RLS and immutability
 
 | Field | Value |

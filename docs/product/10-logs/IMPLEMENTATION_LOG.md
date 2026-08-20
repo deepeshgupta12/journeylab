@@ -60,6 +60,73 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-050 — STEP-006.02 — The DST bug, found inside the module written to prevent it
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-20 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-007, REQ-EVID-002 |
+| Blast radius | [BR-051](blast-radius/BR-051-temporal-model.md) (MEDIUM, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `e918c3b` — matched HEAD at pre-change |
+
+### What was built
+
+`apps/api/src/domain/temporal.py` — axis-named query builders and DST-safe
+arithmetic — and `db/migrations/011_temporal.sql`, which adds a generated effective
+range and a self-overlap exclusion constraint. Python 1080 → **1103**.
+
+### The constraint that would have enforced a requirement violation
+
+The obvious integrity rule is "no two facts about the same field of the same place
+may have overlapping effective windows". It is wrong here: **`REQ-EVID-002` requires
+conflicting evidence to stay visible**, and two sources disagreeing over the same
+dates is exactly that evidence. The constraint would have rejected the second
+source's fact with an error that reads like a data bug.
+
+The defensible line is narrower — *one source must not contradict itself* — so
+`source_id` is in the exclusion key and a test asserts two different sources may both
+be stored.
+
+### The bug, in the function whose job was preventing it
+
+Python subtracts two aware datetimes sharing a `tzinfo` as **wall clock**. Documented,
+and invisible: both offsets are correct. `b - a` across spring-forward returns 24
+hours where UTC says 23.
+
+The first draft of `elapsed_between` was `return end - start`. Every duration
+crossing a DST boundary would have been wrong by an hour — **in the direction that
+makes a tight itinerary look feasible**, since an hour that does not exist is handed
+to the solver as slack. `is_dst_transition_day` had it too, which is why it called
+the spring-forward day ordinary.
+
+I found it by printing a value, not by a test. The function looked correct.
+
+### Surprises
+
+**I got the asymmetry wrong twice.** My first test asserted that `+ timedelta(days=1)`
+moves 09:00 to 10:00. It does not — under `zoneinfo`, *addition* is wall-clock, so it
+lands on 09:00 exactly like the helper. Only subtraction is the trap. The test now
+pins that, and records that the equivalence is a `zoneinfo` property `pytz` does not
+share, so the helper is not deleted as redundant later.
+
+**A nullable column in an exclusion key is not in the key.** The first constraint used
+`place_id WITH =`, and a NULL never conflicts because `NULL = NULL` is unknown — so
+every region-level fact escaped it silently. The test written for the constraint is
+what found it.
+
+**Leftover rows from a failed test blocked the constraint's own re-creation** — the
+same shape as the mutation-restore failure in `.01`, one sub-step later. A test that
+fails partway leaves data, and the next `ALTER TABLE ... ADD CONSTRAINT` fails against
+it with a message about the data rather than about the test.
+
+**`__init__.py` was right here and wrong in STEP-005.05.** Every sibling under
+`apps/api/src` is a package, so `domain/` needs one; the services roots are not, which
+is why adding one there was the mistake. The rule is to match the tree you are in.
+
+---
+
 ## IMPL-049 — STEP-006.01 — Immutable is not undeletable
 
 | Field | Value |
