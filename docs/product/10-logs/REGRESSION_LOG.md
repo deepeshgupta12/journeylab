@@ -109,6 +109,43 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-006.04 — 2026-08-21 — Repositories and the unit of work
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `d869ad1` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1163 Python** (up from 1143) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS** | One new module, one new test module |
+| R4 untested requirements | **PASS — improved** | REQ-SEC-001 gains application-layer coverage to sit beside the database-level R7 |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched at the database. This sub-step adds the application-layer half |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| Ruff N818 on `ConcurrencyConflict` | Exception names carry an `Error` suffix in this repository | Renamed |
+
+### Mutation testing — 13 seeded, 13 killed
+
+Twelve died at once. The survivor flipped `set_config(..., true)` to `false`, making
+the tenant binding **connection-scoped instead of transaction-scoped** — the pooled
+connection leak R7 has tested at the database since STEP-002.01, reintroduced one
+layer up.
+
+The test asserted that `set_config` was called, not that its third argument was
+`true`. **Binding happened; binding correctly did not.** Tightened to the argument.
+
+---
+
 ## STEP-006.03 — 2026-08-20 — Domain entities and invariants
 
 | Field | Value |

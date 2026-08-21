@@ -60,6 +60,61 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-052 — STEP-006.04 — Binding happened; binding correctly did not
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-21 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-SEC-001, REQ-DATA-008 |
+| Blast radius | [BR-053](blast-radius/BR-053-repositories.md) (MEDIUM, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `d869ad1` — matched HEAD at pre-change |
+
+### What was built
+
+`apps/api/src/domain/repositories.py`: a unit of work that binds the tenant on open,
+refuses a second aggregate, writes queued events before `COMMIT`, and requires an
+expected version on every update. Python 1143 → **1163**.
+
+### The mutant that survived was the one that mattered
+
+Twelve of thirteen died immediately. The survivor flipped `set_config(..., true)` to
+`false`, which makes the binding **connection-scoped rather than transaction-scoped**
+— a pooled connection then carries one tenant's context into the next tenant's
+transaction. That is exactly the leak `test_tenant_isolation.sh` has tested at the
+database since STEP-002.01, reintroduced one layer up.
+
+My test asserted that `set_config` was called. **Binding happened; binding correctly
+did not.** "The call is there" and "the call is right" are different assertions, and
+only the mutation run distinguished them.
+
+### Tenant binding as a precondition
+
+A repository cannot be obtained outside an open unit of work, so there is no path to
+the database that skips the binding. The database is deny-by-default underneath, so
+forgetting yields *nothing found* rather than *everything found* — this layer exists
+to turn that silent emptiness into a refusal, because an empty result looks like an
+answer.
+
+The tenant is deliberately **not** repeated in the `WHERE` clause. It would work, and
+it would make every future query depend on remembering it — a second place to get the
+same thing wrong. A mutant that adds the predicate is killed by a test asserting its
+absence.
+
+### Surprises
+
+**Writing the outbox is this sub-step's job even though the table is `.06`'s.** The
+atomicity is a property of whoever owns the transaction, not of the relay. Putting
+the insert here means a rollback cannot leave a phantom event, and the test raises
+inside the block to prove it.
+
+**`ConcurrencyConflict` needed renaming.** Ruff's N818 wants an `Error` suffix, and
+the convention is worth keeping even where the name reads better without it —
+`.06`'s `CircuitOpenError` made the same trade.
+
+---
+
 ## IMPL-051 — STEP-006.03 — What the type checker cannot catch
 
 | Field | Value |

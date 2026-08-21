@@ -2,12 +2,12 @@
 sub_step_id: STEP-006.04
 parent_step: STEP-006
 title: Repository interfaces and unit-of-work boundaries
-status: NOT_STARTED
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-007, REQ-SEC-001]
-blast_radius_id: BR-043
+blast_radius_id: BR-053
 depends_on: [STEP-006.03]
-last_updated: 2026-08-05
+last_updated: 2026-08-21
 ---
 
 # STEP-006.04 — Repository interfaces and unit-of-work boundaries
@@ -28,12 +28,12 @@ Persistence sits behind repository interfaces with explicit transaction boundari
 ## 4. Pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | *(record at execution)* — run `npx gitnexus status` and confirm it matches HEAD. **Application code has been indexed since STEP-002.02**, so a `BLOCKED` result here is a real finding to investigate, not the expected default. |
-| HEAD / indexed commit | *(record at execution)* |
-| Queries run | KG-Q-015 `detect_changes()`; KG-Q-006 once symbols exist |
-| Unknown / low-confidence areas | None material |
-| Blast radius | BR-043 — scored at execution; **confidence capped while the graph is BLOCKED** |
-| Approval required? | Per blast-radius score (HIGH/CRITICAL/low-confidence ⇒ owner approval) |
+| Graph status | ✅ up to date. **NOT BLOCKED** |
+| HEAD / indexed commit | `d869ad1` — matched HEAD at pre-change |
+| Queries run | `impact` on `bind_tenant`, `RequestContext`, `TripAggregate`, grep cross-checked (`RISK-016`, eighth reproduction) |
+| Unknown / low-confidence areas | The `outbox` table is created in `.06`; this sub-step owns only the atomicity of writing to it |
+| Blast radius | **[BR-053](../../../10-logs/blast-radius/BR-053-repositories.md)** — MEDIUM, confidence MEDIUM |
+| Approval required? | No |
 
 ## 5. Implementation plan
 - [ ] Repository interfaces per aggregate
@@ -77,18 +77,19 @@ Traces carry tenant-safe correlation IDs; no PII in telemetry. Any user-facing s
 Revert this sub-step's commit; prior sub-steps stay intact and `main` stays deployable. Schema work uses expand/contract, so the expand phase is reversible.
 
 ## 12. Acceptance criteria
-- [ ] Repositories cover all aggregates
-- [ ] Transaction boundary is one aggregate
-- [ ] Tenant session bound on every operation
-- [ ] Optimistic concurrency enforced
+- [x] Repositories cover the aggregates — five, and `ItineraryItem` deliberately is not one
+- [x] Transaction boundary is one aggregate, refused structurally
+- [x] Tenant session bound on open, and a repository cannot be obtained outside it
+- [x] Optimistic concurrency enforced, with **no default** for `expected_version`
 
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
-| Commit SHA | — |
-| Pushed | — |
-| Graph re-indexed at | — |
-| `main` green and deployable | — |
-| Bugs found | — |
-| Notes / surprises | Allowing two aggregates in one transaction is how a modular monolith quietly becomes unsplittable. |
+| Completed | 2026-08-21 |
+| Commit SHA | *(this commit)* |
+| Pushed | ✅ |
+| Graph re-indexed at | post-commit |
+| `main` green and deployable | ✅ |
+| Mutation testing | **13 of 13 killed** — 12 of 13 before the binding assertion was tightened |
+| Bugs found | None in the code. One in my test, and it was the important one |
+| Notes / surprises | **The mutant that survived was the one that mattered.** Flipping `set_config(..., true)` to `false` makes the tenant binding connection-scoped instead of transaction-scoped, so a pooled connection carries one tenant's context into the next tenant's transaction — the exact leak `test_tenant_isolation.sh` has tested at the database since STEP-002.01, reintroduced one layer up. My test asserted that `set_config` was *called*. **Binding happened; binding correctly did not**, and only the mutation run could tell those apart.<br><br>**The tenant is deliberately absent from the `WHERE` clause**, and a test asserts its absence. Adding it would work and would make every future query's correctness depend on remembering it — a second place to get the same thing wrong, with RLS still there to be trusted or not.<br><br>**Writing the outbox row belongs here even though the table belongs to `.06`.** Atomicity is a property of whoever owns the transaction. The test raises inside the block and asserts no event was written, which is what makes a phantom event impossible rather than unlikely. |
