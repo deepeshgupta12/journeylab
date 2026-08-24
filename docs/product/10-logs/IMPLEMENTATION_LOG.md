@@ -60,6 +60,52 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-053 — STEP-006.05 — A guard no test could distinguish
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-24 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-007 |
+| Blast radius | [BR-054](blast-radius/BR-054-normalizers.md) (LOW, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `e25056c` — matched HEAD at pre-change |
+
+### What was built
+
+`services/ingestion/src/normalizers/`: pure payload-to-canonical functions, provenance
+stamping, batch normalization that keeps its refusals as data, and a schema version on
+every record. Python 1163 → **1185**.
+
+### Purity is a reproducibility requirement
+
+`observed_at` is an argument, not `datetime.now()`. A backfill replay that stamps
+every historical fact with today's date makes the whole corpus report as fresh — a
+defect whose only symptom is that everything looks unusually healthy.
+
+### Surprises
+
+**My own docstring failed my own structural test.** The purity check began as a
+substring search for `datetime.now`, and the module's docstring explains why
+`datetime.now()` is forbidden. A text scan cannot tell code from prose *about* code.
+Rewritten as an AST walk over `Call` nodes, which asks the question the test was
+always trying to ask.
+
+**A guard that no test could distinguish from its neighbour.** `normalize_place`
+re-checked for naive timestamps, and the adapter behind it already refuses them with
+its own test — so removing the duplicate killed no mutant. It is gone. This is the
+inverse of the rule this project usually applies: a control believed to hold and
+checked by nothing is the worst state, but a control checked twice by the same
+assertion is a line pretending to be a defence. `CanonicalFact` keeps its own check,
+because nothing sits behind that path.
+
+**A mutant re-implemented the field mapping one function deeper and walked past the
+test.** The structural check inspected `normalize_place` only; the delegation goes
+through a helper. Now both hops are checked — a narrow structural test is a test of
+the place you happened to look.
+
+---
+
 ## IMPL-052 — STEP-006.04 — Binding happened; binding correctly did not
 
 | Field | Value |

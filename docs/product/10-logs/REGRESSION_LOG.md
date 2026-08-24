@@ -109,6 +109,42 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-006.05 — 2026-08-24 — Provider-to-canonical normalizers
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `e25056c` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1185 Python** (up from 1163) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS** | One new package, one new test module |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-007 gains normalizer-level provenance coverage |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Untouched |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| The purity test failed against the module's own docstring | It was a substring scan for `datetime.now`, and the docstring explains why that call is forbidden | Rewritten as an AST walk over `Call` nodes. A text scan cannot tell code from prose about code |
+| mypy: needed a type annotation for a falsy-value list | An empty list literal in a heterogeneous tuple | `cast` |
+
+### Mutation testing — 10 seeded, 10 killed
+
+Four survived the first run. Two were **equivalent mutants of my own making**; one
+exposed a redundant guard (removing `normalize_place`'s naive-timestamp check killed
+nothing, because the adapter behind it enforces the same rule and has its own test);
+and one re-implemented the field mapping **a function deeper** than the structural
+test was looking.
+
+---
+
 ## STEP-006.04 — 2026-08-21 — Repositories and the unit of work
 
 | Field | Value |

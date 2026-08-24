@@ -2,12 +2,12 @@
 sub_step_id: STEP-006.05
 parent_step: STEP-006
 title: Provider payload to canonical entity normalizers
-status: NOT_STARTED
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-007, REQ-DATA-004]
-blast_radius_id: BR-044
+blast_radius_id: BR-054
 depends_on: [STEP-006.04]
-last_updated: 2026-08-05
+last_updated: 2026-08-24
 ---
 
 # STEP-006.05 — Provider payload to canonical entity normalizers
@@ -28,12 +28,12 @@ Validated provider payloads become canonical entities with full provenance, and 
 ## 4. Pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | *(record at execution)* — run `npx gitnexus status` and confirm it matches HEAD. **Application code has been indexed since STEP-002.02**, so a `BLOCKED` result here is a real finding to investigate, not the expected default. |
-| HEAD / indexed commit | *(record at execution)* |
-| Queries run | KG-Q-015 `detect_changes()`; KG-Q-006 once symbols exist |
-| Unknown / low-confidence areas | None material |
-| Blast radius | BR-044 — scored at execution; **confidence capped while the graph is BLOCKED** |
-| Approval required? | Per blast-radius score (HIGH/CRITICAL/low-confidence ⇒ owner approval) |
+| Graph status | ✅ up to date. **NOT BLOCKED** |
+| HEAD / indexed commit | `e25056c` — matched HEAD at pre-change |
+| Queries run | `impact` on `adapt`, `CanonicalPlace`, `ProviderRecord`, grep cross-checked (`RISK-016`, ninth reproduction) |
+| Unknown / low-confidence areas | `access_label` is hardcoded `public` — every current source is open data under `ADR-016`, and mapping it from a licence before a licensed source exists would be guessing |
+| Blast radius | **[BR-054](../../../10-logs/blast-radius/BR-054-normalizers.md)** — LOW, confidence MEDIUM |
+| Approval required? | No |
 
 ## 5. Implementation plan
 - [ ] Normalizer per provider payload type
@@ -77,18 +77,19 @@ Traces carry tenant-safe correlation IDs; no PII in telemetry. Any user-facing s
 Revert this sub-step's commit; prior sub-steps stay intact and `main` stays deployable. Schema work uses expand/contract, so the expand phase is reversible.
 
 ## 12. Acceptance criteria
-- [ ] Normalizers pure and fixture-tested
-- [ ] Provenance complete on every record
-- [ ] Unmappable input rejected with a reason
-- [ ] Schema version recorded
+- [x] Normalizers pure and fixture-tested — purity asserted by an **AST walk**, not a text scan
+- [x] Provenance complete on every record
+- [x] Unmappable input rejected with a reason, and the rejection kept as data
+- [x] Schema version recorded
 
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
-| Commit SHA | — |
-| Pushed | — |
-| Graph re-indexed at | — |
-| `main` green and deployable | — |
-| Bugs found | — |
-| Notes / surprises | Defaulting a missing field is how a venue with unknown accessibility silently becomes 'accessible' in a plan. |
+| Completed | 2026-08-24 |
+| Commit SHA | *(this commit)* |
+| Pushed | ✅ |
+| Graph re-indexed at | post-commit |
+| `main` green and deployable | ✅ |
+| Mutation testing | **10 of 10 killed** |
+| Bugs found | None. One redundant guard removed — see below |
+| Notes / surprises | **My own docstring failed my own structural test.** The purity check was a substring search for `datetime.now`, and the module's docstring explains why that call is forbidden. A text scan cannot tell code from prose *about* code; an AST walk over `Call` nodes asks the question the test was trying to ask.<br><br>**A guard no test could distinguish from its neighbour.** `normalize_place` re-checked for naive timestamps and the adapter behind it already refuses them with its own test, so removing the duplicate killed no mutant. It is gone. This is the inverse of the rule usually applied here: a control believed to hold and checked by nothing is the worst state, but a control checked twice by one assertion is a line pretending to be a defence. `CanonicalFact` keeps its own, because nothing sits behind that path.<br><br>**A mutant re-implemented the mapping one function deeper and walked past the test**, which inspected only the outer function. A narrow structural test is a test of the place you happened to look. |
