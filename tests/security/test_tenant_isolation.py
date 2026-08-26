@@ -153,6 +153,62 @@ def test_storage_vector_denies_listing_without_context(two_tenants: dict[str, uu
 # --- VECTOR 2: authorization. Tenant checked before role --------------------
 
 
+@requires_db
+def test_outbox_vector_denies_cross_tenant_read(two_tenants: dict[str, uuid.UUID]) -> None:
+    """The vector this suite has been holding open since STEP-002.06.
+
+    It was a placeholder that detected its own dependency arriving: while no outbox
+    existed it skipped, and the moment STEP-006.06 created the table it **failed**,
+    demanding this test. That is the placeholder working — a stub that cannot notice
+    the subsystem landing is just a comment.
+
+    The event stream is the isolation vector people forget, because it does not look
+    like a store. It holds one row per state change, keyed by tenant, and a consumer
+    reading another tenant's queue learns what they are planning and when.
+    """
+
+    async def scenario(cur: psycopg.AsyncCursor[tuple[object, ...]]) -> tuple[int, int]:
+        await cur.execute(
+            "INSERT INTO outbox (organization_id, event_type, order_key, correlation_id, "
+            "payload_ids) VALUES (%s, 'journey.trip.brief_confirmed.v1', 't-b', 'c', '{}')",
+            (str(ORG_B),),
+        )
+        await cur.execute("SET ROLE journeylab_app")
+        await bind_tenant(cur, RequestContext(actor_id=two_tenants["a"], organization_id=ORG_A))
+        await cur.execute("SELECT count(*) FROM outbox")
+        visible = int(str((await cur.fetchone() or (0,))[0]))
+        await cur.execute("SELECT count(*) FROM outbox WHERE organization_id = %s", (str(ORG_B),))
+        named = int(str((await cur.fetchone() or (0,))[0]))
+        return visible, named
+
+    visible, named = run(scenario)
+    assert named == 0, "tenant A read tenant B's event queue by naming it"
+    assert visible == 0, "tenant A saw events it did not produce"
+
+
+@requires_db
+def test_outbox_vector_refuses_writing_an_event_for_another_tenant() -> None:
+    """`WITH CHECK`, not just `USING`. A policy that filters reads and permits writes
+    lets one tenant inject an event into another's stream — where a consumer will
+    process it under that tenant's authority."""
+
+    async def scenario(cur: psycopg.AsyncCursor[tuple[object, ...]]) -> str:
+        await cur.execute("SET ROLE journeylab_app")
+        await bind_tenant(cur, RequestContext(actor_id=uuid.uuid4(), organization_id=ORG_A))
+        try:
+            await cur.execute(
+                "INSERT INTO outbox (organization_id, event_type, order_key, "
+                "correlation_id, payload_ids) "
+                "VALUES (%s, 'journey.trip.brief_confirmed.v1', 't', 'c', '{}')",
+                (str(ORG_B),),
+            )
+        except psycopg.errors.InsufficientPrivilege:
+            return "denied"
+        return "written"
+
+    assert run(scenario) == "denied", "tenant A wrote an event into tenant B's stream"
+
+
 def test_authorization_vector_denies_foreign_resource() -> None:
     context = RequestContext(actor_id=uuid.uuid4(), organization_id=ORG_A)
     decision = authorize(
@@ -311,12 +367,6 @@ PENDING_VECTORS: list[tuple[str, Callable[[], bool], str]] = [
         lambda: _code_matches(r"import\s+redis|from\s+redis|redis\.|valkey\.|cache_get|cache_set"),
         "REQ-SEC-002 requires a cache key collision to be unable to serve foreign "
         "data. No cache layer exists yet (arrives with STEP-010 retrieval).",
-    ),
-    (
-        "outbox / events",
-        lambda: _table_exists("outbox") or _code_matches(r"publish_event|outbox_writer"),
-        "stamp_envelope exists but nothing consumes it. The enforcing test — an "
-        "outbox refusing an unstamped or foreign-tenant envelope — belongs to STEP-006.",
     ),
     (
         "export",

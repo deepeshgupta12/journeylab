@@ -75,14 +75,14 @@ exclude = ["^\\.gitnexus/", "^docs/"]
 # STEP-002.02: src layout. The sub-step file names the path apps/api/src/auth/,
 # so the package is `auth` rather than a namespaced one. Kept literal to match the
 # documentation; revisit if a second service ever wants the same top-level name.
-mypy_path = "apps/api/src:services/identity/src:services/audit/src:services/integrations/src:services/ingestion/src:services/routing/src:tools"
+mypy_path = "apps/api/src:services/identity/src:services/audit/src:services/integrations/src:services/ingestion/src:services/events/src:services/routing/src:tools"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # `tests` is on the path so the five copies of the database-availability check
 # could become one (STEP-001.07, BUG-023). Without it each test module would
 # have to reach for a relative import, which is what produced the copies.
-pythonpath = ["apps/api/src", "services/identity/src", "services/audit/src", "services/integrations/src", "services/ingestion/src", "services/routing/src", "tools", "tests"]
+pythonpath = ["apps/api/src", "services/identity/src", "services/audit/src", "services/integrations/src", "services/ingestion/src", "services/events/src", "services/routing/src", "tools", "tests"]
 asyncio_mode = "strict"
 addopts = "-q --strict-markers --strict-config"
 markers = [

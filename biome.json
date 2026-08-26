@@ -16,7 +16,8 @@
       "!**/node_modules",
       "!**/.gitnexus",
       "!**/next-env.d.ts",
-      "!**/.next"
+      "!**/.next",
+      "!**/.claude/settings.local.json"
     ]
   },
   "formatter": {

@@ -60,6 +60,71 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-054 — STEP-006.06 — A retry cap protects against poison, not against an outage
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-26 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-008, REQ-NFR-005, REQ-SEC-001 |
+| Blast radius | [BR-055](blast-radius/BR-055-outbox.md) (MEDIUM, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `96670a8` — matched HEAD at pre-change |
+
+### What was built
+
+`db/migrations/012_outbox.sql` and `services/events/src/outbox.py`: the outbox table
+with RLS and a relay-only role, a relay with capped backoff, an outage-aware
+dead-letter policy, and lag measured from the fact rather than the attempt. Python
+1185 → **1212**.
+
+### The decision that shapes the module
+
+The obvious relay counts attempts per message and dead-letters at five. Then the
+broker goes down for twenty minutes: every message fails, every message burns its
+attempts inside a couple of minutes of backoff, and **the whole backlog lands in the
+dead-letter queue** — replayed by hand, ordering lost, after an outage that resolved
+itself.
+
+Poison and outage are indistinguishable one message at a time and need opposite
+responses. So the dead-letter decision takes the **batch outcome**: nothing is
+dead-lettered while nothing is getting through. A message becomes poison only once it
+can be seen failing while its neighbours succeed — which is why the relay runs two
+passes, since a single pass must decide the first message's fate before knowing
+whether the second one works.
+
+### Lag, and the convenient clock again
+
+A relay that died an hour ago has zero time since its last attempt. That metric reads
+healthiest exactly when it is most wrong, so lag is measured from `occurred_at` and
+grows on its own with nothing running.
+
+**Third occurrence of this shape**: freshness from ingestion time (`BUG-026`),
+staleness stored rather than computed (`.08`), and now relay lag. The convenient
+clock is the one that hides the failure, and it is convenient precisely because it is
+the one the failing component still has.
+
+### Surprises
+
+**A test written four steps ago failed on purpose today.** `test_pending_vector_is_
+still_absent[outbox / events]` had skipped since STEP-002.06 with its reason stated;
+the moment migration `012` created the table it went red, demanding the real
+isolation test it had been holding a place for. That construction — a placeholder
+that detects its own dependency arriving — is the reason it was written that way, and
+this is the first time one has fired.
+
+Two real tests replaced it, and both were checked for detection power by weakening
+the policy to `USING (true)` and confirming they fail. The write-side one matters
+most: `WITH CHECK` rather than only `USING`, because a policy that filters reads and
+permits writes lets one tenant inject an event into another's stream, where a
+consumer processes it under that tenant's authority.
+
+**The application has no `UPDATE` grant on the outbox.** A producer that can set
+`status` can mark its own event published without sending it, and the relay would
+never look at it again.
+
+---
+
 ## IMPL-053 — STEP-006.05 — A guard no test could distinguish
 
 | Field | Value |

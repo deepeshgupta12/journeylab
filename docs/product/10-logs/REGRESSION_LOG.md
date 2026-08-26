@@ -109,6 +109,42 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-006.06 — 2026-08-26 — Transactional outbox and relay
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `96670a8` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1212 Python** (up from 1185) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | `Envelope` implemented as declared; AsyncAPI unchanged |
+| R3 graph diff as expected | **PASS — by inspection** | `RISK-017` for the migration. One new service package, one new migration, two new test modules, one modified |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-008 and REQ-NFR-005 newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 20/20 in pytest, 18/18 at the database** | **A pending vector closed.** The outbox placeholder from STEP-002.06 fired and was replaced by two real tests, both proven to fail against a weakened policy |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `test_pending_vector_is_still_absent[outbox / events]` failed | **By design.** It had skipped since STEP-002.06 and detects its own dependency arriving; migration `012` created the table | Replaced with two real isolation tests — cross-tenant read and cross-tenant write. First time one of these placeholders has fired |
+| mypy: `Returning Any` from `backoff_for` | `timedelta * int` widens | Explicit annotation |
+| `pnpm verify` failed on `.claude/settings.local.json` | Agent tooling writes that file locally. It is ignored through a **global** git ignore file, and biome's `useIgnoreFile` reads the repository's `.gitignore` only — so the formatter gate went red for a file the repository does not track | Excluded in `biome.json`. Worth noting as a repository defect rather than a session artefact: any developer whose tools write local settings would have hit it |
+
+### Mutation testing — 16 seeded, 16 killed
+
+Thirteen against the relay and three against the deployed schema: event-type shape
+check dropped, dead-letter reason no longer required, and `UPDATE` granted to the
+application role — which would let a producer mark its own event delivered without
+sending it.
+
+---
+
 ## STEP-006.05 — 2026-08-24 — Provider-to-canonical normalizers
 
 | Field | Value |
