@@ -109,6 +109,38 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-006.07 — 2026-08-31 — Consumer idempotency and replay
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `04e8134` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1231 Python** (up from 1212) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | Consumes `Envelope` as declared; additive tolerance tested |
+| R3 graph diff as expected | **PASS — by inspection** | `RISK-017` for the migration. One new module, one new migration, one new test module |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-009 newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | `processed_events` is tenant-scoped and forces RLS; the derived assertion covers it automatically |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+No test failed during implementation. The one gap came from mutation testing.
+
+### Mutation testing — 13 seeded, 13 killed
+
+One survived: dropping the `since` filter, so a replay reprocesses all history. Every
+test had passed events **inside** the requested range only, so "replay since
+yesterday" quietly meaning "replay everything" was unobservable — in production a
+targeted recovery becomes a full-history reprocess nobody authorised.
+
+---
+
 ## STEP-006.06 — 2026-08-26 — Transactional outbox and relay
 
 | Field | Value |

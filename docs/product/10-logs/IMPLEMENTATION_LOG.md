@@ -60,6 +60,64 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-055 — STEP-006.07 — Pruning reopens the window the table exists to close
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-08-31 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-009 |
+| Blast radius | [BR-056](blast-radius/BR-056-consumer-idempotency.md) (MEDIUM, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `04e8134` — matched HEAD at pre-change |
+
+### What was built
+
+`db/migrations/013_consumer_idempotency.sql` and `services/events/src/consumers.py`:
+processed-event records keyed per consumer, a prune horizon that a replay refuses to
+cross, per-key ordering with a deterministic tiebreak, and additive wire tolerance.
+Python 1212 → **1231**.
+
+### The constraint neither policy can see
+
+The processed-event table grows forever, so it must be pruned. An event older than
+the prune horizon has no record, so replaying it applies the effect again with nothing
+left to stop it. **The prune horizon and the maximum replay depth are one constraint
+wearing two names** — normally set by two different people, at two different times,
+for two unrelated reasons: storage cost and operational recovery.
+
+`replay` refuses to cross the horizon and names both dates in the refusal. Without
+that, the replay succeeds and the duplicated effects appear downstream long
+afterwards, with nothing connecting them back to a maintenance job that ran a month
+earlier.
+
+### The ordering that decides whether a retry ever happens
+
+Record-then-effect and effect-then-record are both wrong alone, and they fail
+differently: the first loses the effect permanently, because the record says it
+already happened; the second duplicates it. **A duplicate is visible and a silent
+omission is not**, so the record is written only after the handler returns — tested
+with a handler that fails once and then succeeds.
+
+### Surprises
+
+**A naturally idempotent consumer is not just cheaper, it is unconstrained.** It keeps
+no records, so the prune horizon does not apply to it and it can replay from any
+point. That turned out to be the strongest practical argument for preferring
+idempotent effects, and it only became visible once the horizon existed.
+
+**The surviving mutant made "replay since yesterday" mean "replay everything".** Every
+test had passed events inside the requested range only, so dropping the range filter
+changed nothing observable — while in production it would turn a targeted recovery
+into a full-history reprocess the operator never authorised.
+
+**`consumer_prune_horizon` deliberately has no tenant column.** One consumer prunes
+once across all tenants, so it is operational state rather than tenant data. Recorded
+in `BR-056` §7 because a new table without `organization_id` should be a decision
+somebody made, not something a reviewer has to notice.
+
+---
+
 ## IMPL-054 — STEP-006.06 — A retry cap protects against poison, not against an outage
 
 | Field | Value |

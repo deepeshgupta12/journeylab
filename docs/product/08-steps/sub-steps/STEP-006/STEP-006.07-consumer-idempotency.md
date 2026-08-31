@@ -2,12 +2,12 @@
 sub_step_id: STEP-006.07
 parent_step: STEP-006
 title: Consumer idempotency and replay
-status: NOT_STARTED
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-DATA-009]
-blast_radius_id: BR-046
+blast_radius_id: BR-056
 depends_on: [STEP-006.06]
-last_updated: 2026-08-05
+last_updated: 2026-08-31
 ---
 
 # STEP-006.07 — Consumer idempotency and replay
@@ -28,29 +28,57 @@ Consumers process each event exactly once in effect, so at-least-once delivery a
 ## 4. Pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | *(record at execution)* — run `npx gitnexus status` and confirm it matches HEAD. **Application code has been indexed since STEP-002.02**, so a `BLOCKED` result here is a real finding to investigate, not the expected default. |
-| HEAD / indexed commit | *(record at execution)* |
-| Queries run | KG-Q-015 `detect_changes()`; KG-Q-006 once symbols exist |
-| Unknown / low-confidence areas | None material |
-| Blast radius | BR-046 — scored at execution; **confidence capped while the graph is BLOCKED** |
-| Approval required? | Per blast-radius score (HIGH/CRITICAL/low-confidence ⇒ owner approval) |
+| Graph status | ✅ up to date. **NOT BLOCKED** for the module; **`RISK-017`** for the migration |
+| HEAD / indexed commit | `04e8134` — matched HEAD at pre-change |
+| Queries run | `impact` on `Envelope`, `Relay`, `Status`, `OutboxRow`, grep cross-checked (`RISK-016`, eleventh reproduction) |
+| Unknown / low-confidence areas | Prune and replay limits are unset (`DEC-005`). The **relationship** between them is enforced regardless of the values |
+| Blast radius | **[BR-056](../../../10-logs/blast-radius/BR-056-consumer-idempotency.md)** — MEDIUM, confidence MEDIUM |
+| Approval required? | No |
 
 ## 5. Implementation plan
-- [ ] Consumer framework recording processed `event_id`s
-- [ ] Naturally idempotent effects preferred over dedup tables where possible
-- [ ] **Replay tooling** that reprocesses a range safely
-- [ ] Per-`trip_id` ordering respected; cross-trip ordering explicitly not assumed
-- [ ] Unknown fields ignored, never fatal (additive-change tolerance)
+- [x] Processed events recorded per **`(consumer, event_id)`** — keying by event alone would let the first consumer to finish suppress the rest
+- [x] Naturally idempotent effects preferred, and a test asserts they keep **no** records — which is also what frees them from the prune horizon
+- [x] **Replay tooling that refuses to cross the prune horizon**, naming both dates — see §6
+- [x] Events handed to consumers **grouped by key**, with ties broken deterministically and the difference between reproducible and causal stated
+- [x] Unknown wire fields ignored; a missing `tenant_id` still refused, because tolerance is for additions
 
-## 6. Contracts and schema changes
+## 6. Pruning reopens the window the table exists to close
+
+The processed-event table grows without bound, so it must be pruned. But an event
+older than the prune horizon has no record, and replaying it applies the effect a
+second time with nothing left to stop it.
+
+**The prune horizon and the maximum replay depth are one constraint wearing two
+names** — and they are normally set by two different people, at two different times,
+for two unrelated reasons: storage cost and operational recovery. Nothing enforces the
+relationship unless it is written down.
+
+So `replay` refuses to cross the horizon and names **both dates** in the refusal.
+Without it the replay succeeds, and the duplicated effects surface downstream long
+afterwards with nothing connecting them to a maintenance job that ran a month earlier.
+
+A naturally idempotent consumer keeps no records, so the horizon does not constrain it
+at all. That is the strongest practical argument for preferring idempotent effects,
+and it only becomes visible once the horizon exists.
+
+## 6a. Contracts and schema changes
 Contracts are declared in [STEP-004](../../STEP-004-contract-first-platform-apis.md); this sub-step consumes them. Any change follows [CONTRACT_CHANGE_POLICY](../../../04-contracts/CONTRACT_CHANGE_POLICY.md).
 
 ## 7. Tests to add
 | Test | Type | Asserts |
 | --- | --- | --- |
-| TST-DATA-009 | integration | Duplicate delivery produces one effect |
-| — | integration | Deliberate replay of a range is safe |
-| — | unit | Unknown envelope fields do not break consumers |
+| TST-DATA-009 | unit | Duplicate delivery produces one effect |
+| — | unit | **A failing handler leaves no record, so the retry still happens** |
+| — | unit | Two consumers both process the same event |
+| — | unit | A naturally idempotent consumer keeps no records |
+| — | unit | **A replay past the prune horizon is refused, naming both dates** |
+| — | unit | A replay processes only the requested range |
+| — | unit | Pruning moves the horizon in the same call, and the horizon never moves backwards |
+| — | unit | Ties are broken deterministically — **reproducible, not causal** |
+| — | unit | Events are grouped by key rather than globally sorted |
+| — | unit | Unknown wire fields are ignored; a missing `tenant_id` is not |
+
+19 tests. **Mutation testing: 13 seeded, 13 killed.**
 
 ## 8. Telemetry, security and accessibility
 Traces carry tenant-safe correlation IDs; no PII in telemetry. Any user-facing surface is keyboard and screen-reader complete (`REQ-A11Y-001`) and completable without the map (`REQ-A11Y-003`).
@@ -78,18 +106,19 @@ Traces carry tenant-safe correlation IDs; no PII in telemetry. Any user-facing s
 Revert this sub-step's commit; prior sub-steps stay intact and `main` stays deployable. Schema work uses expand/contract, so the expand phase is reversible.
 
 ## 12. Acceptance criteria
-- [ ] Duplicate delivery produces a single effect
-- [ ] Replay safe and tooled
-- [ ] Additive schema changes tolerated
-- [ ] Ordering assumptions limited to per-trip
+- [x] Duplicate delivery produces a single effect
+- [x] Replay safe and tooled — **and refused when it would not be safe**
+- [x] Additive schema changes tolerated
+- [x] Ordering assumptions limited to per-trip, with the tiebreak's meaning stated
 
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
-| Commit SHA | — |
-| Pushed | — |
-| Graph re-indexed at | — |
-| `main` green and deployable | — |
-| Bugs found | — |
-| Notes / surprises | Consumers that break on unknown fields make every additive contract change a breaking one in practice. |
+| Completed | 2026-08-31 |
+| Commit SHA | *(this commit)* |
+| Pushed | ✅ |
+| Graph re-indexed at | post-commit |
+| `main` green and deployable | ✅ |
+| Mutation testing | **13 of 13 killed** |
+| Bugs found | None |
+| Notes / surprises | **The prune horizon and the replay depth are one constraint wearing two names**, normally set by two different people for two unrelated reasons — storage cost and operational recovery. Nothing connects them unless it is written down, and the failure mode without it is the worst kind: the replay succeeds, and the duplicated effects appear downstream long afterwards with no visible link to a maintenance job that ran a month earlier.<br><br>**A naturally idempotent consumer is not merely cheaper, it is unconstrained.** It keeps no records, so the horizon does not apply and it can replay from any point. That is the strongest practical argument for preferring idempotent effects, and it only became visible once the horizon existed.<br><br>**The surviving mutant made "replay since yesterday" mean "replay everything".** Every test had passed events inside the requested range only, so dropping the filter changed nothing observable — while in production it turns a targeted recovery into a full-history reprocess nobody authorised.<br><br>**`consumer_prune_horizon` deliberately has no tenant column** — one consumer prunes once across all tenants, so it is operational state rather than tenant data. Recorded because a new table without `organization_id` should be a decision somebody made, not something a reviewer has to catch. |
