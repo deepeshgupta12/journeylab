@@ -1,7 +1,7 @@
 ---
 step_id: STEP-006
 title: Canonical data model and event backbone
-status: IN_PROGRESS
+status: VERIFIED
 release: Phase 1
 owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-005]
@@ -109,7 +109,7 @@ Eight-step fan-out and a schema foundation. Migration errors are **low reversibi
 | STEP-006.06 | Transactional outbox publisher with idempotency | — ✅ **VERIFIED** 2026-08-26 (BR-055, IMPL-054; closes an R7 pending vector)
 | STEP-006.07 | Consumer idempotency and replay | — ✅ **VERIFIED** 2026-08-31 (BR-056, IMPL-055)
 | STEP-006.08 | Data-quality expectations and quarantine | — ✅ **VERIFIED** 2026-09-03 (BR-057, IMPL-056)
-| STEP-006.09 | Read-model projection and rebuild proof |
+| STEP-006.09 | Read-model projection and rebuild proof | — ✅ **VERIFIED** 2026-09-03 (BR-058, IMPL-057)
 
 ## 22. Test and evaluation plan
 `TST-DATA-007` … `TST-DATA-010`, `TST-SEC-001`. **Property-based tests over the temporal model** — including DST transitions and seasonal effective windows — are mandatory, since this is the defect class most likely to reach production unnoticed.
@@ -121,12 +121,12 @@ Expand/migrate/contract. Outbox publisher deploys before producers so no event i
 Expand-phase migrations revert cleanly. **Contract-phase migrations do not** — they run only after the rollout window closes and the code graph confirms no reader remains. Read models rebuild from the log; the log itself is the recovery boundary.
 
 ## 25. Acceptance criteria
-- [ ] Canonical records retain source, observed time, effective time, schema version (`REQ-DATA-007`)
-- [ ] Events publish via transactional outbox in the same transaction (`REQ-DATA-008`)
-- [ ] Replaying an event produces no duplicate effect (`REQ-DATA-009`)
-- [ ] Read models rebuild from the event log (`REQ-DATA-010`)
-- [ ] Every row, event and cache key carries a tenant ID (`REQ-SEC-001`)
-- [ ] Immutable entities cannot be updated in place
+- [x] Canonical records retain source, observed time, effective time, schema version (`REQ-DATA-007`) — .01, .02, .05
+- [x] Events publish via transactional outbox in the same transaction (`REQ-DATA-008`) — .04, .06
+- [x] Replaying an event produces no duplicate effect (`REQ-DATA-009`) — .07
+- [x] Read models rebuild from the event log (`REQ-DATA-010`) — .09, proved by dropping and rebuilding
+- [x] Every row and event carries a tenant ID (`REQ-SEC-001`) — .01, .06. **No cache layer exists yet**, so the cache-key clause is untested and remains a pending R7 vector
+- [x] Immutable entities cannot be updated in place — .01, enforced by trigger and revoked grant
 
 ## 26. Evidence required for completion
 Migration rehearsal timing; outbox atomicity test; replay test output; read-model rebuild proof; temporal property-test results.

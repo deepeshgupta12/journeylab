@@ -60,6 +60,58 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-057 — STEP-006.09 — Replay and rebuild are opposites
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-09-03 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-010, REQ-EVID-006 |
+| Blast radius | [BR-058](blast-radius/BR-058-read-models.md) (MEDIUM, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `8c501ce` — matched HEAD at pre-change |
+
+### What was built
+
+`services/events/src/projections.py` and `db/migrations/015_read_models.sql`: a
+projection framework, the coverage read model, a rebuild that resets before folding,
+and verification that compares rather than completes. Python 1258 → **1281**.
+**STEP-006 closes at 9/9.**
+
+### The inversion
+
+`.07` spent its whole effort ensuring a replayed event does **not** re-apply its
+effect. This needs the reverse: a rebuild re-applies every event into an empty
+projection.
+
+Route a rebuild through an idempotent consumer and every event is already in the
+processed log, so all of them are skipped. **The rebuild succeeds and raises
+nothing.** The read model is reconstructed from whatever was left, and the result
+looks like missing data rather than a broken repair.
+
+The two paths share an event stream and nothing else, and the reason they must not
+share a mechanism is that their correctness conditions contradict each other.
+
+### Surprises
+
+**A checker that no test could distinguish from `return True`.**
+`reads_only_its_arguments` was only ever asserted to pass, so replacing its entire
+body with `True` killed no mutant. A one-sided assertion on a detector is worth
+nothing — the same lesson as the axe negative control, and as `BR-029` §3. It now has
+a seeded impure module it must reject.
+
+**One survivor was an equivalent mutant of my own making**, for the second time in
+three sub-steps: I filtered the log by `last_event_id`, which `rebuild` has just set
+to `None`. A mutant that cannot change behaviour teaches nothing about the tests.
+
+**The mutation restore failed for the third time in this step, and the diagnosis
+finally landed.** `.01` and `.08` both cleaned up by guessing which org slugs the
+tests had inserted; this one used a slug I had not guessed. Keying the cleanup on the
+**table the constraint belongs to** is the version that cannot go stale. Three
+occurrences to find a fix that was available at the first.
+
+---
+
 ## IMPL-056 — STEP-006.08 — The vacuous pass, written into the module about vacuous passes
 
 | Field | Value |

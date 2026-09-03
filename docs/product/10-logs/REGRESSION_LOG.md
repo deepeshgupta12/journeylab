@@ -109,6 +109,45 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-006.09 — 2026-09-03 — Read-model projection and rebuild
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `8c501ce` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1281 Python** (up from 1258) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | Serves `Coverage` / `CoverageRegion` as declared; nothing changed |
+| R3 graph diff as expected | **PASS — by inspection** | `RISK-017`. One new module, one new migration, one new test module |
+| R4 untested requirements | **PASS — improved** | REQ-DATA-010 newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | Both new tables force RLS; the derived assertion covers them |
+
+**Overall:** PASS — and **STEP-006 closes at 9/9**.
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| mypy: two dicts needed annotations | `dict(cur.fetchall())` is untyped | Annotated |
+| Mutation restore left the constraint dropped — **third time this step** | Cleanup deleted a hardcoded org slug and the new test used another | Cleanup now targets the **table the constraint belongs to**, which cannot go stale. `.01` and `.08` both guessed at slugs |
+
+### Mutation testing — 15 seeded, 15 killed
+
+Three survived the first run:
+
+- **A checker no test could distinguish from `return True`.** `reads_only_its_arguments`
+  was only ever asserted to pass, so replacing its body with `True` killed nothing. It
+  now has a seeded impure module it must reject.
+- **A database constraint with no test behind it** — the freshness vocabulary. Every
+  test wrote through the projection, which is the layer a future writer bypasses.
+- **An equivalent mutant of my own making**, for the second time in three sub-steps.
+
+---
+
 ## STEP-006.08 — 2026-09-03 — Data-quality expectations and quarantine
 
 | Field | Value |
