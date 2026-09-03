@@ -109,6 +109,48 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## STEP-006.08 — 2026-09-03 — Data-quality expectations and quarantine
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `7299ef1` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1258 Python** (up from 1231) + 63 web + 307 UI + 40 browser |
+| R2 contract compatibility | **PASS** | No contract touched |
+| R3 graph diff as expected | **PASS — by inspection** | `RISK-017`. One new module, one new migration, one YAML, one new test module |
+| R4 untested requirements | **PASS — improved** | REQ-NFR-012 newly covered |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…027; meta-suite 72/72 |
+| R7 tenant isolation | **PASS — 18/18** | `quarantined_batches` forces RLS; the derived assertion covers it |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| **Drift reported a pass without measuring drift** | `_distribution_drift` returned `PASSED` whenever a baseline field was present. Every test asserted the verdict for one input; none asserted a drifted batch differed. **Found by external review** | Compares the batch mean against the baseline in standard deviations. Four tests, including the sub-threshold boundary |
+| **The quarantine reached nobody** | Entries lived in a list for one batch run; the table was never written. Every test passed because every test used the class. **Found by external review** | `QuarantineStore` port with a PostgreSQL implementation; `persisted` reports when nothing was stored |
+| Stale summary headers | `CLAUDE.md` said "0% — no application code exists" and `IMPLEMENTATION_LOG` said "no entries yet", both contradicting the records beneath them. **Found by external review** | Corrected against measured values — 47 verified sub-steps, 210 documents |
+| Mutation restore left the schema weakened | A mutant permitting a write leaves rows that trip the constraint's re-creation — **the same failure as `.01`**, whose lesson I did not carry into this harness | Cleanup folded into the restore |
+| RUF001 on the sigma character | An ambiguous Greek letter in a user-visible string | Spelled out |
+
+### Mutation testing — 14 seeded, 14 killed
+
+Two survived the first run, both **database constraints with no test behind them**:
+releasing a blocking row, and a quarantine row with no detail. The suite exercised the
+class and nothing wrote to the table.
+
+**What mutation testing could not find** is the more useful observation: a mutant
+proves a test notices a *change*, so it cannot notice a function that was already
+inert (drift) or a persistence path never exercised (quarantine). Both required a
+reader asking what the code actually does.
+
+---
+
 ## STEP-006.07 — 2026-08-31 — Consumer idempotency and replay
 
 | Field | Value |

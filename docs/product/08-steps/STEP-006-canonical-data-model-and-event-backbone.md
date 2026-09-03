@@ -108,7 +108,7 @@ Eight-step fan-out and a schema foundation. Migration errors are **low reversibi
 | STEP-006.05 | Provider→canonical normalizers | — ✅ **VERIFIED** 2026-08-24 (BR-054, IMPL-053)
 | STEP-006.06 | Transactional outbox publisher with idempotency | — ✅ **VERIFIED** 2026-08-26 (BR-055, IMPL-054; closes an R7 pending vector)
 | STEP-006.07 | Consumer idempotency and replay | — ✅ **VERIFIED** 2026-08-31 (BR-056, IMPL-055)
-| STEP-006.08 | Data-quality expectations and quarantine |
+| STEP-006.08 | Data-quality expectations and quarantine | — ✅ **VERIFIED** 2026-09-03 (BR-057, IMPL-056)
 | STEP-006.09 | Read-model projection and rebuild proof |
 
 ## 22. Test and evaluation plan

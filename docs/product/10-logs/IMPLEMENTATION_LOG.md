@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Owner | Implementing engineer per entry |
-| Status | `READY` — **no entries yet; no implementation has occurred** |
+| Status | `ACTIVE` — IMPL-001…055 recorded. The header said "no entries yet" until 2026-09-03, contradicting every entry beneath it; external review caught it |
 | Cadence | One entry per sub-step, written in the same commit as the work |
 | Last reviewed | 2026-08-05 |
 
@@ -59,6 +59,61 @@ expensive knowledge lives.
 ---
 
 ## Entries
+
+## IMPL-056 — STEP-006.08 — The vacuous pass, written into the module about vacuous passes
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-09-03 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-DATA-005, REQ-NFR-012 |
+| Blast radius | [BR-057](blast-radius/BR-057-data-quality.md) (MEDIUM, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Graph indexed commit | `7299ef1` — matched HEAD at pre-change |
+
+### What was built
+
+`data/quality/domain_expectations.yml`, `services/ingestion/src/quality.py` and
+`db/migrations/014_data_quality.sql`: six expectation classes, a runner that refuses
+to report a pass it did not earn, sigma-based drift, and a quarantine a curator can
+query. Python 1231 → **1258**.
+
+### Two defects found by external review, not by this suite
+
+**Drift reported a pass without measuring drift.** `_distribution_drift` returned
+`PASSED` whenever a `baseline_mean` field was merely present. The one check whose
+entire job is noticing a distribution move could not notice a distribution moving —
+and it sat in a module whose docstring opens with "a suite that ran nothing must not
+report a pass".
+
+Every test asserted the verdict for one input and none asserted that a *drifted*
+batch produced a different one. Fourteen mutants passed over it, because no mutant
+targets a function that already does nothing. Fixing it broke the "clean batch" test,
+whose fixture had a baseline and no observation — it had been passing on exactly the
+vacuousness that hid the defect.
+
+**The quarantine reached nobody.** §5 requires "visible to curators, not just
+logged", and `Quarantine` held entries in a list that lived for one batch run while
+the table it was written against went untouched. Every test passed, because every
+test exercised the class.
+
+### Surprises
+
+**I wrote the failure I was warning about, in the module warning about it.** The
+distance between stating a principle and applying it is apparently not zero even when
+the statement is three paragraphs above the code.
+
+**Mutation testing did not catch either one**, and the reason is worth keeping: a
+mutant proves a test notices a *change*. It cannot notice a function that was already
+inert, or a persistence path that was never exercised. Both survivors it *did* find
+were database constraints with no test behind them — the same blind spot from the
+other end.
+
+**The mutation restore failed exactly as it did in `.01`.** A mutant that permits a
+write leaves rows that trip the constraint's own re-creation. I recorded that lesson
+in `BR-050` §7 and did not carry it into this harness.
+
+---
 
 ## IMPL-055 — STEP-006.07 — Pruning reopens the window the table exists to close
 

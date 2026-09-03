@@ -1,0 +1,49 @@
+# Executable data-quality expectations — STEP-006.08 (REQ-DATA-005, REQ-NFR-012)
+#
+# WHY THIS IS A FILE AND NOT A FUNCTION
+#   The expectations are the specification of what "good data" means here, and a
+#   curator has to be able to read and argue with them without reading Python. The
+#   runner in `services/ingestion/src/quality.py` reads this file, and a class named
+#   here with no implementation is a **failure**, not a skip — see `run_suite`.
+#
+# THE SIXTH CLASS HAS NO BASELINE AND SAYS SO
+#   Distribution drift needs a previous distribution to drift from, and no provider
+#   corpus has been fetched. Rather than invent a threshold, the runner reports
+#   `unavailable` for drift until a baseline is recorded. An expectation that cannot
+#   run must not report a pass.
+
+version: 1
+
+expectations:
+  - id: schema
+    description: Every record carries the fields its contract marks required.
+    severity: quarantine
+
+  - id: freshness
+    description: >
+      No fact in the batch is past its field-class threshold at ingestion time.
+      Uses STEP-005.08's registry rather than a second set of numbers.
+    severity: quarantine
+
+  - id: completeness
+    description: >
+      The batch is not materially smaller than the source claimed. Reuses
+      STEP-005.09's reconciliation rather than counting twice.
+    severity: quarantine
+
+  - id: uniqueness
+    description: No two records in the batch share a provider identity.
+    severity: quarantine
+
+  - id: referential_integrity
+    description: >
+      Every itinerary item references a resolved location. REQ-NFR-012 calls this a
+      hard block, so it is the one class a curator cannot release.
+    severity: block
+
+  - id: distribution_drift
+    description: >
+      Price and duration distributions have not moved beyond the recorded baseline.
+      Reports `unavailable` while no baseline exists, because a drift check with
+      nothing to compare against is not a passing drift check.
+    severity: quarantine

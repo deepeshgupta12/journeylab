@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (8020 symbols, 11933 relationships, 66 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (9315 symbols, 14264 relationships, 72 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -57,8 +57,8 @@ This file is the condensed operating contract for anyone changing this repositor
 | Product | **JourneyLab** — a trip digital twin for comparing feasible futures before and during travel |
 | Target release | Phase 1 MVP — one region, 3–7 day trips, deep-link handoff |
 | Repository | `https://github.com/deepeshgupta12/journeylab.git` |
-| Implementation status | **0%** — documentation only; no application code exists |
-| Documentation | **147 files** across 10 groups — [start here](docs/product/00-START-HERE.md) |
+| Implementation status | **STEP-001…005 `VERIFIED`, STEP-006 in progress** — 47 sub-steps verified, 1231 Python tests. Platform foundation: identity, tenancy, contracts, integrations, canonical model, event backbone. **Product flows are still ahead** — no FastAPI route handler serves a product operation yet (`BLK-002`) |
+| Documentation | **210 files** across 10 groups — [start here](docs/product/00-START-HERE.md) |
 | Last reviewed | 2026-08-05 |
 
 ---
