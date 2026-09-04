@@ -46,6 +46,88 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-032 — `.gitignore` silently excluded a page from its own commit
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — the commit was incomplete and looked complete. Local verification was green, and the defect existed only in the repository |
+| Found during | STEP-007.02 close-out, **by CI**, as a 404 |
+| Date found | 2026-09-04 |
+| Affected requirements | Process — every local gate |
+
+### Symptom
+
+CI red with `<h1 class="next-error-h1">404</h1>` on every coverage-page test. The
+route was absent from CI's build manifest and present in mine:
+
+```
+local:  ├ ƒ /coverage
+CI:     (not listed)
+```
+
+### Root cause
+
+`.gitignore` line 26:
+
+```gitignore
+# Test and coverage output
+coverage/
+```
+
+**An unanchored directory pattern matches at every depth.** It was written for test
+output and also matched `apps/web/src/app/coverage/` — a Next.js route directory.
+
+### Why every local check passed
+
+This is the part worth keeping. The files existed on disk, so:
+
+- `pnpm build` included the page and printed `ƒ /coverage`;
+- all 56 browser tests passed, against a page built from untracked files;
+- `pnpm verify` was green end to end;
+- `git add -A` skipped them **silently** — no warning, no summary line;
+- `git commit` reported a normal commit, and `git diff --cached --name-only`
+  listed the spec, the config and the package manifest, so the change *looked*
+  complete.
+
+Nothing in the local toolchain can distinguish "this file is on disk" from "this
+file is in the commit", and every local gate reads the disk. The only signal was a
+route missing from a build manifest on another machine.
+
+### Fix
+
+Anchored patterns, with the reasoning recorded at the site:
+
+```gitignore
+/coverage/
+apps/*/coverage/
+packages/*/coverage/
+services/*/coverage/
+```
+
+### Regression test
+
+`tests/guards/no-ignored-source.sh` — fails when any file with a **source
+extension** under a source tree is git-ignored, with a seeded-violation meta-test.
+
+Extension rather than location, deliberately: `__pycache__` sits inside every source
+tree and is ignored correctly, so a guard that flagged "anything ignored under `src`"
+would be muted within a day. `.pyc` does not match `\.py$`.
+
+**Verified against the original defect**: restoring the unanchored pattern makes the
+guard name all three page files.
+
+### Prevention
+
+`pnpm guard:ignored-source` is in the `verify` chain, so the next unanchored pattern
+fails at the gate rather than in someone else's build log.
+
+The wider lesson is the same one `guard:meta` taught two days ago: **a local gate that
+reads the working tree cannot see what the commit contains.** Both defects were
+invisible to every check that ran before the push, and both were found by a machine
+that started from the commit instead.
+
+---
+
 ## BUG-031 — Two meta-assertions described an environment they did not construct
 
 | Field | Value |

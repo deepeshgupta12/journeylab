@@ -23,7 +23,20 @@ build/
 *.tsbuildinfo
 
 # Test and coverage output
-coverage/
+#
+# ANCHORED, BECAUSE `coverage/` MATCHES AT ANY DEPTH (BUG-032).
+#   An unanchored directory pattern matches everywhere, so plain `coverage/` also
+#   ignored `apps/web/src/app/coverage/` — a Next.js ROUTE directory. The files
+#   existed on disk, so the local build was fine and the page rendered; `git add -A`
+#   silently skipped them, the commit looked complete, and CI built without the page
+#   and served 404 to every test.
+#
+#   Nothing warned. The only signal was a route missing from a build manifest in
+#   another machine's log.
+/coverage/
+apps/*/coverage/
+packages/*/coverage/
+services/*/coverage/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/

@@ -192,6 +192,50 @@ three were found by making the suite run.
 
 ---
 
+## FIX — 2026-09-04 — BUG-032: the page was never in its own commit
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Trigger | **CI**, as a 404 |
+
+`STEP-007.02` was pushed green — 1313 Python, 56 browser, R7 18/18, meta 74/74 — and
+CI served 404 on every coverage-page test. The route was in my build manifest and not
+in CI's, because **the three page files were never committed**.
+
+`.gitignore` had `coverage/` for test output. An unanchored directory pattern matches
+at every depth, so it also matched `apps/web/src/app/coverage/`.
+
+### Why the local verification was worthless here
+
+Every gate reads the working tree, and the files were in the working tree. The build
+included the page, all 56 browser tests exercised it, `verify` was green — and
+`git add -A` skipped the files without a word. `git diff --cached --name-only` listed
+the spec, the config and the manifest, so the change looked complete.
+
+**No local check can distinguish "on disk" from "in the commit".** The only machine
+that could tell was the one that starts from the commit.
+
+This is the second defect in three days that was invisible to every pre-push check:
+`guard:meta` reported whatever it last reported because it ran outside the gate, and
+this one passed every gate because the gates read the wrong source. Different
+mechanisms, same shape — **the check and the artefact were not the same thing.**
+
+### Fix and regression test
+
+Patterns anchored. `tests/guards/no-ignored-source.sh` fails when any file with a
+source extension under a source tree is ignored, with a seeded-violation meta-test,
+and is wired into `verify`.
+
+Extension rather than location: `__pycache__` is inside every source tree and ignored
+correctly, so a guard flagging "anything ignored under `src`" would be muted within a
+day.
+
+**Verified against the original defect** — restoring the unanchored pattern makes the
+guard name all three files.
+
+---
+
 ## STEP-007.02 — 2026-09-04 — Public coverage page and the API application
 
 | Field | Value |

@@ -79,6 +79,10 @@ assert_guard "no-stray-markup clean again" tests/guards/no-stray-markup.sh 0
 # `tests/platform` shadowed the stdlib because `tests` is on pythonpath.
 assert_guard "no-stdlib-shadowing self-meta-test" tests/guards/no-stdlib-shadowing.sh 0 "rejects a seeded shadow"
 
+# STEP-007.02 (BUG-032). `coverage/` in .gitignore matched a Next.js route
+# directory at depth, so the page built locally and was absent from the commit.
+assert_guard "no-ignored-source self-meta-test" tests/guards/no-ignored-source.sh 0 "rejects a seeded ignored source file"
+
 echo ""
 echo "=== BUG-002: tracked build artifacts ==="
 # Force-add: a gitignored dist/ is CORRECTLY invisible to the guard — it cannot be
