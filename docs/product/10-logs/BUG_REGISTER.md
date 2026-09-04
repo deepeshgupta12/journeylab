@@ -116,6 +116,26 @@ would be muted within a day. `.pyc` does not match `\.py$`.
 **Verified against the original defect**: restoring the unanchored pattern makes the
 guard name all three page files.
 
+### A second lesson: three of these tests passed against the 404
+
+Worth its own heading, because the guard does not address it.
+
+When CI served 404 for the missing page, **three coverage tests passed anyway**:
+*"names no supplier"*, *"has no map"* and *"is fully keyboard reachable"*. Every one
+is an **absence** assertion, and a 404 page satisfies all of them — it has no supplier
+name, no map, and a focusable link.
+
+An absence assertion needs a presence anchor, or it is satisfied by the absence of the
+entire page. This is the same vacuous-pass shape as a drift check with no baseline
+(`BUG` in STEP-006.08) and a detector asserted only to succeed (STEP-006.09): it
+reports *"the bad thing is not here"* about a place that is not here either.
+
+Every test in the spec now runs a `beforeEach` asserting a 200 and the page's own
+`<h1>` before asserting anything about its contents.
+
+**Verified as a negative control**: with the page directory moved aside and rebuilt,
+**7 of 7 fail** where 3 previously passed.
+
 ### Prevention
 
 `pnpm guard:ignored-source` is in the `verify` chain, so the next unanchored pattern

@@ -234,6 +234,20 @@ day.
 **Verified against the original defect** — restoring the unanchored pattern makes the
 guard name all three files.
 
+### The tests were also wrong, and the guard does not fix that
+
+When CI served the 404, **three coverage tests passed**: "names no supplier", "has no
+map" and "is fully keyboard reachable". All three are **absence** assertions, and a
+404 page satisfies every one.
+
+An absence assertion needs a presence anchor, or it is satisfied by the absence of the
+whole page — the same vacuous-pass shape as drift with no baseline and a detector
+asserted only to succeed. Each test now proves it is on the page (200 plus the `<h1>`)
+before asserting anything about it.
+
+**Negative control**: with the page moved aside and rebuilt, **7 of 7 fail** where 3
+had passed.
+
 ---
 
 ## STEP-007.02 — 2026-09-04 — Public coverage page and the API application
