@@ -414,9 +414,22 @@ fi
 # Same construction, same reason: the flag is removed rather than assumed absent.
 # In CI it is set job-wide, so without `env -u` this ran the ratchet and pytest
 # exited 2 on the RuntimeError dbcheck raises at import. BUG-031.
+#
+# `-rs` AND A SPECIFIC PATTERN, BECAUSE THE OLD ONE MATCHED NOISE.
+#   This asserted `grep -qE "skipped|s "`. With `-q`, pytest prints a progress line
+#   of `s` characters and no summary containing the word "skipped" — so the pattern
+#   matched nothing pytest emitted. It passed locally only because `uv run` prints
+#   a warning containing "does not match", and "es " satisfied `s `.
+#
+#   In CI there is no such warning, so the assertion failed while the tests were
+#   skipping exactly as intended. It had never tested what it claimed in either
+#   place: noise locally, a false alarm in CI. BUG-031.
+#
+#   `-rs` forces an explicit skip summary naming the reason, which is what this
+#   assertion was always trying to read.
 out=$(env -u JOURNEYLAB_REQUIRE_DB JOURNEYLAB_DATABASE_URL="$NOWHERE" \
-      uv run pytest tests/api/test_sessions.py -p no:warnings -q 2>&1); rc=$?
-if [ "$rc" -eq 0 ] && echo "$out" | grep -qE "skipped|s "; then
+      uv run pytest tests/api/test_sessions.py -p no:warnings -q -rs 2>&1); rc=$?
+if [ "$rc" -eq 0 ] && echo "$out" | grep -q "SKIPPED.*no database at 127.0.0.1:59999"; then
   echo "  ok   pytest still skips on a machine with no stack"; pass=$((pass+1))
 else
   echo "  FAIL pytest should skip without the flag; exit $rc"; fail=$((fail+1))

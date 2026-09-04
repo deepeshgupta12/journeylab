@@ -87,6 +87,38 @@ raises at import rather than skipping, so pytest exits 2 instead of 0.
 **The assertions describe an environment they do not construct.** An ambient variable
 decided which scenario ran, and the scenario that ran was not the one being asserted.
 
+### A second defect in the same two lines, found by the next CI run
+
+Fixing the environment left one assertion still failing, now with `exit 0` — the
+tests were skipping correctly and the check still said no. Its pattern was:
+
+```bash
+grep -qE "skipped|s "
+```
+
+With `-q`, pytest prints a progress line of `s` characters and **no summary
+containing the word "skipped"**, so that pattern matched nothing pytest emitted. It
+had been passing locally because `uv run` prints
+
+```
+warning: `VIRTUAL_ENV=...` does not match the project environment path ...
+```
+
+and `"does "` satisfies `s `. **The assertion was matching an unrelated warning from
+a different tool.** In CI there is no such warning, so it failed while the behaviour
+under test was correct.
+
+So this assertion never tested what it claimed in *either* environment: noise on a
+laptop, a false alarm in CI. It now runs with `-rs`, which forces an explicit skip
+summary, and matches the reason text:
+
+```bash
+grep -q "SKIPPED.*no database at 127.0.0.1:59999"
+```
+
+Checked against a negative control: with the flag set, the pattern correctly does not
+match.
+
 ### Why existing tests did not catch it
 
 `guard:meta` was not in `pnpm verify` until this commit, so the suite ran only when
@@ -110,9 +142,12 @@ out=$(env -u JOURNEYLAB_REQUIRE_DB JOURNEYLAB_DATABASE_URL="$NOWHERE" \
 
 ### Regression test
 
-The meta-suite itself, now run in both environments before this was committed:
-**74/74 with `JOURNEYLAB_REQUIRE_DB=1`** (CI's shape) and **74/74 without it** (a
-laptop's). Running it in one environment only is what allowed this.
+The meta-suite itself, run in **both** environments before committing — **74/74 with
+`JOURNEYLAB_REQUIRE_DB=1`** (CI's shape) and **74/74 without it** (a laptop's).
+Running it in one environment only is what allowed both defects.
+
+The second defect also has a negative control: with the flag set, the new pattern does
+not match, so the assertion discriminates rather than matching whatever is present.
 
 ### Prevention
 
