@@ -136,9 +136,11 @@ pnpm dev:down     # stop
 pnpm dev:reset    # stop, destroy volumes, start fresh
 ```
 
-JourneyLab reserves the contiguous port block **5700–5709**, all bound to
+JourneyLab reserves the contiguous port block **5700–5710**, all bound to
 `127.0.0.1` so nothing is network-reachable. The block is chosen to avoid every
 other project on this Docker host and enforced by `tests/guards/port-collisions.sh`.
+
+<!-- compose-ports:start -->
 
 | Port | Service | Notes |
 | --- | --- | --- |
@@ -150,6 +152,18 @@ other project on this Docker host and enforced by `tests/guards/port-collisions.
 | 5705 | OTLP gRPC | traces in |
 | 5706 | OTLP HTTP | traces in |
 | 5707 | Jaeger UI | trace viewer |
+
+<!-- compose-ports:end -->
+
+The remaining three are **application** ports, reserved from the same block but not
+published by compose — which is why they are listed separately rather than in the
+table above, whose contract is "every row is a container port":
+
+| Port | Process | Started by |
+| --- | --- | --- |
+| 5708 | Playwright web server | `pnpm a11y` only |
+| 5709 | Next dev server (HTTPS) | `pnpm dev` |
+| 5710 | API application | `pnpm api` — block extended to 5710 at STEP-007.02, owner-approved |
 
 Connection strings are in [`.env.example`](.env.example).
 
@@ -194,10 +208,10 @@ docs/adr/          architecture decision records
 
 | Suite | Count | Runs in |
 | --- | --- | --- |
-| Python | 1303 | `pnpm verify` |
+| Python | 1313 | `pnpm verify` |
 | Design system (jsdom) | 307 | `pnpm verify` |
 | Web (unit) | 63 | `pnpm verify` |
-| **Real browser (Playwright + axe)** | **40** | `pnpm verify` |
+| **Real browser (Playwright + axe)** | **56** | `pnpm verify` |
 | Cross-tenant isolation (R7) | 18 | **`pnpm verify`** (and `pnpm test:security`) |
 | Guard meta-tests | 74 | `pnpm guard:meta` |
 

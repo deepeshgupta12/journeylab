@@ -60,6 +60,71 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-060 — STEP-007.02 — The page needed a server, and the server needed an error code
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-09-04 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-TRIP-002, REQ-A11Y-002, REQ-A11Y-003, REQ-PRIV-001, REQ-EVID-006 |
+| Blast radius | [BR-060](blast-radius/BR-060-coverage-page.md) (MEDIUM, confidence MEDIUM, **owner-approved**) |
+| Commit | see git log for this entry |
+
+### What was built
+
+`apps/web/src/app/coverage/` — the first product page — and `apps/api/src/app.py`,
+the ASGI application it reads from. Python 1303 → **1313**; browser 40 → **56**.
+
+### The page needed a server, and that was a decision rather than a chore
+
+Two ways to get data onto the page: query Postgres from Next.js, or serve it over
+HTTP. The first breaks `ADR-003` (one deployable API application), is already
+forbidden in spirit by `module-boundaries.sh`, and would duplicate the
+aggregate-health rule `REQ-EVID-006` depends on in a second language — which is
+precisely how `BUG-029` happened between a projection and a contract.
+
+So the ASGI app is a **precondition** of the page, like `BUG-027`'s fix was for entity
+resolution. One route, one dependency, no middleware this sub-step does not need.
+
+### `problem()` refused to invent an error code
+
+A database failure serving a public endpoint had no registered code, and the builder
+rejects unknown ones by design — it caught me reaching for one that did not exist. The
+honest fix was the long one: add the row to `ERROR_MODEL.md`, regenerate the Python
+registry and the JSON schema, regenerate the TypeScript client, and run the
+compatibility gate, which classified it additive.
+
+`coverage.provider_degraded` was sitting there and would have been faster. It would
+also have told a client the wrong thing about what failed.
+
+### Surprises
+
+**The owner had to be asked, and it was the right call.** The reserved port block was
+full — 5700–5707 infrastructure, 5708 Playwright, 5709 dev server. `port-collisions.sh`
+exists because of a real incident: *"5544 looked free to `lsof` only because Saakshya
+was stopped."* Picking 5710 because it looked free would have been exactly that
+mistake, on a machine I cannot inspect. Approved, block extended, guard and README
+updated together.
+
+**A guard broke on something it was never wrong about before.**
+`readme-accuracy.sh` asserted every `| 570X |` row was published by compose — true
+while the only such table listed containers. Adding an application-ports table made
+all three rows look like missing containers. The guard's subject was *inferred from a
+number*; it now reads between explicit markers, and its range widened from `570[0-9]`
+to `5[0-9]{3}`, which also closes a hole where a documented port outside the block
+escaped checking entirely.
+
+**The accessibility run now depends on the API process.** That is deliberate: a
+coverage page rendered against no data would pass axe and prove nothing about the
+surface being shipped.
+
+**TypeScript found a contract detail I had coded past.** `limitations` is optional in
+`CoverageRegion`, so a region may omit it rather than send `[]`. The handler always
+sends one, and coding to that would have made the page correct only against today's
+server.
+
+---
+
 ## IMPL-059 — STEP-007.01 — The first product route, and the three defects it found
 
 | Field | Value |

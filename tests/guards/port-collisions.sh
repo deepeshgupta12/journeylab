@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Port collision guard — STEP-001.04
 #
-# JourneyLab owns the contiguous block 5700-5709. Multiple projects share this
+# JourneyLab owns the contiguous block 5700-5710. Multiple projects share this
 # Docker host, so a collision is a real and recurring hazard.
 #
 # IMPORTANT: checks compose FILES of other projects, not just live sockets.
@@ -11,7 +11,7 @@ set -uo pipefail
 cd "$(dirname "$0")/../.."
 
 BLOCK_START=5700
-BLOCK_END=5709
+BLOCK_END=5710
 COMPOSE="docker-compose.dev.yml"
 
 [ -f "$COMPOSE" ] || { echo "FAIL: $COMPOSE missing"; exit 1; }

@@ -28,6 +28,9 @@ const WCAG_AA = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22a
 
 const SURFACES = [
   { name: 'shell (home)', path: '/' },
+  // STEP-007.02. The first product surface, and the one REQ-A11Y-003 is about:
+  // it must be complete before any map exists.
+  { name: 'coverage', path: '/coverage' },
   { name: 'gallery', path: '/dev/gallery' },
   { name: 'gallery (RTL)', path: '/dev/gallery?dir=rtl' },
 ];

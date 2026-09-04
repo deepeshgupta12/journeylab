@@ -20,6 +20,7 @@
     "concurrency.version_mismatch",
     "collaboration.invitation_expired",
     "affiliate.unavailable",
+    "platform.dependency_unavailable",
     "booking.availability_changed",
     "privacy.deletion_failed",
     "authz.forbidden",
@@ -130,6 +131,13 @@
       "meaning": "Partner unreachable",
       "remediation": "Copyable booking details fallback",
       "requirement": "REQ-BOOK-004"
+    },
+    "platform.dependency_unavailable": {
+      "status": 503,
+      "type": "https://journeylab.app/problems/platform.dependency_unavailable",
+      "meaning": "A store the operation needs is unreachable",
+      "remediation": "Retryable; the detail names no host, DSN or driver message",
+      "requirement": "REQ-NFR-005"
     },
     "booking.availability_changed": {
       "status": 409,

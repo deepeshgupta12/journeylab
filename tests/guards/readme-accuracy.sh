@@ -47,12 +47,25 @@ done
 
 echo "3. documented ports match $COMPOSE"
 if [ -f "$COMPOSE" ]; then
-  for p in $(grep -oE '^\| 570[0-9] ' "$README" | tr -d '| '); do
+  # ONLY THE COMPOSE TABLE, delimited by markers in the README.
+  #
+  # This used to scan every `| 570X |` row anywhere in the file, which was fine
+  # while the only such table listed containers. STEP-007.02 added a second table
+  # for APPLICATION ports — Playwright, the Next dev server, the API — none of
+  # which compose publishes, and all of which the old scan reported as missing.
+  #
+  # The markers make the guard's subject explicit rather than inferred from a
+  # number, so a third table cannot break it by looking similar.
+  compose_table=$(awk '/<!-- compose-ports:start -->/,/<!-- compose-ports:end -->/' "$README")
+  if [ -z "$compose_table" ]; then
+    printf "   FAIL README has no <!-- compose-ports --> markers to scan\n"; fail=$((fail+1))
+  fi
+  for p in $(printf '%s\n' "$compose_table" | grep -oE '^\| 5[0-9]{3} ' | tr -d '| '); do
     if grep -q "127.0.0.1:${p}:" "$COMPOSE"; then printf "   ok   %s\n" "$p"
-    else printf "   FAIL %s documented but not published in compose\n" "$p"; fail=$((fail+1)); fi
+    else printf "   FAIL %s documented as a container port but not published in compose\n" "$p"; fail=$((fail+1)); fi
   done
   for p in $(grep -oE '127\.0\.0\.1:[0-9]+:' "$COMPOSE" | grep -oE ':[0-9]+:' | tr -d ':' | sort -u); do
-    if grep -qE "^\| $p \|" "$README"; then :
+    if printf '%s\n' "$compose_table" | grep -qE "^\| $p \|"; then :
     else printf "   FAIL %s published in compose but undocumented in README\n" "$p"; fail=$((fail+1)); fi
   done
 else

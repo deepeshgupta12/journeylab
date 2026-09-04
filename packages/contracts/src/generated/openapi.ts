@@ -1139,7 +1139,7 @@ export type external = {
      */
     recorded_at?: string;
   };
-  "schemas/error-codes.json": "validation.invalid_request" | "validation.invalid_party" | "coverage.unsupported_region" | "coverage.unsupported_dates" | "coverage.provider_degraded" | "constraint.ambiguous_requires_clarification" | "constraint.unsatisfiable" | "solver.infeasible" | "solver.timeout" | "evidence.pack_stale" | "evidence.insufficient_coverage" | "itinerary.item_protected" | "concurrency.version_mismatch" | "collaboration.invitation_expired" | "affiliate.unavailable" | "booking.availability_changed" | "privacy.deletion_failed" | "authz.forbidden" | "tenant.isolation_violation";
+  "schemas/error-codes.json": "validation.invalid_request" | "validation.invalid_party" | "coverage.unsupported_region" | "coverage.unsupported_dates" | "coverage.provider_degraded" | "constraint.ambiguous_requires_clarification" | "constraint.unsatisfiable" | "solver.infeasible" | "solver.timeout" | "evidence.pack_stale" | "evidence.insufficient_coverage" | "itinerary.item_protected" | "concurrency.version_mismatch" | "collaboration.invitation_expired" | "affiliate.unavailable" | "platform.dependency_unavailable" | "booking.availability_changed" | "privacy.deletion_failed" | "authz.forbidden" | "tenant.isolation_violation";
 };
 
 export type operations = {

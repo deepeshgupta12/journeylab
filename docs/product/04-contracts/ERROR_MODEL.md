@@ -77,6 +77,7 @@ Navigation: [API contracts](API_CONTRACTS.md) · [Frontend](../03-architecture/F
 | `concurrency.version_mismatch` | 409 | ETag mismatch | Refetch and re-apply | — |
 | `collaboration.invitation_expired` | 403 | Link expired or revoked | **Fail closed, leak nothing** | REQ-SEC-008 |
 | `affiliate.unavailable` | 503 | Partner unreachable | Copyable booking details fallback | REQ-BOOK-004 |
+| `platform.dependency_unavailable` | 503 | A store the operation needs is unreachable | Retryable; the detail names **no** host, DSN or driver message | REQ-NFR-005 |
 | `booking.availability_changed` | 409 | Provider availability changed | Re-search and show a clear delta | REQ-BOOK-001 |
 | `ai.schema_violation` | 500 (internal), user-invisible | Model returned invalid structure | Retry once, then non-AI fallback | REQ-AI-002 |
 | `ai.budget_exceeded` | 503 (internal) | Cost/latency budget hit | Degrade to fallback | REQ-AI-008 |

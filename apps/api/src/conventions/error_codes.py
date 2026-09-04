@@ -146,6 +146,13 @@ ERROR_CODES: Final[dict[str, ErrorCodeSpec]] = {
         remediation="Copyable booking details fallback",
         requirement="REQ-BOOK-004",
     ),
+    "platform.dependency_unavailable": ErrorCodeSpec(
+        code="platform.dependency_unavailable",
+        status=503,
+        meaning="A store the operation needs is unreachable",
+        remediation="Retryable; the detail names no host, DSN or driver message",
+        requirement="REQ-NFR-005",
+    ),
     "booking.availability_changed": ErrorCodeSpec(
         code="booking.availability_changed",
         status=409,

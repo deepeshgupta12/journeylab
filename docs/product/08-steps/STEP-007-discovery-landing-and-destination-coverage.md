@@ -101,7 +101,7 @@ Low reach into other services, but **high customer criticality** — this is the
 | Sub-step | Outcome |
 | --- | --- |
 | STEP-007.01 | Coverage read model and `API-017` | — ✅ **VERIFIED** 2026-09-04 (BR-059, IMPL-059; closes BUG-028/029/030)
-| STEP-007.02 | Public coverage/SEO page with limitations and privacy summary |
+| STEP-007.02 | Public coverage/SEO page with limitations and privacy summary | — ✅ **VERIFIED** 2026-09-04 (BR-060, IMPL-060)
 | STEP-007.03 | Date and geography validation with honest refusal states |
 | STEP-007.04 | Waitlist / inspiration mode with consent |
 | STEP-007.05 | Provider-degradation disclosure wiring |

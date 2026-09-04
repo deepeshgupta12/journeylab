@@ -20,6 +20,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@journeylab/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@journeylab/ui':
         specifier: workspace:*
         version: link:../../packages/ui

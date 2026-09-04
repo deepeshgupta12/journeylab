@@ -192,6 +192,44 @@ three were found by making the suite run.
 
 ---
 
+## STEP-007.02 — 2026-09-04 — Public coverage page and the API application
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `5d3cd5b` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1313 Python** (up from 1303) + 63 web + 307 UI + **56 browser** (up from 40) |
+| R2 contract compatibility | **PASS — with an additive change** | `platform.dependency_unavailable` added at its source in `ERROR_MODEL.md`, registry and clients regenerated, gate classifies additive |
+| R3 graph diff as expected | **PASS** | One new ASGI app, one new page, one new browser spec, two guards amended |
+| R4 untested requirements | **PASS — improved** | REQ-A11Y-002, REQ-A11Y-003 and REQ-PRIV-001 gain their first product-surface coverage |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…031; **guard meta-suite 74/74**, run |
+| R7 tenant isolation | **PASS — 18/18** | Untouched. The page reads no session and sets no cookie |
+
+**Overall:** PASS
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `problem()` rejected the error code | No registered code covered a dependency outage, and the builder refuses unknown ones by design | Added to `ERROR_MODEL.md`, regenerated registry, schema and TypeScript client; compatibility gate run |
+| No free port in the reserved block | 5700–5707 infrastructure, 5708 Playwright, 5709 dev server | **Owner asked and approved** extending to 5710. Guard range, README and harness updated together |
+| `readme-accuracy.sh` failed on 5708/5709 | It asserted every `\| 570X \|` row was a compose port — true until an application-ports table existed | Scoped to `<!-- compose-ports -->` markers; range widened to `5[0-9]{3}`, which also closes a hole where a documented port outside the block was never checked. Re-verified with a seeded row |
+| TypeScript: `limitations` possibly undefined | It is optional in `CoverageRegion`; the handler always sends it | Handled as optional. Coding to the current server would make the page correct only against it |
+| biome formatting on the Playwright config | The webServer array reindented | Formatted |
+
+### Mutation testing — 7 seeded, 7 killed
+
+Against the ASGI app: a health check that queries the database, a driver error
+interpolated into the response, a database failure returning 200, a correlation id
+not flagged as generated, a supplied id ignored, a defaulted DSN, and a swapped
+error code.
+
+---
+
 ## STEP-007.01 — 2026-09-04 — Coverage read model and the public coverage API
 
 | Field | Value |

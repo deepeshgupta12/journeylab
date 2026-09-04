@@ -38,6 +38,7 @@ class ErrorCodes(StrEnum):
     concurrency_version_mismatch = 'concurrency.version_mismatch'
     collaboration_invitation_expired = 'collaboration.invitation_expired'
     affiliate_unavailable = 'affiliate.unavailable'
+    platform_dependency_unavailable = 'platform.dependency_unavailable'
     booking_availability_changed = 'booking.availability_changed'
     privacy_deletion_failed = 'privacy.deletion_failed'
     authz_forbidden = 'authz.forbidden'
