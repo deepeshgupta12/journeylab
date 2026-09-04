@@ -46,6 +46,83 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-031 — Two meta-assertions described an environment they did not construct
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — a false failure, not a false pass. It broke CI rather than hiding anything, which is the good direction for a test to be wrong in |
+| Found during | STEP-007.01 close-out, **by CI**, on the first run that ever executed `guard:meta` |
+| Date found | 2026-09-04 |
+| Affected requirements | Process — the R6 gate |
+
+### Symptom
+
+CI red on `pnpm verify`, two meta-tests failing:
+
+```
+FAIL no database + no flag -> expected exit 0 with a loud notice, got 1
+FAIL pytest should skip without the flag; exit 2
+```
+
+Both pass locally. Both fail in CI. Neither had ever run in CI before, because
+`guard:meta` entered `verify` in this same commit.
+
+### Root cause
+
+Both assertions test *"no database was declared"*. They set the DSN to a dead port —
+and then **assumed** `JOURNEYLAB_REQUIRE_DB` was unset:
+
+```bash
+out=$(JOURNEYLAB_DATABASE_URL="$NOWHERE" bash tests/guards/tenant-isolation-gate.sh)
+```
+
+That assumption holds on a laptop and is false in CI, where `verify.yml` sets
+`JOURNEYLAB_REQUIRE_DB: '1'` **for the whole job** (and `ci-mirror.sh` passes
+`-e JOURNEYLAB_REQUIRE_DB=1`). So in CI the flag was set, the ratchet fired
+correctly, and the assertion — which had described the opposite scenario — failed.
+
+The second one is the same shape one layer down: with the flag inherited, `dbcheck`
+raises at import rather than skipping, so pytest exits 2 instead of 0.
+
+**The assertions describe an environment they do not construct.** An ambient variable
+decided which scenario ran, and the scenario that ran was not the one being asserted.
+
+### Why existing tests did not catch it
+
+`guard:meta` was not in `pnpm verify` until this commit, so the suite ran only when
+somebody typed it — always on a laptop, never in CI. The environmental difference
+that makes these two assertions wrong is the difference between those two places, so
+the only run that could ever have caught it was a CI run, and there had not been one.
+
+This is the same root cause as the correction recorded at the top of `REGRESSION_LOG`:
+a guard suite outside the gate reports whatever it reported last, in whatever
+environment last happened to run it.
+
+### Fix
+
+The flag is removed rather than assumed absent, so the assertion constructs the
+environment it describes:
+
+```bash
+out=$(env -u JOURNEYLAB_REQUIRE_DB JOURNEYLAB_DATABASE_URL="$NOWHERE" \
+      bash tests/guards/tenant-isolation-gate.sh 2>&1); rc=$?
+```
+
+### Regression test
+
+The meta-suite itself, now run in both environments before this was committed:
+**74/74 with `JOURNEYLAB_REQUIRE_DB=1`** (CI's shape) and **74/74 without it** (a
+laptop's). Running it in one environment only is what allowed this.
+
+### Prevention
+
+`guard:meta` is in `verify`, so both CI and the mirror execute it on every push. The
+narrower lesson is worth keeping separately: **a test that names an environment must
+build that environment**, because the variable it forgets to set is the one that
+differs between the machine it was written on and the machine that matters.
+
+---
+
 ## BUG-030 — R7 reported PASS about a database nobody asked it to test
 
 | Field | Value |

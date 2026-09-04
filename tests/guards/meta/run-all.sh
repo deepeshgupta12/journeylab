@@ -359,7 +359,18 @@ assert_guard "tenant-isolation gate passes with the stack up" \
   tests/guards/tenant-isolation-gate.sh 0 "cross-tenant isolation enforced"
 
 # Skip tolerated when nothing declared a database — but it must SAY so.
-out=$(JOURNEYLAB_DATABASE_URL="$NOWHERE" bash tests/guards/tenant-isolation-gate.sh 2>&1); rc=$?
+#
+# `env -u JOURNEYLAB_REQUIRE_DB` IS LOad-BEARING, AND ITS ABSENCE WAS A BUG.
+#   This assertion describes an environment — "no flag" — that it did not
+#   construct. It set the DSN and *assumed* the flag was unset, which is true on a
+#   laptop and false in CI, where `verify.yml` sets JOURNEYLAB_REQUIRE_DB=1 for the
+#   whole job. So in CI it tested the opposite scenario and could never pass.
+#
+#   Nobody saw it because `guard:meta` was not in `pnpm verify` until STEP-007.01.
+#   The first CI run that executed this suite failed on exactly these two lines.
+#   BUG-031.
+out=$(env -u JOURNEYLAB_REQUIRE_DB JOURNEYLAB_DATABASE_URL="$NOWHERE" \
+      bash tests/guards/tenant-isolation-gate.sh 2>&1); rc=$?
 if [ "$rc" -eq 0 ] && echo "$out" | grep -q "DID NOT RUN"; then
   echo "  ok   no database + no flag -> tolerated, and says loudly that R7 did not run"; pass=$((pass+1))
 else
@@ -400,7 +411,10 @@ else
 fi
 
 # And the everyday case still skips rather than failing a laptop with no stack.
-out=$(JOURNEYLAB_DATABASE_URL="$NOWHERE" \
+# Same construction, same reason: the flag is removed rather than assumed absent.
+# In CI it is set job-wide, so without `env -u` this ran the ratchet and pytest
+# exited 2 on the RuntimeError dbcheck raises at import. BUG-031.
+out=$(env -u JOURNEYLAB_REQUIRE_DB JOURNEYLAB_DATABASE_URL="$NOWHERE" \
       uv run pytest tests/api/test_sessions.py -p no:warnings -q 2>&1); rc=$?
 if [ "$rc" -eq 0 ] && echo "$out" | grep -qE "skipped|s "; then
   echo "  ok   pytest still skips on a machine with no stack"; pass=$((pass+1))

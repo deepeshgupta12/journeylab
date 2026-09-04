@@ -146,6 +146,52 @@ had a justification, which is a different thing and a weaker one.
 
 ---
 
+## FIX — 2026-09-04 — BUG-031: CI red on the first run that executed guard:meta
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Trigger | **CI**, not local verification |
+
+`STEP-007.01` put `guard:meta` into `pnpm verify`, so CI executed the meta-suite for
+the first time — and went red on two assertions that pass locally:
+
+```
+FAIL no database + no flag -> expected exit 0 with a loud notice, got 1
+FAIL pytest should skip without the flag; exit 2
+```
+
+**Both were pre-existing and neither was caused by the STEP-007.01 changes.** The
+assertions test *"no database was declared"*, set the DSN to a dead port, and then
+assumed `JOURNEYLAB_REQUIRE_DB` was unset. True on a laptop; false in CI, where
+`verify.yml` sets it for the whole job. So they ran the ratchet scenario while
+asserting the tolerated one.
+
+Fixed with `env -u JOURNEYLAB_REQUIRE_DB`, so the assertion builds the environment it
+describes rather than inheriting one.
+
+**Verified in both environments before committing**, which is the part that had been
+missing all along:
+
+| Environment | Result |
+| --- | --- |
+| `JOURNEYLAB_REQUIRE_DB=1` (CI's shape) | **74/74** |
+| flag unset (a laptop) | **74/74** |
+
+### What this says about the correction recorded above
+
+The meta-suite had never run in CI, and it had run locally only when somebody typed
+it. So its passes described one machine, and its failures — when they finally
+appeared — described a different one. Both halves of that are the same defect:
+**a check outside the gate reports whatever it reported last, wherever it last ran.**
+
+Three findings came out of putting it inside the gate: `BUG-030` (R7 aimed at the
+wrong database), `BUG-031` (these two assertions), and the correction showing twenty
+entries claimed a result nobody produced. None of them was found by looking; all
+three were found by making the suite run.
+
+---
+
 ## STEP-007.01 — 2026-09-04 — Coverage read model and the public coverage API
 
 | Field | Value |
