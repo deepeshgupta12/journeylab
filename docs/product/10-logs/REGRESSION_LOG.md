@@ -133,6 +133,7 @@ had a justification, which is a different thing and a weaker one.
 | Failure | Cause | Resolution |
 | --- | --- | --- |
 | mypy: two dicts needed annotations | `dict(cur.fetchall())` is untyped | Annotated |
+| `pnpm ci:local` failed on the first run | `ERR_PNPM_META_FETCH_FAIL` fetching `typescript` during the cold install — a **network failure, not a code failure**. Reported as `FAIL: CI would reject this commit`, which is the mirror doing its job and not distinguishing the two | Registry reachability confirmed from the host, then re-run: **PASS**, all six migrations applied on Linux from a clean checkout. Recorded rather than quietly re-run, because a green result on the second attempt is not the same evidence as a green result on the first |
 | Mutation restore left the constraint dropped — **third time this step** | Cleanup deleted a hardcoded org slug and the new test used another | Cleanup now targets the **table the constraint belongs to**, which cannot go stale. `.01` and `.08` both guessed at slugs |
 
 ### Mutation testing — 15 seeded, 15 killed

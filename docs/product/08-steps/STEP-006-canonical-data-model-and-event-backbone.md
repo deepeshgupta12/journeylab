@@ -137,7 +137,39 @@ Migration rehearsal timing; outbox atomicity test; replay test output; read-mode
 ## 28. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
-| Sub-steps completed | 0 of 9 |
-| Regression result | — |
-| Verified by | — |
+| Completed | 2026-09-03 |
+| Sub-steps completed | **9 of 9** |
+| Regression result | R1–R7 **PASS** on every sub-step. Python 1062 → **1281** across the step |
+| Verified by | Deepesh Kumar Gupta. `ADR-010`: one owner, so author and approver are the same person — the four-eyes gap, in force on `BR-050` (HIGH) and stated rather than glossed |
+| Blast-radius records | BR-050 … BR-058 |
+| Implementation records | IMPL-049 … IMPL-057 |
+| Mutation testing | **117 mutants seeded, 117 killed** across the nine sub-steps |
+| Migrations added | `010_domain` … `015_read_models` — all expand-phase, all revertible; **no contract-phase migration has run** |
+| Risks raised | **`RISK-017`** — the code graph holds one node per `.sql` file, so `REQ-KG-008`'s pre-change gate says nothing about the change type §20 calls lowest-reversibility |
+| R7 | A **pending isolation vector closed** at `.06` — the outbox placeholder open since STEP-002.06 fired and was replaced by two real tests |
+
+### What this step did not deliver, stated plainly
+
+The canonical model, the temporal guarantees, the repositories, the outbox, consumer
+idempotency, the quality gate and the read-model rebuild all exist and are tested.
+**None of them is reachable by a traveller.** Every contract in `STEP-004` remains
+`PROPOSED`, no FastAPI handler serves a product operation, and nothing calls the
+modules built here — `BLK-002`'s open half.
+
+That is the correct shape for a foundation step and it should not be mistaken for
+product progress. Trip discovery, brief creation, evidence assembly, candidate
+generation, optimisation and comparison are all ahead.
+
+### Three findings worth carrying forward
+
+1. **The convenient clock hides the failure**, three times in this step and once
+   before it: freshness from ingestion time (`BUG-026`), relay lag from the last
+   attempt (`.06`), projection lag from the rebuild timestamp (`.09`). Each is the
+   clock the failing component still has, which is exactly why it reads healthy.
+2. **A one-sided assertion on a detector is worth nothing.** `.09`'s purity checker
+   could not be distinguished from `return True`; `.08`'s drift check measured
+   nothing. Both were green. A detector needs a seeded violation it must reject.
+3. **Mutation testing cannot find an inert function or an unexercised path.** It
+   proves a test notices a *change*. `.08`'s two real defects were found by external
+   review, and the survivors it did find were database constraints with no test
+   behind them — the same blind spot from the other end.
