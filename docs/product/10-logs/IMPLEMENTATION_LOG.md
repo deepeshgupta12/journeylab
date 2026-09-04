@@ -60,6 +60,65 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-058 — Sub-step records for STEP-007 … STEP-014
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-09-04 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | Process — `SUB_STEP_PROTOCOL` |
+| Blast radius | None — documentation only, no code, no schema, no contract |
+| Commit | see git log for this entry |
+
+### What was created
+
+**63 sub-step records**, one per row declared in each parent's §21: STEP-007 (5),
+STEP-008 (7), STEP-009 (8), STEP-010 (10), STEP-011 (5), STEP-012 (10), STEP-013 (10),
+STEP-014 (8). Every declared sub-step now has a file, and every file is declared —
+checked programmatically rather than by eye.
+
+### `blast_radius_id: TBD`, and why that is a correction
+
+The existing records pre-assigned a blast-radius number in frontmatter. **Every one of
+them was wrong by execution time** — measured, not assumed:
+
+| Sub-step | Pre-assigned | Actual |
+| --- | --- | --- |
+| STEP-005.07 | BR-036 | BR-046 |
+| STEP-005.08 | BR-037 | BR-047 |
+| STEP-006.01 | BR-040 | BR-050 |
+| STEP-006.03 | BR-042 | BR-052 |
+
+Every one off by exactly ten, because unplanned records (bug fixes, enhancements)
+consume numbers the plan did not reserve. A number that is confidently wrong is worse
+than an absent one, so these records say `TBD` and the pre-change table says why.
+
+### What the records carry that a template would not
+
+Each one names the specific failure it is guarding against, in its §13 hazard note,
+drawn from what earlier steps already found. The recurring ones are pointed at
+explicitly rather than restated:
+
+- **The convenient clock hides the failure** — now in STEP-013.02's timeline hazard,
+  because a DST day rendered as 24 hours shows slack that does not exist.
+- **A metric with a degenerate strategy needs its counterpart** — STEP-009.08 and
+  STEP-010.10 both, after entity resolution and drift found it twice.
+- **A detector asserted only to pass is `return True`** — STEP-010.08's injection
+  detector, where the consequence is that a green run becomes evidence no attack
+  occurred.
+- **Derived, not listed** — STEP-008.05's deletion traversal, where a hardcoded store
+  list is stale the day after it is written and the failure is regulatory.
+
+### Surprises
+
+**Writing 63 hazard notes surfaced how much of the risk is already known.** Almost
+none of them required inventing a new failure mode; they are the failures this
+repository has already met, relocated to where they will next appear. That is an
+argument for the logs being worth their cost, and it is also a warning: the same
+mistakes are available again in every one of these sub-steps.
+
+---
+
 ## IMPL-057 — STEP-006.09 — Replay and rebuild are opposites
 
 | Field | Value |

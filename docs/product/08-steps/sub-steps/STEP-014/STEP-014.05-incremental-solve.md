@@ -1,0 +1,102 @@
+---
+sub_step_id: STEP-014.05
+parent_step: STEP-014
+title: Incremental solve and score deltas
+status: NOT_STARTED
+owners: ["Deepesh Kumar Gupta"]
+requirement_ids: [REQ-CONS-010, REQ-CONS-004]
+blast_radius_id: TBD
+depends_on: [STEP-014.04]
+last_updated: 2026-09-04
+---
+
+# STEP-014.05 — Incremental solve and score deltas
+
+## 1. Outcome
+An edit re-solves only what it affected, and the result still satisfies every hard constraint.
+
+## 2. Scope and boundary
+**In scope:** Incremental solving over the affected set; score deltas; the full-solve fallback.
+
+**Not in this sub-step:** Undo (`.06`).
+
+## 3. Requirements served
+| Requirement | Acceptance criterion | Test |
+| --- | --- | --- |
+| REQ-CONS-010, REQ-CONS-004 | See §12 | See §7 |
+
+## 4. Pre-change analysis
+| Field | Value |
+| --- | --- |
+| Graph status | *(record at execution)* — run `npx gitnexus status` and confirm it matches HEAD |
+| HEAD / indexed commit | *(record at execution)* |
+| Queries run | `impact` on each symbol to be modified, **each cross-checked against grep** — `RISK-016`: the graph under-reports dependants, reproduced twelve times |
+| Migration present? | If this sub-step adds one, `RISK-017` applies: the graph holds one node per `.sql` file, so the blast radius comes from the migration and from **mutation against the deployed schema** |
+| Unknown / low-confidence areas | When incremental stops being sound. Past some affected-set size a full solve is both faster and safer. |
+| Blast radius | **TBD** — assigned at execution. Pre-assigned numbers in STEP-005 and STEP-006 were wrong in every case, so this record does not invent one |
+| Approval required? | Per blast-radius score (HIGH/CRITICAL/low-confidence ⇒ owner approval) |
+
+## 5. Implementation plan
+- [ ] Incremental solve over the affected set, with the rest held fixed
+- [ ] **Hard constraints re-checked across the whole plan**, not only the affected part — this is where `REQ-CONS-004` is lost
+- [ ] Score deltas computed and shown against the previous version
+- [ ] A full-solve fallback above a stated affected-set threshold
+- [ ] The new scenario version records that it came from an edit, and from which command
+
+## 6. Contracts and schema changes
+Writes a new `scenario_versions` row — immutable, so an edit is a version.
+
+## 7. Tests to add
+| Test | Type | Asserts |
+| --- | --- | --- |
+| TST-CONS-004 | property | **No incremental solve produces a hard-constraint violation anywhere in the plan** |
+| — | integration | Score deltas match a full re-solve's scores |
+| — | integration | Above the threshold, a full solve runs instead |
+| — | integration | The new version records its originating command |
+
+**Mutation testing is required**, per the practice established from STEP-004.09
+onward: seed a defect for each rule this sub-step claims and confirm a test fails.
+A rule no mutant can break is a rule nothing is checking.
+
+## 8. Telemetry, security and accessibility
+Incremental versus full solve rates; delta magnitudes.
+
+## 9. Documentation to update
+- [ ] Sub-step completion record
+- [ ] [IMPLEMENTATION_LOG](../../../10-logs/IMPLEMENTATION_LOG.md) · [REGRESSION_LOG](../../../10-logs/REGRESSION_LOG.md) · [BUG_REGISTER](../../../10-logs/BUG_REGISTER.md) if applicable
+- [ ] Blast-radius record, post-change section
+- [ ] Parent step §21 · [MASTER_TRACKER](../../../02-delivery/MASTER_TRACKER.md)
+
+## 10. Regression cross-check (R1–R7)
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression suite | | All prior sub-steps + every `VERIFIED` step |
+| R2 contract compatibility | | No unintended breaking diff |
+| R3 graph diff as expected | | `detect_changes()`; by inspection where a migration is involved |
+| R4 untested requirements | | Not increased |
+| R5 orphan/unowned nodes | | Not increased |
+| R6 closed-bug regression tests | | All passing |
+| R7 tenant isolation | | **Pass — non-negotiable** |
+
+**Overall:** PASS / FAIL — a FAIL means this sub-step is not done.
+
+## 11. Rollback
+Revert the commit; every edit triggers a full solve.
+
+## 12. Acceptance criteria
+- [ ] Incremental over the affected set
+- [ ] Hard constraints re-checked plan-wide
+- [ ] Deltas match a full re-solve
+- [ ] Threshold fallback exists
+
+## 13. Completion record
+| Field | Value |
+| --- | --- |
+| Completed | — |
+| Commit SHA | — |
+| Pushed | — |
+| Graph re-indexed at | — |
+| `main` green and deployable | — |
+| Mutation testing | — |
+| Bugs found | — |
+| Notes / surprises | **Checking hard constraints only over the affected set is the defect that makes incremental solving unsound**, and it is the natural implementation — the affected set is exactly what you just computed, and re-checking everything feels like undoing the optimisation. But a moved item can violate a constraint involving an item that did not move, and the resulting plan carries a feasibility claim nothing re-verified. |
