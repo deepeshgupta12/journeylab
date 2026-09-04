@@ -60,6 +60,69 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-059 — STEP-007.01 — The first product route, and the three defects it found
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-09-04 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-TRIP-002, REQ-EVID-006 |
+| Blast radius | [BR-059](blast-radius/BR-059-coverage-api.md) (MEDIUM, confidence MEDIUM) |
+| Commit | see git log for this entry |
+| Closes | `BUG-028`, `BUG-029`, `BUG-030` |
+
+### What was built
+
+`apps/api/src/platform_api/coverage.py` — the first FastAPI-facing product handler in
+the repository — with migrations `016` and `017`, a stdlib-shadowing guard, and
+`guard:meta` finally wired into `verify`. Python 1281 → **1303**.
+
+### Writing the handler found three defects in VERIFIED work
+
+**`BUG-028`.** `API-017` is `security: []` — public, because putting coverage behind a
+login means asking somebody to register to be told *no*. STEP-006.09 built the read
+model tenant-scoped, so a public request had no tenant, RLS denied every row, and the
+endpoint returned an empty region list. It does not error. "We support nowhere",
+well-formed and plausible, to the person deciding whether to sign up.
+
+**`BUG-029`.** `CoverageRegion` requires `display_name` and `date_bounds` and forbids
+extra properties. The read model had neither and carried `accepting_trips`. The
+projection was designed from what `EVT-008` can say; the contract was written from
+what a traveller needs; nothing had compared them. My first handler papered over
+`display_name` by echoing `region_id` — which validated against nothing and would have
+rendered `bern` to a traveller.
+
+**`BUG-030`.** R7 printed *"PASS — cross-tenant isolation enforced at the database"*
+against a DSN pointing at a closed port, because the container fallback discarded the
+declared DSN. Found by running `pnpm guard:meta` — which had never been run.
+
+### Surprises
+
+**A guard I wrote caught me one step later.** `platform/` shadows the stdlib, and
+`apps/api/src` is on `pythonpath`. I caught it by importing before writing the
+handler, wrote `no-stdlib-shadowing.sh` with a seeded-violation meta-test, wired it
+into `verify` — and it immediately failed on `tests/platform`, which I had just
+created, because `tests` is on `pythonpath` too.
+
+**Declared and derived columns behave differently under rebuild.** `display_name` and
+`date_bounds` are the product's statement and no event produces them, so a rebuild
+must UPDATE the derived columns rather than DELETE and reinsert. Deleting is the
+natural implementation and would erase every region's name — a projection that
+rebuilds perfectly and a page that cannot render.
+
+**Two of four surviving mutants were database constraints with no test behind them**,
+for the third consecutive sub-step after STEP-006.08 and STEP-006.09. I keep writing
+constraints and testing the layer above them.
+
+**The honesty failure is the one worth keeping.** Twenty regression entries claimed
+*"meta-suite 72/72"*. It had never run, the total is 74, and three were failing. What
+found it was not diligence; it was adding an unrelated guard and running the suite to
+check that guard. Recorded as a correction at the top of `REGRESSION_LOG`, and
+`guard:meta` is in `verify` so the claim is now produced by running rather than by
+typing.
+
+---
+
 ## IMPL-058 — Sub-step records for STEP-007 … STEP-014
 
 | Field | Value |

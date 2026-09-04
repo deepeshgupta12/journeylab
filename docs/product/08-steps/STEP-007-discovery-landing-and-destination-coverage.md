@@ -1,7 +1,7 @@
 ---
 step_id: STEP-007
 title: Discovery landing and destination coverage
-status: DISCOVERY
+status: IN_PROGRESS
 release: Phase 1
 owners: ["Deepesh Kumar Gupta"]
 dependencies: [STEP-003, STEP-006]
@@ -100,7 +100,7 @@ Low reach into other services, but **high customer criticality** — this is the
 ## 21. Implementation task checklist — sub-steps
 | Sub-step | Outcome |
 | --- | --- |
-| STEP-007.01 | Coverage read model and `API-017` |
+| STEP-007.01 | Coverage read model and `API-017` | — ✅ **VERIFIED** 2026-09-04 (BR-059, IMPL-059; closes BUG-028/029/030)
 | STEP-007.02 | Public coverage/SEO page with limitations and privacy summary |
 | STEP-007.03 | Date and geography validation with honest refusal states |
 | STEP-007.04 | Waitlist / inspiration mode with consent |

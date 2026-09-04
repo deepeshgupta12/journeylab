@@ -2,10 +2,10 @@
 sub_step_id: STEP-007.01
 parent_step: STEP-007
 title: Coverage read model and the public coverage API
-status: NOT_STARTED
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
 requirement_ids: [REQ-TRIP-002, REQ-EVID-006]
-blast_radius_id: TBD
+blast_radius_id: BR-059
 depends_on: [STEP-006.09]
 last_updated: 2026-09-04
 ---
@@ -28,20 +28,20 @@ last_updated: 2026-09-04
 ## 4. Pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | *(record at execution)* — run `npx gitnexus status` and confirm it matches HEAD |
-| HEAD / indexed commit | *(record at execution)* |
-| Queries run | `impact` on each symbol to be modified, **each cross-checked against grep** — `RISK-016`: the graph under-reports dependants, reproduced twelve times |
-| Migration present? | If this sub-step adds one, `RISK-017` applies: the graph holds one node per `.sql` file, so the blast radius comes from the migration and from **mutation against the deployed schema** |
-| Unknown / low-confidence areas | This is the **first product route handler in the repository**. Every contract in STEP-004 is `PROPOSED`; making one real will expose whatever the contract left implicit. |
-| Blast radius | **TBD** — assigned at execution. Pre-assigned numbers in STEP-005 and STEP-006 were wrong in every case, so this record does not invent one |
-| Approval required? | Per blast-radius score (HIGH/CRITICAL/low-confidence ⇒ owner approval) |
+| Graph status | ✅ up to date. **NOT BLOCKED**; `RISK-017` for the two migrations |
+| HEAD / indexed commit | `64c209d` — matched HEAD at pre-change |
+| Queries run | `impact` on `coverage_projection`, `PublicCoverage`, `Projection`, `UnitOfWork`, grep cross-checked |
+| **Finding** | `coverage_projection` returned **14 dependants against 18 real** — the first non-trivial answer the graph has given. `UnitOfWork` still reported 0 against 17, so `RISK-016` is narrowing where a symbol has many same-language callers and unchanged where it does not |
+| Unknown / low-confidence areas | Resolved during execution: this was the first product route, and it found three defects in `VERIFIED` work — `BUG-028`, `BUG-029`, `BUG-030` |
+| Blast radius | **[BR-059](../../../10-logs/blast-radius/BR-059-coverage-api.md)** — MEDIUM, confidence MEDIUM |
+| Approval required? | No |
 
 ## 5. Implementation plan
-- [ ] Route handler bound to the contract's `Coverage` schema, generated types rather than hand-written
-- [ ] Reads `coverage_read_model` through a tenant-bound unit of work (`STEP-006.04`)
-- [ ] **Response carries one aggregate health value** — never a list, never a count, never a supplier name (`REQ-EVID-006`)
-- [ ] Cache key includes the tenant (`REQ-SEC-001`) — this is the first cache in the system, so it is also the first time that clause is testable
-- [ ] Contract compatibility check passes against the committed baseline
+- [x] Handler validated against the contract's `Coverage` schema in a test, resolved from the document root so internal `$ref`s work
+- [x] ~~Reads through a tenant-bound unit of work~~ — **this plan item was wrong.** `API-017` is `security: []`, so there is no tenant to bind; `UnitOfWork` refuses without one, correctly. Using it here would have meant inventing a tenant for a public request, and an invented tenant is one somebody later trusts. `BUG-028`
+- [x] **One aggregate health value** — never a list, never a count, never a supplier name, enforced in the projection, the table and the handler
+- [x] ~~Cache key includes the tenant~~ — **also wrong, for the same reason.** The cache holds one public document with no tenant, so the property tested is *"nothing scoped is in here"* rather than *"the key is scoped"*. The `[cache]` R7 vector was **narrowed, not closed**
+- [x] Contract compatibility passes; **no contract change was needed** — the implementation moved to fit it
 
 ## 6. Contracts and schema changes
 Implements `API-017` as declared. **No contract change is expected**, and one would be a finding: the contract was written first precisely so the handler discovers nothing new. If it does, that is `CONTRACT_CHANGE_POLICY` work and a blast-radius record of its own.
@@ -49,11 +49,19 @@ Implements `API-017` as declared. **No contract change is expected**, and one wo
 ## 7. Tests to add
 | Test | Type | Asserts |
 | --- | --- | --- |
-| TST-TRIP-002 | contract | The response validates against the committed OpenAPI schema |
-| — | security | **No provider name, count or quota appears in any response field** — asserted structurally, as in STEP-005.10 |
-| — | integration | Tenant A's coverage request cannot return tenant B's regions |
-| — | security | **The cache key includes the tenant** — the first pending R7 vector this closes |
-| — | unit | A region with no read-model row is reported as uncovered, not as healthy |
+| TST-TRIP-002 | contract | The response validates against the committed `Coverage` schema |
+| — | security | No provider name, count or quota appears in any response field |
+| — | security | **A row is visible with no tenant context** — `BUG-028`'s regression test |
+| — | security | The table has no tenant column and does not force RLS |
+| — | security | **Nothing tenant-scoped is in the cache**, asserted on the value and every key it has held |
+| — | unit | An empty read model reports `unavailable`, not `healthy` |
+| — | unit | The cache expires, so degradation reaches the traveller (`REQ-EVID-006`) |
+| — | unit | The TTL is short enough to be a disclosure bound — asserted, not assumed |
+| — | unit | `display_name` is not the region id; `date_bounds` come from the row |
+| — | integration | **The handler's own query returns the row with no tenant bound** |
+| — | integration | A region must have a name; date bounds cannot end before they start |
+
+22 tests. **Mutation testing: 13 seeded, 13 killed.**
 
 **Mutation testing is required**, per the practice established from STEP-004.09
 onward: seed a defect for each rule this sub-step claims and confirm a test fails.
@@ -85,19 +93,19 @@ Traces carry a tenant-safe correlation ID. **`REQ-SEC-002`'s cache vector become
 Revert the commit; the route disappears and the read model is untouched. No migration.
 
 ## 12. Acceptance criteria
-- [ ] `GET /coverage` returns the read model, validated against the contract
-- [ ] No supplier identity, count or quota is reachable through the API
-- [ ] The cache key is tenant-scoped, with a test that fails if it is not
-- [ ] A region absent from the read model reads as uncovered
+- [x] `getCoverage` returns the read model, validated against the contract
+- [x] No supplier identity, count or quota is reachable through the response
+- [x] ~~The cache key is tenant-scoped~~ — **superseded.** The endpoint is public; the property is that nothing tenant-scoped is cached, and it is tested
+- [x] A region absent from the read model reads as uncovered, and an empty model as `unavailable`
 
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
-| Commit SHA | — |
-| Pushed | — |
-| Graph re-indexed at | — |
-| `main` green and deployable | — |
-| Mutation testing | — |
-| Bugs found | — |
-| Notes / surprises | **A region missing from the read model must not read as healthy.** The projection is derived, so a rebuild in progress or a consumer that never ran leaves rows absent — and absent must mean *unknown*, not *fine*. This is the same shape as STEP-005.10's untracked dependency, and the same shape as `Unreconciled`: the absence of evidence is not evidence. |
+| Completed | 2026-09-04 |
+| Commit SHA | *(this commit)* |
+| Pushed | ✅ |
+| Graph re-indexed at | post-commit |
+| `main` green and deployable | ✅ |
+| Mutation testing | **13 of 13 killed** — 9 of 13 before the four gaps were closed |
+| Bugs found | **`BUG-028`, `BUG-029`, `BUG-030`** — all three in work already marked `VERIFIED` |
+| Notes / surprises | **Two of this record's own plan items were wrong, and the contract is what said so.** I wrote "reads through a tenant-bound unit of work" and "cache key includes the tenant" before reading that `API-017` is `security: []`. A public operation has no tenant; `UnitOfWork` correctly refuses without one. Both items are struck through rather than deleted, because the correction is the useful part.<br><br>**`BUG-028` is the serious one.** The read model was tenant-scoped and the endpoint that exists to serve it is public, so RLS denied every row — and the endpoint does not error, it returns "we support nowhere" to the person deciding whether to sign up. The same shape as `BUG-027`: writing the next sub-step is how the last one's defect is found.<br><br>**A guard I wrote caught me one step later.** `platform/` shadows the stdlib and `apps/api/src` is on `pythonpath`. I caught it by importing before writing the handler, wrote the guard with a seeded-violation meta-test, wired it into `verify` — and it failed immediately on `tests/platform`, which I had just created.<br><br>**And the honesty failure.** Running the meta-suite to check that new guard revealed it had never run: twenty regression entries claimed "meta-suite 72/72", the real total is 74, and three were failing — about `BUG-023`'s exact class. `guard:meta` is now in `verify`. What caught it was not diligence but an unrelated accident, which is the least comfortable and most useful thing in this record. |

@@ -209,6 +209,48 @@ def test_outbox_vector_refuses_writing_an_event_for_another_tenant() -> None:
     assert run(scenario) == "denied", "tenant A wrote an event into tenant B's stream"
 
 
+def test_the_coverage_cache_holds_no_tenant_data() -> None:
+    """The isolation property for the system's first cache — STEP-007.01.
+
+    `REQ-SEC-001` requires a tenant on every cache key. This cache has none, and
+    that is the rule applied to data with no tenant rather than an exception to it:
+    `API-017` is `security: []`, so a public response cannot be tenant-scoped.
+
+    The safety property is therefore different in kind. Not *"the key is scoped"* —
+    there is nothing to scope by — but **"nothing scoped is in here"**, asserted on
+    the value and on every key the cache has ever held.
+    """
+    from platform_api.coverage import COVERAGE_CACHE_KEY, CoverageCache, get_coverage
+
+    class _Rows:
+        def execute(self, query: str, params: tuple[object, ...] = (), /) -> object:
+            return None
+
+        def fetchall(self) -> list[tuple[object, ...]]:
+            import datetime
+
+            return [
+                (
+                    "bern",
+                    "Bern",
+                    datetime.date(2026, 4, 1),
+                    datetime.date(2027, 3, 31),
+                    "current",
+                    [],
+                ),
+            ]
+
+    cache = CoverageCache()
+    document = get_coverage(_Rows(), cache=cache, now=0.0)
+
+    assert cache.keys() == frozenset({COVERAGE_CACHE_KEY})
+    for key in cache.keys():
+        assert not any(token in key for token in ("org", "tenant", "trip", "user")), key
+    rendered = repr(document)
+    for token in (str(ORG_A), str(ORG_B), "organization_id", "tenant_id"):
+        assert token not in rendered, token
+
+
 def test_authorization_vector_denies_foreign_resource() -> None:
     context = RequestContext(actor_id=uuid.uuid4(), organization_id=ORG_A)
     decision = authorize(
@@ -363,10 +405,23 @@ def _code_matches(pattern: str) -> bool:
 
 PENDING_VECTORS: list[tuple[str, Callable[[], bool], str]] = [
     (
-        "cache",
-        lambda: _code_matches(r"import\s+redis|from\s+redis|redis\.|valkey\.|cache_get|cache_set"),
+        "tenant-scoped cache",
+        # NARROWED at STEP-007.01, and the narrowing is the finding. The first cache
+        # in the system arrived there — and it holds a PUBLIC, unauthenticated
+        # document with no tenant at all, so it is not a cross-tenant vector. The
+        # detector fired on `cache_get`/`cache_set` and was right to; what it found
+        # was not the subsystem this placeholder was waiting for.
+        #
+        # A *tenant-scoped* cache is still unbuilt, and that is the one REQ-SEC-002
+        # names. The pattern now excludes the coverage module by requiring a tenant
+        # or trip in the key, so this fires when the real thing lands.
+        lambda: _code_matches(
+            r"import\s+redis|from\s+redis|redis\.|valkey\.|cache_key.*(tenant|org|trip)"
+        ),
         "REQ-SEC-002 requires a cache key collision to be unable to serve foreign "
-        "data. No cache layer exists yet (arrives with STEP-010 retrieval).",
+        "data. The only cache is STEP-007.01's, which holds one public document and "
+        "is proven tenant-free by test_the_coverage_cache_holds_no_tenant_data. A "
+        "tenant-scoped cache arrives with STEP-010 retrieval.",
     ),
     (
         "export",

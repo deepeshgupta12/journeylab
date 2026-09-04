@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import inspect
 import types
-import uuid
 from datetime import UTC, datetime, timedelta
 from unittest import mock
 
@@ -262,60 +261,79 @@ class TestTheReadModelIsDerivedAndIsolated:
             columns = {row[0] for row in cur.fetchall()}
         assert not any("provider" in c or "supplier" in c for c in columns), columns
 
-    def test_dropping_and_rebuilding_the_read_model_restores_it(self) -> None:
-        """TST-DATA-010. A corrupt projection is a recoverable inconvenience rather
-        than data loss — proved by dropping it and rebuilding, not asserted."""
-        org = uuid.UUID(ORG)
+    def test_rebuilding_restores_derived_fields_without_destroying_declared_ones(
+        self,
+    ) -> None:
+        """TST-DATA-010, and a hazard STEP-007.01 introduced.
+
+        The table now holds two kinds of column. `freshness` and `accepting_trips`
+        are **derived** — folded from `EVT-008`. `display_name` and `date_bounds`
+        are **declared**: the product's statement about what it supports, which no
+        event produces and a rebuild therefore cannot reconstruct.
+
+        So a rebuild must UPDATE the derived columns, never DELETE and reinsert.
+        Deleting is the natural implementation — it is how you guarantee no stale row
+        survives — and it would silently erase every region's name and dates, leaving
+        a projection that rebuilt perfectly and a coverage page that cannot render.
+        """
         events = [
             health("e-1", state="unavailable"),
             health("e-2", state="degraded", regions="geneva"),
         ]
+        declared = {
+            "bern": ("Bern", "2026-04-01", "2027-03-31"),
+            "geneva": ("Geneva", "2026-04-01", "2027-03-31"),
+        }
         source = coverage_projection()
         source.consume(events)
 
         with psycopg.connect(DSN, autocommit=True) as conn, conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO organizations (id, slug, display_name) VALUES (%s,'proj','P') "
-                "ON CONFLICT (id) DO NOTHING",
-                (org,),
-            )
+            for region, (name, start, end) in declared.items():
+                cur.execute(
+                    "INSERT INTO coverage_read_model (region_id, display_name, "
+                    "date_bounds_start, date_bounds_end, freshness, accepting_trips) "
+                    "VALUES (%s,%s,%s,%s,'current',true) ON CONFLICT (region_id) DO NOTHING",
+                    (region, name, start, end),
+                )
             for region, row in source.state.items():
                 cur.execute(
-                    "INSERT INTO coverage_read_model (organization_id, region_id, freshness, "
-                    "accepting_trips) VALUES (%s,%s,%s,%s) ON CONFLICT (organization_id, region_id) "
-                    "DO UPDATE SET freshness = EXCLUDED.freshness",
-                    (org, region, row["freshness"], row["accepting_trips"]),
+                    "UPDATE coverage_read_model SET freshness = %s, accepting_trips = %s "
+                    "WHERE region_id = %s",
+                    (row["freshness"], row["accepting_trips"], region),
                 )
             cur.execute(
-                "SELECT region_id, freshness FROM coverage_read_model WHERE organization_id = %s",
-                (org,),
+                "SELECT region_id, display_name, freshness FROM coverage_read_model "
+                "WHERE region_id = ANY(%s) ORDER BY region_id",
+                (list(declared),),
             )
-            before: dict[str, str] = dict(cur.fetchall())
+            before = cur.fetchall()
 
-            cur.execute("DELETE FROM coverage_read_model WHERE organization_id = %s", (org,))
+            # Corrupt the derived half, exactly as a bad consumer would.
             cur.execute(
-                "SELECT count(*) FROM coverage_read_model WHERE organization_id = %s", (org,)
+                "UPDATE coverage_read_model SET freshness = 'current' WHERE region_id = ANY(%s)",
+                (list(declared),),
             )
-            emptied = cur.fetchone()
-            assert emptied is not None and emptied[0] == 0
 
             rebuilt = coverage_projection()
             rebuild(rebuilt, events, at=NOW)
             for region, row in rebuilt.state.items():
                 cur.execute(
-                    "INSERT INTO coverage_read_model (organization_id, region_id, freshness, "
-                    "accepting_trips) VALUES (%s,%s,%s,%s)",
-                    (org, region, row["freshness"], row["accepting_trips"]),
+                    "UPDATE coverage_read_model SET freshness = %s, accepting_trips = %s "
+                    "WHERE region_id = %s",
+                    (row["freshness"], row["accepting_trips"], region),
                 )
             cur.execute(
-                "SELECT region_id, freshness FROM coverage_read_model WHERE organization_id = %s",
-                (org,),
+                "SELECT region_id, display_name, freshness FROM coverage_read_model "
+                "WHERE region_id = ANY(%s) ORDER BY region_id",
+                (list(declared),),
             )
-            after: dict[str, str] = dict(cur.fetchall())
+            after = cur.fetchall()
+            cur.execute(
+                "DELETE FROM coverage_read_model WHERE region_id = ANY(%s)", (list(declared),)
+            )
 
-            cur.execute("DELETE FROM organizations WHERE id = %s", (org,))
-
-        assert after == before, "the rebuilt read model differs from the original"
+        assert after == before, "the rebuild did not restore the derived state"
+        assert all(row[1] for row in after), "a rebuild erased a declared display name"
 
 
 # --- negative controls ------------------------------------------------------------------
@@ -362,17 +380,10 @@ class TestTheReadModelConstrainsItsOwnVocabulary:
         """The enum exists in the type and in the table. Mutation testing dropped the
         table's constraint and nothing failed, because every test wrote through the
         projection — which is the layer a future writer bypasses."""
-        org = uuid.UUID(ORG)
         with psycopg.connect(DSN, autocommit=True) as conn, conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO organizations (id, slug, display_name) VALUES (%s,'projvocab','P') "
-                "ON CONFLICT (id) DO NOTHING",
-                (org,),
-            )
             with pytest.raises(psycopg.errors.CheckViolation, match="freshness_known"):
                 cur.execute(
-                    "INSERT INTO coverage_read_model (organization_id, region_id, freshness, "
-                    "accepting_trips) VALUES (%s,'bern','probably_fine',true)",
-                    (org,),
+                    "INSERT INTO coverage_read_model (region_id, display_name, "
+                    "date_bounds_start, date_bounds_end, freshness, accepting_trips) "
+                    "VALUES ('vocab','Vocab','2026-04-01','2027-03-31','probably_fine',true)"
                 )
-            cur.execute("DELETE FROM organizations WHERE id = %s", (org,))

@@ -46,6 +46,198 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-030 — R7 reported PASS about a database nobody asked it to test
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — R7 is the check this repository calls non-negotiable, and it could be aimed at the wrong system without saying so. Not S1 only because CI has `psql` and therefore honoured the DSN |
+| Found during | STEP-007.01, by running `pnpm guard:meta` — which turned out never to have been run |
+| Date found | 2026-09-04 |
+| Affected requirements | REQ-SEC-002, and the R7 gate in `CLAUDE.md` §2 |
+
+### Symptom
+
+```
+JOURNEYLAB_DATABASE_URL="postgresql://nobody:nothing@127.0.0.1:59999/absent" \
+  bash tests/guards/tenant-isolation-gate.sh
+  RESULT: PASS — cross-tenant isolation enforced at the database.
+```
+
+A DSN pointing at a closed port. Eighteen assertions passed.
+
+### Root cause
+
+```bash
+if command -v psql >/dev/null 2>&1; then
+  PGC="psql -v ON_ERROR_STOP=1 $DSN"
+elif docker ps ... | grep -q '^journeylab-postgres$'; then
+  PGC="docker exec -i journeylab-postgres psql ..."   # $DSN discarded
+```
+
+The container fallback exists so a developer without libpq is not blocked, which is
+reasonable. It applied **even when the caller had explicitly named a database**, so
+the declared target was silently replaced by whatever container happened to be
+running.
+
+The damage is not that the run failed — it is that the run *succeeded*, and produced
+confident evidence about a system nobody had asked about. A check that can be aimed
+elsewhere without announcing it is worse than one that errors.
+
+### Why existing tests did not catch it
+
+They did. `tests/guards/meta/run-all.sh` has asserted this exact behaviour since
+STEP-001.07, in three assertions written specifically to stop `BUG-023` recurring —
+and all three were failing.
+
+**Nobody ran them.** `guard:meta` was never in `pnpm verify`, so it ran only when
+somebody typed it, and for twenty sub-steps nobody did. See the honesty correction
+below.
+
+### Fix
+
+An explicitly declared DSN is honoured or the run stops. The fallback applies only
+when nothing was declared, so it invents nothing:
+
+```bash
+elif [ -n "$DECLARED_DSN" ]; then
+  echo "SKIP: a database was declared but psql is not installed."
+  echo "      Refusing to fall back to the local container: R7 would report PASS"
+  echo "      about a database nobody asked it to test (BUG-030)."
+  exit 2
+```
+
+### Regression test
+
+The three STEP-001.07 meta-assertions that were already failing. They now pass, and
+`guard:meta` is in `pnpm verify`, so they cannot fail unnoticed again.
+
+### Prevention
+
+`pnpm guard:meta` added to the `verify` chain. A guard suite that runs only on
+request is a guard suite that reports whatever it reported last.
+
+---
+
+## BUG-029 — The coverage read model was missing two fields the contract requires
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — pre-release, no consumer |
+| Found during | STEP-007.01, by validating the handler's response against the contract |
+| Date found | 2026-09-04 |
+| Affected requirements | REQ-TRIP-002 |
+
+### Symptom
+
+`CoverageRegion` requires `region_id`, `display_name`, `date_bounds` and `freshness`,
+and is `additionalProperties: false`. The read model built at STEP-006.09 had
+`region_id`, `freshness`, `accepting_trips` and `limitations`.
+
+Two required fields had no source; one field the model does have is forbidden.
+
+### Root cause
+
+The projection was designed from the **event stream** — what `EVT-008` can tell us —
+and the contract was written from the **traveller's need**. `freshness` is derived
+from provider health; `display_name` and `date_bounds` are the product's own
+statement about what it supports, which no event produces and no provider knows.
+
+Building the read model without reading the schema it serves meant the derived half
+was complete and the declared half was absent.
+
+### Why existing tests did not catch it
+
+STEP-006.09's tests asserted the projection against **itself** — that a rebuild
+matched the original. Nothing compared its output to `CoverageRegion`. A projection
+can be perfectly self-consistent and serve a shape no consumer accepts.
+
+The first version of the handler then papered over `display_name` by echoing
+`region_id`, which validated against nothing and would have rendered `bern` to a
+traveller.
+
+### Fix
+
+`017_coverage_declared_fields.sql` adds `display_name`, `date_bounds_start` and
+`date_bounds_end` as NOT NULL, and **no region is seeded** — an empty coverage list
+is the honest current answer, and the schema now forces whoever declares the first
+region to supply a name and a date range rather than inheriting a default.
+
+`accepting_trips` stays in the table for STEP-007.03's refusal path and out of the
+response.
+
+### Regression test
+
+`test_the_document_validates_against_the_coverage_schema` validates the real response
+against the contract's `Coverage` schema, resolved from the document root so internal
+`$ref`s work. Plus `test_display_name_is_not_the_region_id`, which a mutant restoring
+the echo had survived.
+
+### Prevention
+
+The handler validates against the contract in a test, so the two cannot drift apart
+silently again. The general lesson is `ENH-004`'s: a schema nothing reads is a schema
+nothing enforces.
+
+---
+
+## BUG-028 — The public coverage endpoint could not read its own read model
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — the endpoint would return a plausible, well-formed, completely wrong answer to every visitor |
+| Found during | STEP-007.01, writing the handler |
+| Date found | 2026-09-04 |
+| Affected requirements | REQ-TRIP-002, REQ-EVID-006 |
+
+### Symptom
+
+One row present in `coverage_read_model`; **zero rows visible** to the operation that
+exists to serve it.
+
+### Root cause
+
+STEP-006.09 built the read model tenant-scoped — `organization_id NOT NULL`, `FORCE
+ROW LEVEL SECURITY`. `getCoverage` (`API-017`) is declared `security: []`: public and
+unauthenticated, because a traveller must be able to learn whether their destination
+is supported *before* creating an account.
+
+A public request has no tenant, so `app_current_org()` is NULL, so every policy
+comparison is NULL, so no row qualifies.
+
+**The endpoint does not error.** It returns an empty region list — "we support
+nowhere" — to the person deciding whether to sign up.
+
+### Why existing tests did not catch it
+
+Every STEP-006.09 test bound a tenant, because every other table in the system
+requires one. The habit is correct everywhere else and wrong here, and nothing in the
+test suite knew this table was different — the contract knew, and no test read the
+contract.
+
+### Fix
+
+`016_coverage_is_global.sql`. Coverage is platform data: whether Bern is supported
+depends on our providers, not on who is asking. `organization_id` dropped, RLS
+disabled, primary key on `region_id`. The same reasoning that kept `places` out of
+tenant scope in `BR-046` §7.
+
+Recorded as a **contract-phase migration** — the phase is named rather than smuggled,
+even though the table was empty and unread.
+
+### Regression test
+
+`TestBug028CoverageIsReadableWithoutATenant` — three tests: a row is visible with no
+tenant context, the table has no tenant column, and it does not force RLS. A mutant
+restoring the tenant scoping is killed.
+
+### Prevention
+
+The lesson is the one STEP-005.07 already taught with `BUG-027`: **writing the next
+sub-step is how the last one's defect is found.** A read model built without reading
+the operation that serves it will be shaped like its source rather than its consumer.
+
+---
+
 ## BUG-027 — The place record could not say where a place is
 
 | Field | Value |

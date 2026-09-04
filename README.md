@@ -194,12 +194,12 @@ docs/adr/          architecture decision records
 
 | Suite | Count | Runs in |
 | --- | --- | --- |
-| Python | 1281 | `pnpm verify` |
+| Python | 1303 | `pnpm verify` |
 | Design system (jsdom) | 307 | `pnpm verify` |
 | Web (unit) | 63 | `pnpm verify` |
 | **Real browser (Playwright + axe)** | **40** | `pnpm verify` |
 | Cross-tenant isolation (R7) | 18 | **`pnpm verify`** (and `pnpm test:security`) |
-| Guard meta-tests | 72 | `pnpm guard:meta` |
+| Guard meta-tests | 74 | `pnpm guard:meta` |
 
 The browser suite is the one to know about. It runs axe over five surfaces in two
 device profiles and asserts keyboard traversal, focus visibility, 24×24 touch

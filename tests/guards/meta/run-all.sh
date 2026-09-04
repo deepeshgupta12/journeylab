@@ -75,6 +75,10 @@ assert_guard "no-stray-markup catches untracked file (BUG-004 scope)" tests/guar
 rm -f META_SEED_markup.md
 assert_guard "no-stray-markup clean again" tests/guards/no-stray-markup.sh 0
 
+# STEP-007.01. The guard caught its own author one step after being written:
+# `tests/platform` shadowed the stdlib because `tests` is on pythonpath.
+assert_guard "no-stdlib-shadowing self-meta-test" tests/guards/no-stdlib-shadowing.sh 0 "rejects a seeded shadow"
+
 echo ""
 echo "=== BUG-002: tracked build artifacts ==="
 # Force-add: a gitignored dist/ is CORRECTLY invisible to the guard — it cannot be

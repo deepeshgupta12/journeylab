@@ -26,14 +26,37 @@ cd "$(dirname "$0")/../.."
 
 DSN="${JOURNEYLAB_DATABASE_URL:-${JOURNEYLAB_TEST_DSN:-postgresql://journeylab:journeylab_dev_only@127.0.0.1:5700/journeylab}}"
 
+# BUG-030. A DECLARED TARGET IS NEVER SILENTLY SWAPPED.
+#   The container fallback below exists so a developer without libpq is not
+#   blocked. It used to apply whenever `psql` was absent — including when the
+#   caller had explicitly named a database in the environment.
+#
+#   The consequence was that R7 printed "PASS — cross-tenant isolation enforced at
+#   the database" while connected to a completely different database from the one
+#   it was told to use. Pointed at a dead port it still passed, against the local
+#   container, because the DSN was discarded rather than honoured.
+#
+#   R7 is the check this repository calls non-negotiable. A non-negotiable check
+#   that can be aimed somewhere else without saying so is worse than one that
+#   fails: it produces confident evidence about the wrong system. So an explicitly
+#   declared DSN is now used or the run stops — the fallback applies only when
+#   nobody declared anything.
+DECLARED_DSN="${JOURNEYLAB_DATABASE_URL:-${JOURNEYLAB_TEST_DSN:-}}"
+
 if command -v psql >/dev/null 2>&1; then
   PGC="psql -v ON_ERROR_STOP=1 $DSN"
   CONNECTION="psql -> $DSN"
+elif [ -n "$DECLARED_DSN" ]; then
+  echo "SKIP: a database was declared ($DECLARED_DSN) but psql is not installed."
+  echo "      Refusing to fall back to the local container: R7 would report PASS"
+  echo "      about a database nobody asked it to test (BUG-030)."
+  echo "      (R7 cannot be evaluated here — this is a SKIP, not a PASS.)"
+  exit 2
 elif docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^journeylab-postgres$'; then
-  # No psql on PATH. Fall back to the container so a developer without libpq
-  # installed is not blocked; CI always has psql.
+  # No psql, and nobody named a database. The container is the only candidate, so
+  # using it invents nothing.
   PGC="docker exec -i journeylab-postgres psql -v ON_ERROR_STOP=1 -U journeylab -d journeylab"
-  CONNECTION="docker exec journeylab-postgres"
+  CONNECTION="docker exec journeylab-postgres (no DSN declared)"
 else
   echo "SKIP: no psql client and no journeylab-postgres container."
   echo "      Start the stack with: pnpm dev"
