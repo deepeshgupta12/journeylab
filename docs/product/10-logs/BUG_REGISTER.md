@@ -46,6 +46,80 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-033 — A keyboard user cannot scroll the data table at narrow viewports
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — `REQ-A11Y-001` requires keyboard-complete. At a phone viewport, part of every table's content is reachable by pointer and **not** by keyboard |
+| Found during | STEP-007.02 demonstration, by measuring a screenshot that looked wrong |
+| Date found | 2026-09-04 |
+| Affected requirements | REQ-A11Y-001, WCAG 2.2 SC 2.1.1 (Keyboard) |
+| Affected component | `packages/ui/src/data/table.tsx` — **the design system's `DataTable`, so every table in the product** |
+
+### Symptom
+
+On a Pixel 7 viewport (412 CSS px), the coverage table overflows its container:
+
+```
+viewport                412
+wrapper .jl-table       clientWidth 380, scrollWidth 436   -> 56px hidden
+document scrollWidth    412                                -> the PAGE does not overflow
+```
+
+The hidden 56px is the right-hand end of the *Known limitations* column. A pointer or
+touch user scrolls the region and reads it. **Tabbing never scrolls the region at
+all** — measured across 25 presses, `scrollLeft` stayed at `0` where 56 is needed.
+
+### Root cause
+
+The wrapper is `overflow-x: auto` with **no `tabindex`**, so it is not itself
+focusable. Browsers scroll a region when focus moves into it, and the only focusable
+descendant is the **"Download CSV" button**, which sits outside the overflowing table
+content — focusing it produces no horizontal scroll.
+
+### Why axe passed, and why that is the interesting part
+
+`scrollable-region-focusable` **passes**, and correctly by its own definition: the
+rule is satisfied when a scrollable region contains focusable content, and the CSV
+button is focusable content.
+
+But the rule's *purpose* is "a keyboard user can reach what is in here", and the
+element satisfying it is not in the part that overflows. **The detector passed for a
+reason unrelated to the property it protects** — the same shape as three earlier
+findings in this repository: a drift check with no baseline, a purity checker
+indistinguishable from `return True`, and three coverage tests satisfied by a 404.
+
+The browser suite missed it for a plainer reason: it asserts the page is *keyboard
+reachable* (something receives focus) and never that **all content** is.
+
+### What is not wrong
+
+Worth stating, because the screenshot suggested worse. The page does not overflow, no
+content is lost, the table is semantically complete, and a screen-reader user
+navigates it by table semantics rather than by scrolling. This affects specifically a
+**sighted keyboard-only user at a narrow viewport**.
+
+### Fix
+
+Not applied — the component belongs to `STEP-003.04` and the fix is a design-system
+change with its own blast radius. Two candidates:
+
+1. `tabindex="0"` plus `role="region"` and an accessible name on the wrapper — the
+   pattern axe's own documentation recommends, and it puts the scroll region in the
+   tab order.
+2. A responsive layout that does not overflow at phone widths, so there is nothing to
+   scroll — `DataList` already exists for exactly this and is unused here.
+
+Recorded for scheduling rather than fixed in passing.
+
+### Regression test owed
+
+A browser assertion that **every table cell is reachable by keyboard alone** at the
+mobile profile, not merely that focus lands somewhere. Plus a design-system test that
+an overflowing `DataTable` exposes a focusable scroll region.
+
+---
+
 ## BUG-032 — `.gitignore` silently excluded a page from its own commit
 
 | Field | Value |

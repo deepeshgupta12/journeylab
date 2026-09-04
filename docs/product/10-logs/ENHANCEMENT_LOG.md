@@ -30,6 +30,97 @@ An enhancement is work nobody asked for. It may be excellent and it may be scope
 
 ---
 
+## ENH-007 — The product has no real data end to end
+
+| Field | Value |
+| --- | --- |
+| Proposed by | **Deepesh Kumar Gupta (owner directive)**, 2026-09-04 |
+| Date | 2026-09-04 |
+| Type | capability / demonstrability |
+| Status | **ACCEPTED — scheduled after STEP-007 completes** |
+| Trigger | Demonstrating STEP-007.02 required hand-seeded rows, because nothing in the pipeline can fill the read model |
+
+### Current state, measured rather than described
+
+```
+coverage_read_model      0 rows
+evidence_facts           0 rows
+places                   0 rows
+outbox                   1 row  (left by a test)
+JOURNEYLAB_OTD_*_KEY     empty
+```
+
+Every layer between a provider and the page exists and is tested. **None of them has
+ever run against anything real.** Three independent reasons, and they need different
+fixes:
+
+| Gap | Why it is empty | What closes it |
+| --- | --- | --- |
+| Declared fields (`display_name`, `date_bounds`) | No event produces them — they are the product's statement of what it supports. `017` seeds none deliberately | A product decision, then one row |
+| Derived fields (`freshness`) | Come from `EVT-008`. No relay worker and no consumer process runs | A worker process — `BR-055` §7, `BR-058` §7 |
+| Any provider data at all | No connector has ever fetched. The disclosure "no provider fetch has been made" has been carried since STEP-005.02 | API keys, then wiring a connector |
+
+### Why this matters beyond the demo
+
+The repository has 1313 Python tests over adapters, normalizers, entity resolution,
+freshness policy, reconciliation, an outbox, consumer idempotency and a projection —
+and **not one row of real provider data has passed through any of it.** Every one of
+those components is verified against fixtures the same author wrote.
+
+That is a defensible position for a foundation and an indefensible one to stay in.
+`BUG-026` is the precedent: the first live check of any provider found a constant that
+was wrong by a factor of three, and it was found by looking at a real API rather than
+by any test.
+
+### Recommendation
+
+Take it in the order above — declared row, then a running relay, then a live fetch —
+because each makes the next one observable. The live fetch is the one that retires a
+disclosure carried through nine sub-steps.
+
+---
+
+## ENH-006 — The UI needs a real design pass, not incremental patching
+
+| Field | Value |
+| --- | --- |
+| Proposed by | **Deepesh Kumar Gupta (owner directive)**, 2026-09-04 |
+| Date | 2026-09-04 |
+| Type | design quality |
+| Status | **ACCEPTED — scheduled after STEP-007 completes** |
+| Trigger | Reviewing the rendered coverage page |
+
+### Current state
+
+`STEP-003` delivered a design system — 40 components, 307 tests, tokens, contrast
+checked, RTL-safe. What it did not deliver is a **visual design**: the surfaces built
+on it are structurally correct and visually undirected, because every one so far has
+been a diagnostic or a first product page assembled from primitives.
+
+The coverage page is the first thing a traveller would see, and it reads as a
+correctly-marked-up document rather than a product.
+
+### What this is not
+
+Not a request to loosen the accessibility gates, and not a licence to restyle
+component by component as pages are built. **Patch-by-patch styling is the failure
+mode being ruled out here** — it produces a system where each page is locally
+reasonable and the product has no coherent identity, and it is the state the design
+system was created to prevent.
+
+### Recommendation
+
+A single directed pass over the design system's visual layer — type scale, colour
+beyond contrast minimums, spacing rhythm, density — applied at the token level so
+every existing surface inherits it, rather than per page. Sequenced **after STEP-007**
+so it lands on a complete first flow rather than on one page.
+
+The constraint to preserve: whatever changes, `REQ-A11Y-001`/`002`/`003` and the axe
+gate hold, and the table-before-map ordering established in STEP-013.01 is not
+reopened.
+
+---
+
 ## ENH-005 — Guard that a closed decision is closed everywhere
 
 | Field | Value |
