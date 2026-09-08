@@ -66,14 +66,14 @@ expensive knowledge lives.
 | --- | --- |
 | Date | 2026-09-05 |
 | Author | Deepesh Kumar Gupta |
-| Requirements | REQ-TRIP-001, REQ-TRIP-002, REQ-EVID-006, REQ-A11Y-001 |
+| Requirements | REQ-TRIP-001, REQ-TRIP-002, REQ-EVID-006, REQ-A11Y-001, REQ-PLAT-005, REQ-PRIV-004 |
 | Blast radius | [BR-061](blast-radius/BR-061-date-geography-validation.md) (MEDIUM, confidence MEDIUM, **owner approval outstanding** — a contract addition and `DEC-011`) |
 | Commit | see git log for this entry |
 
 ### What was built
 
 `POST /v1/coverage:check` (`API-019`), the rule behind it, and the form a traveller
-meets it through. Python 1313 → **1373**; web unit 63 → **71**; browser 56 → **58**.
+meets it through. Python 1313 → **1378**; web unit 63 → **71**; browser 56 → **58**.
 
 | Artefact | What it is |
 | --- | --- |
@@ -126,6 +126,23 @@ it one. Under jsdom `import.meta.url` is an `http://` URL, so that test's
 scheme file". It reads its own source to prove the locale never reaches a module
 specifier — a **security** property — and a config default had switched it off while
 looking like configuration. Fixed with a per-file `@vitest-environment jsdom`.
+
+### A privacy assertion found a correctness defect — twice
+
+`BUG-035`. A test written to check that an oversized `region_id` is not echoed back
+failed, and the reason was not the echo: **FastAPI's default validation error is not
+a problem document at all.** `application/json`, no `code`, no `correlation_id`, no
+`retryable` — so the one error shape `ERROR_MODEL.md` promises had an exception on the
+path a malformed request takes, and a client branching on `code` had nothing to
+branch on exactly when the request was wrong.
+
+`conventions/problem.py` was built so no service could invent its own error shape, and
+it works for every error the application *raises*. This one the **framework** raises,
+before any of our code runs, so the convention never saw it. Eighteen operations'
+worth of error-shape tests all assert on responses the application produced
+deliberately; none covered a request it never accepted.
+
+Fixed application-wide, not for this route.
 
 ### Three smaller surprises
 

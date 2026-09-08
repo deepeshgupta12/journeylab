@@ -439,7 +439,74 @@ class TestMalformedRequests:
             CHECK,
             json={"region_id": "check-bern", **_future(30, 4), "traveller_email": "a@b.com"},
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
+        assert response.json()["code"] == "validation.invalid_request"
+        # The address must not come back either — it is exactly what §5 forbids.
+        assert "a@b.com" not in response.text
+
+    def test_the_request_bounds_are_the_contract_s_bounds(self) -> None:
+        """Read from the contract, not restated here.
+
+        `region_id` is `minLength: 1, maxLength: 64` in `PlanningCheckRequest`. If
+        this test hardcoded 64 it would pass while the two drifted; reading the
+        contract means widening one without the other fails.
+        """
+        import pathlib
+
+        import yaml
+        from app import REGION_ID_MAX_LENGTH, REGION_ID_MIN_LENGTH
+
+        spec = yaml.safe_load(pathlib.Path("contracts/openapi.yaml").read_text())
+        declared = spec["components"]["schemas"]["PlanningCheckRequest"]["properties"]["region_id"]
+        assert declared["minLength"] == REGION_ID_MIN_LENGTH
+        assert declared["maxLength"] == REGION_ID_MAX_LENGTH
+
+    def test_an_oversized_region_id_is_rejected_rather_than_looked_up(
+        self, client: TestClient
+    ) -> None:
+        """Unauthenticated, so an unbounded string is something anyone can send —
+        and it would reach a query parameter, a log line, and a refusal message that
+        quotes it back."""
+        response = client.post(CHECK, json={"region_id": "x" * 500, **_future(30, 4)})
+        assert response.status_code == 400
+        assert response.json()["code"] == "validation.invalid_request"
+        # BUG-035: FastAPI's default body includes `input` — the value that failed.
+        assert "x" * 500 not in response.text, "the oversized id must not be echoed"
+
+    def test_an_empty_region_id_is_rejected(self, client: TestClient) -> None:
+        response = client.post(CHECK, json={"region_id": "", **_future(30, 4)})
+        assert response.status_code == 400
+
+    def test_a_validation_failure_is_a_problem_document(self, client: TestClient) -> None:
+        """BUG-035. FastAPI's default 422 is `application/json` with a `detail`
+        array and no `code`, `correlation_id` or `retryable` — so the one error
+        shape `ERROR_MODEL.md` promises had an exception on the path a malformed
+        request takes, and a client branching on `code` had nothing to branch on
+        exactly when the request was wrong."""
+        response = client.post(CHECK, json={"region_id": "ok"})
+        assert response.status_code == 400
+        assert response.headers["content-type"].startswith("application/problem+json")
+        body = response.json()
+        assert body["code"] == "validation.invalid_request"
+        assert body["retryable"] is False
+        assert body["correlation_id"]
+        assert body["instance"] == "/coverage:check"
+
+    def test_a_validation_failure_names_fields_and_not_their_contents(
+        self, client: TestClient
+    ) -> None:
+        """`ERROR_MODEL.md` §5 forbids request body content in a problem document —
+        it is personal data (`REQ-PRIV-004`), and on an unauthenticated endpoint it
+        also reflects attacker-supplied text back to whoever reads the response."""
+        secret = "this-should-never-be-echoed-back"
+        response = client.post(
+            CHECK,
+            json={"region_id": secret, "start_date": "nope", "end_date": "also-nope"},
+        )
+        assert response.status_code == 400
+        assert secret not in response.text
+        assert "nope" not in response.text
+        assert set(response.json()["remediation"]["fields"]) == {"start_date", "end_date"}
 
     def test_a_correlation_id_is_returned_on_a_refusal_too(self, client: TestClient) -> None:
         """The responses anyone wants to investigate are the failing ones."""

@@ -46,6 +46,83 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-035 — Validation failures were not problem documents, and echoed the request back
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — `REQ-PLAT-005` promises one error shape for every failure, and the path a malformed request takes was exempt. The echo is a privacy defect on an unauthenticated endpoint |
+| Found during | STEP-007.03, by a test asserting an oversized `region_id` is not echoed back |
+| Date found | 2026-09-05 |
+| Affected requirements | REQ-PLAT-005, REQ-PRIV-004 |
+| Affected component | `apps/api/src/app.py` — **the whole application**, not one route |
+| Status | **FIXED** — `RequestValidationError` handler; three regression tests |
+
+### Symptom
+
+```
+POST /coverage:check  {"region_id": "xxxx…(500)", …}
+
+HTTP/1.1 422 Unprocessable Content
+content-type: application/json
+{"detail":[{"type":"string_too_long","loc":["body","region_id"],
+            "msg":"String should have at most 64 characters",
+            "input":"xxxxxxxxxxxxxxxxxxxx…"}]}
+```
+
+Two defects in one response:
+
+1. **Not a problem document.** `application/json`, not `application/problem+json`.
+   No `code`, no `correlation_id`, no `retryable`. `ERROR_MODEL.md` §1: *"Every
+   failure the API reports is built here, from a code in the generated register."*
+   A client branching on `code` had nothing to branch on **exactly when the request
+   was wrong** — and no correlation id for the support conversation that follows.
+2. **It echoes the value that failed.** `ERROR_MODEL.md` §5 forbids request body
+   content in a problem document, because constraints and free text are personal
+   data (`REQ-PRIV-004`). On an unauthenticated endpoint it is also a reflection of
+   arbitrary attacker-supplied text into a response somebody reads.
+
+### Root cause
+
+FastAPI installs a default `RequestValidationError` handler and nothing had displaced
+it. `conventions/problem.py` was written so that no service could invent its own error
+shape — and it succeeded for every error the application *raises*. This is one the
+**framework** raises, before any of our code runs, so the convention never saw it.
+
+### Why the tests missed it
+
+Every error-shape test in the repository asserts on a response the application
+produced deliberately. There was no test for a request the application never
+accepted. `STEP-004.01` built the convention and 18 operations' worth of tests
+around it, and the gap was not in any of them because the gap is *upstream of the
+handler*.
+
+It was found by a test written for something else — that an oversized region id is
+not echoed back — which is the second time in this sub-step that a privacy assertion
+found a correctness defect.
+
+### Fix
+
+`app.exception_handler(RequestValidationError)` returns
+`validation.invalid_request` through `problem()`, so the status (400), the title and
+`retryable` all come from the register. The offending **field names** are listed
+under `remediation.fields` — which is precisely what the register's remediation for
+this code already asked for, *"show the offending fields inline"* — and the values
+are not included.
+
+The status also corrects itself as a side effect: FastAPI sent 422, the register says
+`validation.invalid_request` is 400, and it is a malformed request rather than a
+well-formed impossible one.
+
+### Regression tests
+
+`tests/platform_api/test_app.py::TestMalformedRequests` —
+`test_a_validation_failure_is_a_problem_document` (shape, media type, code,
+correlation id) and `test_a_validation_failure_names_fields_and_not_their_contents`
+(a marker string in three fields, asserted absent from the whole response). Two
+existing tests were tightened to assert the code rather than only the status.
+
+---
+
 ## BUG-034 — "Degraded" means two different things, and one of them is an enum value
 
 | Field | Value |

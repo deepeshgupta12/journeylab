@@ -275,7 +275,7 @@ when it is answered.
 | Field | Value |
 | --- | --- |
 | Date completed | 2026-09-05 |
-| Regression | R1–R7 **PASS**. 1373 Python, 71 web, 307 UI, 58 browser, 18 R7, meta 76/76 |
+| Regression | R1–R7 **PASS**. 1378 Python, 71 web, 307 UI, 58 browser, 18 R7, meta 76/76 |
 | Mutation testing | **20 seeded, 20 killed, 0 survivors** |
 | Contract gate | `[ADDITIVE] POST /coverage:check — new operation` |
 | Predicted score | MEDIUM / MEDIUM |

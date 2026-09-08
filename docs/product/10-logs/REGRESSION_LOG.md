@@ -259,12 +259,12 @@ had passed.
 
 | Check | Result | Detail |
 | --- | --- | --- |
-| R1 full regression | **PASS** | **1373 Python** (from 1313) + **71 web** (from 63) + 307 UI + **58 browser** (from 56) |
+| R1 full regression | **PASS** | **1378 Python** (from 1313) + **71 web** (from 63) + 307 UI + **58 browser** (from 56) |
 | R2 contract compatibility | **PASS — additive** | `[ADDITIVE] POST /coverage:check — new operation`. Clients regenerated; `error-codes.json` byte-identical after the `ERROR_MODEL.md` edit |
 | R3 graph diff as expected | **PASS** | One module, one route, one page component, one migration, three guards amended. **The graph could not see the route** — `RISK-016` #13, `BR-061` §2 |
 | R4 untested requirements | **PASS — improved** | REQ-TRIP-001 and REQ-TRIP-002 gain their first behavioural coverage |
 | R5 orphan/unowned nodes | **PASS** | Catch-all owner |
-| R6 closed-bug tests | **PASS** | BUG-001…034; **guard meta-suite 76/76** |
+| R6 closed-bug tests | **PASS** | BUG-001…**035**; **guard meta-suite 76/76** |
 | R7 tenant isolation | **PASS — 18/18** | `read_region` binds no tenant and is asserted to name none. Coverage is global (`BUG-028`) and the operation is public |
 
 **Overall:** PASS
@@ -286,6 +286,7 @@ refusal, which is `BUG-034` made executable, and is killed by the disclosure tes
 | `i18n.test.ts` — "The URL must be of scheme file" | I set `environment: 'jsdom'` for the whole web package. Under jsdom `import.meta.url` is an `http://` URL, and that test reads its own source to prove the locale never reaches a module specifier — a **security** property switched off by a config default | Per-file `@vitest-environment jsdom` on the one file that needs it |
 | 2 jsdom announcement tests | `[aria-live="polite"]` is not unique: every `Field` renders its own empty error slot, so the selector matched a field, found it empty, and reported the acceptance had not been announced | Select the notification regions by their own class. Correct markup, wrong selector |
 | 4 `[mobile]` a11y tests, first run | Timeouts on the gallery — the largest page — during a 27.6-minute run while Docker was still warming | **Re-run clean: 56/56 in 50.9s.** Recorded rather than dismissed: this repository forbids retries on a11y gates, so the claim here is a clean full run, not a passing retry of the failures alone |
+| `test_an_oversized_region_id_is_rejected_rather_than_looked_up` | The contract declares `region_id` `minLength: 1, maxLength: 64` and the request model enforced neither — then the fix exposed **`BUG-035`**: FastAPI's default validation error is not a problem document and echoes the failing value | Bounds mirrored with a test that reads both numbers *out of the contract*; `RequestValidationError` handled through `problem()`, naming fields and not their contents |
 | `guard:node` and 2 meta-tests | Local Node 25.9.0 against the pinned 24 | Re-ran the gate on `node@24`. **Meta-suite 76/76**, which is the number CI sees |
 
 ---

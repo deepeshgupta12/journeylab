@@ -44,7 +44,8 @@ from typing import Any
 
 import psycopg
 from conventions.problem import problem
-from fastapi import FastAPI, Header, Response
+from fastapi import FastAPI, Header, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from platform_api.coverage import CoverageCache, get_coverage
 from platform_api.trip_request import (
@@ -53,7 +54,7 @@ from platform_api.trip_request import (
     check_planning_request,
     read_region,
 )
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 #: One process-wide cache for the one public document. Not a general-purpose cache
 #: — see `platform_api.coverage.CoverageCache`, which refuses a second key.
@@ -98,6 +99,51 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_problem(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Every failure is a problem document, including the ones FastAPI raises.
+
+    WHAT WAS WRONG (BUG-035)
+        FastAPI's default handler returns `application/json` with a `detail` array
+        and **no `code`, no `correlation_id`, no `retryable`** — so the one shape
+        `ERROR_MODEL.md` promises had an exception nobody had noticed, on the path a
+        malformed request takes. A client branching on `code` sees nothing to branch
+        on precisely when the request was wrong.
+
+    THE OFFENDING VALUES ARE NAMED, NEVER ECHOED
+        The default body includes `input` — the value that failed. `ERROR_MODEL.md`
+        §5 forbids request body content in a problem document, because constraints
+        and free text are personal data (`REQ-PRIV-004`), and on an unauthenticated
+        endpoint it also reflects arbitrary attacker-supplied text back to whoever
+        reads the response.
+
+        So this names the **fields** and not their contents, which is exactly what
+        the register's remediation for this code asks for: "show the offending
+        fields inline".
+    """
+    correlation_id = request.headers.get("X-Correlation-Id") or f"cor_{uuid.uuid4().hex[:16]}"
+    fields = sorted(
+        {
+            ".".join(str(part) for part in error.get("loc", ()) if part != "body")
+            for error in exc.errors()
+        }
+        - {""}
+    )
+    document = problem(
+        "validation.invalid_request",
+        correlation_id=correlation_id,
+        detail="The request does not match the contract for this operation.",
+        instance=request.url.path,
+        remediation={"kind": "correct_fields", "fields": fields},
+    )
+    return JSONResponse(
+        status_code=int(document["status"]),
+        media_type="application/problem+json",
+        content=document,
+        headers={"X-Correlation-Id": correlation_id},
+    )
 
 
 @app.get("/api/health")
@@ -149,6 +195,16 @@ async def coverage(
     return document
 
 
+#: Bounds on `region_id`, mirroring `PlanningCheckRequest` in the contract.
+#:
+#: `maxLength` is the one that earns its place. This operation is unauthenticated,
+#: so an unbounded string is something anyone can send, and it reaches a query
+#: parameter, a log line and a refusal message that quotes it back. A region id is a
+#: slug; 64 characters is generous for one.
+REGION_ID_MIN_LENGTH = 1
+REGION_ID_MAX_LENGTH = 64
+
+
 class PlanningCheckBody(BaseModel):
     """`API-019` request. Closed, matching `PlanningCheckRequest`.
 
@@ -156,11 +212,15 @@ class PlanningCheckBody(BaseModel):
     loosely: a field the contract forbids is rejected here too, so a client that
     sends traveller details to an unauthenticated endpoint is refused rather than
     silently having them dropped.
+
+    The length bounds are mirrored the same way, and a test reads both numbers **out
+    of the contract** rather than restating them — a constraint declared in one place
+    and enforced in another is two places for it to live.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    region_id: StrictStr
+    region_id: StrictStr = Field(min_length=REGION_ID_MIN_LENGTH, max_length=REGION_ID_MAX_LENGTH)
     start_date: date
     end_date: date
 

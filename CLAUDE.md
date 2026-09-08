@@ -57,7 +57,7 @@ This file is the condensed operating contract for anyone changing this repositor
 | Product | **JourneyLab** — a trip digital twin for comparing feasible futures before and during travel |
 | Target release | Phase 1 MVP — one region, 3–7 day trips, deep-link handoff |
 | Repository | `https://github.com/deepeshgupta12/journeylab.git` |
-| Implementation status | **STEP-001…006 `VERIFIED`, STEP-007 3/5** — 62 sub-steps verified, **1373 Python tests** + 71 web + 307 UI + 58 browser. Platform foundation complete: identity, tenancy, contracts, integrations, canonical model, event backbone. **Product flows have started** — `API-017` and `API-019` are served over HTTP by `apps/api/src/app.py`, and a traveller can read coverage and be refused honestly. **No trip can be created yet** (`STEP-008.06`), and **no real provider data has ever entered the pipeline** (`ENH-007`) |
+| Implementation status | **STEP-001…006 `VERIFIED`, STEP-007 3/5** — 62 sub-steps verified, **1378 Python tests** + 71 web + 307 UI + 58 browser. Platform foundation complete: identity, tenancy, contracts, integrations, canonical model, event backbone. **Product flows have started** — `API-017` and `API-019` are served over HTTP by `apps/api/src/app.py`, and a traveller can read coverage and be refused honestly. **No trip can be created yet** (`STEP-008.06`), and **no real provider data has ever entered the pipeline** (`ENH-007`) |
 | Documentation | **210 files** across 10 groups — [start here](docs/product/00-START-HERE.md) |
 | Last reviewed | 2026-09-05 |
 
@@ -257,7 +257,7 @@ These are product promises, not preferences. Breaking one is a defect regardless
 | ID | Blocker | Effect |
 | --- | --- | --- |
 | ~~BLK-001~~ | **CLOSED** — Deepesh Kumar Gupta owns all roles (`ADR-010`) | **New gap:** four-eyes approval unsatisfiable with one owner |
-| ~~BLK-002~~ | **CLOSED 2026-09-05** — application code exists (**1373 Python tests**) *and* is served: `GET /coverage` (`API-017`, STEP-007.01–.02) and `POST /coverage:check` (`API-019`, STEP-007.03) are implemented handlers on the one deployable ASGI app | **Superseded by `ENH-007`, which is narrower and real:** the handlers work, and nothing real has ever flowed through them. Every test runs against rows the tests insert |
+| ~~BLK-002~~ | **CLOSED 2026-09-05** — application code exists (**1378 Python tests**) *and* is served: `GET /coverage` (`API-017`, STEP-007.01–.02) and `POST /coverage:check` (`API-019`, STEP-007.03) are implemented handlers on the one deployable ASGI app | **Superseded by `ENH-007`, which is narrower and real:** the handlers work, and nothing real has ever flowed through them. Every test runs against rows the tests insert |
 | ~~`DEC-002`~~ | **CLOSED 2026-08-13 — Switzerland** (`ADR-016`) | **`RISK-001` is not closed by it** — OSM is ODbL and the evidence pack is a derivative database; a posture is owed **before STEP-010** |
 | ~~`DEC-008`~~ | **CLOSED 2026-08-17 — OpenTripPlanner 2, self-hosted** (`ADR-018`) | Self-hosting arrives before Phase 1 and couples to `DEC-007`. Accepted knowingly |
 | ~~`DEC-009`~~ | **CLOSED 2026-08-13 — Kafka** (`ADR-015`), owner directive | Unblocks AsyncAPI client generation and compatibility diffing |
