@@ -1,5 +1,6 @@
 import { CoverageTable } from './coverage-table';
 import { fetchCoverage } from './fetch-coverage';
+import { PlanningCheck } from './planning-check';
 
 /**
  * Public coverage page — STEP-007.02 (REQ-TRIP-002, REQ-A11Y-002, REQ-PRIV-001).
@@ -55,6 +56,11 @@ export default async function CoveragePage() {
           </section>
 
           <CoverageTable regions={result.coverage.regions} />
+
+          {/* Below the table, deliberately. `REQ-A11Y-002` puts the tabular answer
+              first; the form is the interactive path to the same fact and should
+              not be the only way to learn it. */}
+          <PlanningCheck regions={result.coverage.regions} />
         </>
       )}
 

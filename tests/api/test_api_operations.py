@@ -36,6 +36,21 @@ def operations() -> list[tuple[str, str, dict[str, Any]]]:
     ]
 
 
+def needs_idempotency(method: str, op: dict[str, Any]) -> bool:
+    """Whether `API_CONTRACTS.md` §1 applies to this operation.
+
+    Defined once because it is asserted twice — `TestIdempotency` and
+    `TestPhase3OperationsStillObeyTheConventions` check the same rule over different
+    slices of the contract, and an exemption added to one and not the other is a
+    hole that reads as coverage.
+
+    `x-journeylab-safe` is the only way out, it is declared in the contract rather
+    than listed here, and `test_a_safe_post_is_a_claim_that_gets_checked` verifies
+    the claim.
+    """
+    return method in MUTATING and not op.get("x-journeylab-safe", False)
+
+
 def param_names(op: dict[str, Any]) -> set[str]:
     names: set[str] = set()
     for p in op.get("parameters", []):
@@ -103,9 +118,37 @@ class TestIdempotency:
         missing = [
             f"{method.upper()} {path}"
             for path, method, op in operations()
-            if method in MUTATING and "IdempotencyKey" not in param_names(op)
+            if needs_idempotency(method, op) and "IdempotencyKey" not in param_names(op)
         ]
         assert not missing, f"state-changing operations without Idempotency-Key: {missing}"
+
+    def test_a_safe_post_is_a_claim_that_gets_checked(self) -> None:
+        """`x-journeylab-safe` exempts an operation from the idempotency rule.
+
+        An exemption nobody verifies is a hole, so the claim is checked rather than
+        trusted: a safe operation may not create anything, may not accept an
+        `If-Match` (there is no version to guard), and may not return a `201` or a
+        `Location`. Anything that did those things would be changing state while
+        declaring it does not.
+        """
+        for path, _method, op in operations():
+            if not op.get("x-journeylab-safe", False):
+                continue
+            statuses = set(op["responses"])
+            assert "201" not in statuses, f"{path} claims to be safe and returns 201"
+            assert "202" not in statuses, f"{path} claims to be safe and returns 202"
+            assert "IfMatch" not in param_names(op), f"{path} claims to be safe and takes If-Match"
+            for body in op["responses"].values():
+                assert "Location" not in body.get("headers", {}), (
+                    f"{path} claims to be safe and returns a Location"
+                )
+
+    def test_only_a_post_may_claim_to_be_safe(self) -> None:
+        """A safe PUT, PATCH or DELETE is a contradiction, and a GET needs no
+        exemption because it was never subject to the rule."""
+        for path, method, op in operations():
+            if op.get("x-journeylab-safe", False):
+                assert method == "post", f"{method.upper()} {path} declares x-journeylab-safe"
 
     def test_no_read_operation_demands_one(self) -> None:
         """A GET that requires an idempotency key is a GET somebody copied."""
@@ -606,7 +649,7 @@ class TestPhase3OperationsStillObeyTheConventions:
         missing = [
             f"{m.upper()} {p}"
             for p, m, op in operations()
-            if m in MUTATING and "IdempotencyKey" not in param_names(op)
+            if needs_idempotency(m, op) and "IdempotencyKey" not in param_names(op)
         ]
         assert not missing, missing
 
@@ -627,11 +670,30 @@ class TestPublicCoverageLeaksNothing:
         accident becomes visible.
         """
         public = [op["operationId"] for _, _, op in operations() if op.get("security") == []]
-        assert public == ["getCoverage"], (
-            f"unauthenticated operations: {public}. Exactly one is intended — a "
-            f"traveller must be able to learn their destination is unsupported "
-            f"without registering to be told no."
+        assert public == ["getCoverage", "checkPlanningRequest"], (
+            f"unauthenticated operations: {public}. Exactly two are intended, both "
+            f"answering the same question — a traveller must be able to learn their "
+            f"destination is unsupported without registering to be told no. "
+            f"`getCoverage` lists what is supported; `checkPlanningRequest` answers "
+            f"it for one request. A third is a decision, not an oversight: say why "
+            f"here, or the endpoint should require a token."
         )
+
+    def test_neither_public_operation_reads_or_writes_a_tenant(self) -> None:
+        """Coverage is global (`BUG-028`), and a public request has no tenant.
+
+        An unauthenticated operation that named an organization would either invent
+        one or read across all of them, and `016` exists because the first version of
+        the read model assumed a tenant that a public caller cannot supply.
+        """
+        raw = (REPO / "contracts/openapi.yaml").read_text()
+        for _, _, op in operations():
+            if op.get("security") != []:
+                continue
+            rendered = str(op).lower()
+            for leak in ("organization_id", "organizationid", "tenant"):
+                assert leak not in rendered, f"{op['operationId']} is public and mentions {leak}"
+        assert "x-journeylab-safe" in raw
 
     def test_coverage_is_a_closed_schema(self) -> None:
         """An open public response is where a provider name eventually appears."""

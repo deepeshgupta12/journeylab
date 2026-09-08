@@ -859,6 +859,55 @@ class Coverage(BaseModel):
     )
 
 
+class PlanningCheckRequest(BaseModel):
+    """
+    A destination and a date range. **Nothing about the traveller.**
+
+    `STEP-007` §8 collects origin, interest and locale on the discovery page,
+    and none of it belongs here: a destination plus dates plus anything
+    identifying is a travel plan, and this operation is unauthenticated. What is
+    not sent cannot be stored, correlated or leaked, which is a stronger
+    guarantee than a retention policy over data we chose to accept.
+
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    region_id: str = Field(..., max_length=64, min_length=1)
+    start_date: date = Field(
+        ...,
+        description="First day of the trip, inclusive. A local calendar date, not an instant\n— it is read in the destination's zone, so an offset here would be a\nsecond opinion about which day is meant.\n",
+    )
+    end_date: date = Field(..., description='Last day of the trip, inclusive.')
+
+
+class PlanningAccepted(BaseModel):
+    """
+    Planning may proceed. **Carries no plan.**
+
+    The schema is closed and has no field an itinerary, scenario or option list
+    could occupy, so `REQ-TRIP-002`'s "no partial simulation" is a property of
+    the shape rather than a rule somebody has to remember. Creating a trip is
+    `API-001`.
+
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    region_id: str
+    display_name: str
+    nights: int = Field(
+        ...,
+        description='Nights, not days. The request is in inclusive days because that is how a\ntraveller counts; the solver schedules nights. Stated in the response so\nthe conversion happens once, here, rather than in each client.\n',
+    )
+    disclosures: list[str] = Field(
+        ...,
+        description='Non-empty when the region is degraded, and where its documented\nlimitations are carried. Both are shown; they answer different questions\n— what this region is always like, and what is wrong with it today.\n`REQ-EVID-006`.\n',
+    )
+
+
 class Event(StrEnum):
     heartbeat = 'heartbeat'
     progress = 'progress'

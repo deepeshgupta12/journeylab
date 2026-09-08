@@ -46,6 +46,94 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-034 — "Degraded" means two different things, and one of them is an enum value
+
+| Field | Value |
+| --- | --- |
+| Severity | **S3** — no shipped behaviour is wrong. The specification is, and following it literally builds an S1 |
+| Found during | STEP-007.03 pre-change analysis, reconciling four documents against the code |
+| Date found | 2026-09-05 |
+| Affected requirements | REQ-TRIP-002, REQ-EVID-006 |
+| Affected artefacts | `STEP-007` §9 · `STEP-005.10` §1 and §12 · `ERROR_MODEL.md` §3 |
+| Status | **FIXED** — prose disambiguated in all four places; no code change |
+
+### Symptom
+
+Four documents say a degraded region refuses new trips. One of them is a contract:
+
+| Where | Words |
+| --- | --- |
+| `STEP-007` §9 | "Provider degraded → **Refuse rather than partially simulate**" |
+| `STEP-005.10` §1 | "new trips in affected regions **refused rather than partially simulated**" |
+| `STEP-005.10` §12 | "Region degradation refuses new trips" — **ticked as met** |
+| `ERROR_MODEL.md` §3 | `coverage.provider_degraded` · 503 · "Refuse rather than produce a partial simulation" |
+
+`CoverageModel.assess`, `VERIFIED` at STEP-005.10, does the opposite: `DEGRADED`
+returns `TripAccepted` with a disclosure.
+
+### Root cause
+
+**A word with two meanings, one of which is an enum member.** The prose uses
+"degraded" in the ordinary sense — a provider has gone bad. `PublishedState` uses it
+as one of three specific states, defined at STEP-005.10 as *less certain, and
+disclosed*. The two senses overlap on the word and not on the meaning.
+
+The register settles it in the column nobody read: `coverage.provider_degraded` means
+*"provider health **insufficient for reliable planning**"* — which is
+`PublishedState.UNAVAILABLE`, and is exactly when `assess` refuses.
+
+The structural check that this is the right reading rather than a convenient one:
+**there is no `coverage.provider_unavailable` in the register.** If the code meant
+only the enum member, `assess`'s actual refusal would have no code at all and could
+not be served as a problem document. A requirement whose own refusal path is
+uncodeable is not the intended reading.
+
+### What it would have cost
+
+Not hypothetical, and this is why it is logged rather than quietly edited. An
+implementer reading §9 literally refuses on the enum member. And:
+
+```python
+PUBLICATION[HealthState.RECOVERING] is PublishedState.DEGRADED
+```
+
+STEP-005.10 made recovery publish as degraded **on purpose**, so a half-recovered
+provider does not get full traffic. Under "degraded ⇒ refuse", **every recovery
+window becomes a total outage for the traveller** — including recovery from a
+thirty-second blip. The hysteresis added to protect the provider would start refusing
+users, and the symptom would be intermittent, unreproducible refusals: the exact
+failure STEP-005.10 introduced hysteresis to prevent.
+
+Two locally correct decisions composing into a wrong one, visible only where they
+meet. This sub-step is where they meet.
+
+### Why the tests missed it
+
+They did not miss the behaviour — `test_a_degraded_region_is_accepted_with_a_disclosure`
+has asserted it since STEP-005.10. **Nothing tests prose.** The acceptance criterion
+in `STEP-005.10` §12 was ticked against an implementation that does the opposite of
+what the criterion says, because a tick is a human reading two sentences and both
+sentences contained the word "degraded".
+
+### Fix
+
+Prose disambiguated in all four places; behaviour unchanged. `trip_request.py` carries
+the distinction as a comment at the branch, because that is where the next person will
+be tempted to collapse the two cases into one condition.
+
+Renaming the code to `coverage.provider_unavailable` was considered and declined: the
+register is generated from `ERROR_MODEL.md` and feeds `problem()`, the client
+generator and the baseline digest, and the `meaning` column already carried the
+precision — it only needed to be believed.
+
+### Regression test
+
+`tests/platform_api/test_trip_request.py::TestSupply` — the degraded region accepts
+with a disclosure, the stale one refuses. Mutant #9 in the STEP-007.03 mutation run
+seeds exactly this collapse (`freshness in ("stale", "degraded")`) and is killed.
+
+---
+
 ## BUG-033 — A keyboard user cannot scroll the data table at narrow viewports
 
 | Field | Value |

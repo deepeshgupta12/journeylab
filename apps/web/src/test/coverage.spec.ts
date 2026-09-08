@@ -86,6 +86,20 @@ test.describe('coverage page', () => {
     await expect(page.getByText(/without giving us an email address/i)).toBeVisible();
   });
 
+  test('offers no date form while nothing is declared, and says why', async ({ page }) => {
+    // STEP-007.03. A form over an empty region list is a control that cannot
+    // produce an answer, which reads as broken rather than as honest — the same
+    // distinction the empty table draws two tests above.
+    //
+    // This asserts the CURRENT product state. When the first region is declared
+    // this test must be replaced by one that exercises the form, not deleted:
+    // a page offering no way to check dates is only correct while there is
+    // nothing to check.
+    await expect(page.getByRole('heading', { name: /check your dates/i })).toBeVisible();
+    await expect(page.getByText(/there is nothing to check yet/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /check these dates/i })).toHaveCount(0);
+  });
+
   test('is fully keyboard reachable', async ({ page }) => {
     await page.keyboard.press('Tab');
     const focused = await page.evaluate(() => document.activeElement?.tagName ?? '');

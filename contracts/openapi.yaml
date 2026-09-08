@@ -797,6 +797,116 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
 
   # ==========================================================================
+  # API-019 — can this request be planned at all
+  # ==========================================================================
+  /coverage:check:
+    post:
+      operationId: checkPlanningRequest
+      tags: [platform]
+      summary: Whether a destination and date range can be planned.
+      # Public for the same reason `/coverage` is: putting this behind a login
+      # means asking somebody to register in order to be told no.
+      security: []
+      # A POST THAT CHANGES NOTHING, DECLARED SO RATHER THAN ASSUMED.
+      #   `API_CONTRACTS.md` §1 requires an idempotency key on every state-changing
+      #   command, and the gate enforces it by method — correctly, because a POST
+      #   that quietly skipped the rule is exactly what that gate is for.
+      #
+      #   This operation reads. It is a POST and not a GET for one reason: a
+      #   destination plus dates in a query string lands in access logs, proxy logs,
+      #   referrers and browser history, and this page promises that nothing on it
+      #   identifies the visitor. A request body goes to none of those places.
+      #
+      #   So the exemption is declared here, in the contract, and the gate reads it.
+      #   An allowlist of operation ids in the test would grow silently; this cannot
+      #   be added without saying what is being claimed, and `TestSafePost` checks
+      #   the claim is true rather than taking it on trust.
+      x-journeylab-safe: true
+      description: |
+        **Public and unauthenticated.** Answers one question — *can JourneyLab plan
+        this region for these dates* — and produces nothing else.
+
+        **A refusal is a problem document, not a `200` carrying a `refused` field.**
+        A success body that has to be inspected to discover it is a rejection is one
+        a careless client renders as an acceptance. The codes and their statuses come
+        from `ERROR_MODEL.md`, which had already decided this; `retryable` separates
+        *the answer is no* (`false`) from *we could not answer* (`true`) without a
+        client having to interpret the status.
+
+        **No partial result on any path** (`REQ-TRIP-002`). A refusal carries a
+        reason and, where one exists, the supported bounds under `remediation`. It
+        never carries an itinerary, a scenario, a suggested alternative trip or a
+        placeholder — a half-answer that looks like a plan is the specific harm the
+        requirement names, and it is worse than a refusal because it looks like an
+        answer.
+
+        **Dates are evaluated in the destination's time zone**, never the caller's.
+        At 23:30 UTC on 4 September it is already the 5th in Zurich and still the 4th
+        in Honolulu; whichever clock were chosen by default, one of those two callers
+        would be told a date had passed when it had not.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlanningCheckRequest' }
+            example:
+              region_id: 'ch-bernese-oberland'
+              start_date: '2026-10-02'
+              end_date: '2026-10-06'
+      responses:
+        '200':
+          description: |
+            Plannable. `disclosures` is non-empty when the region is running on
+            degraded sources — `REQ-EVID-006` asks for degradation to be surfaced,
+            and this is an acceptance that says what is weak about it rather than a
+            refusal that says nothing.
+          headers:
+            X-Correlation-Id: { $ref: '#/components/headers/CorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlanningAccepted' }
+              example:
+                region_id: 'ch-bernese-oberland'
+                display_name: 'Bernese Oberland, Switzerland'
+                nights: 4
+                disclosures: []
+        '400': { $ref: '#/components/responses/Problem' }
+        '422':
+          description: |
+            Refused. **A product state, not a failure** — the region is not covered,
+            or the dates fall outside the supported window, have already passed at
+            the destination, or describe a trip longer or shorter than Phase 1
+            supports.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+              example:
+                type: 'https://journeylab.app/problems/coverage.unsupported_dates'
+                title: 'Dates outside coverage or planning window'
+                status: 422
+                code: 'coverage.unsupported_dates'
+                correlation_id: 'corr_9f3c2a1b4d5e6f70'
+                retryable: false
+                detail: >-
+                  JourneyLab plans trips of 3 to 7 days. Those dates are 11 days.
+                remediation:
+                  kind: 'adjust_trip_length'
+                  supported_trip_days: { minimum: 3, maximum: 7 }
+                  requested_days: 11
+        '503':
+          description: |
+            Either a source the region depends on is unavailable — health
+            insufficient for reliable planning, which is what
+            `coverage.provider_degraded` names — or coverage itself could not be
+            read. Both are `retryable`.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  # ==========================================================================
   # API-018 — job event stream and cancellation
   # ==========================================================================
   /jobs/{jobId}/events:
@@ -1789,6 +1899,61 @@ components:
           description: |
             An aggregate. Never a list, never named, never a count — each of those
             leaks the shape of the supply chain.
+
+    PlanningCheckRequest:
+      type: object
+      description: |
+        A destination and a date range. **Nothing about the traveller.**
+
+        `STEP-007` §8 collects origin, interest and locale on the discovery page,
+        and none of it belongs here: a destination plus dates plus anything
+        identifying is a travel plan, and this operation is unauthenticated. What is
+        not sent cannot be stored, correlated or leaked, which is a stronger
+        guarantee than a retention policy over data we chose to accept.
+      required: [region_id, start_date, end_date]
+      additionalProperties: false
+      properties:
+        region_id: { type: string, minLength: 1, maxLength: 64 }
+        start_date:
+          type: string
+          format: date
+          description: |
+            First day of the trip, inclusive. A local calendar date, not an instant
+            — it is read in the destination's zone, so an offset here would be a
+            second opinion about which day is meant.
+        end_date:
+          type: string
+          format: date
+          description: Last day of the trip, inclusive.
+
+    PlanningAccepted:
+      type: object
+      description: |
+        Planning may proceed. **Carries no plan.**
+
+        The schema is closed and has no field an itinerary, scenario or option list
+        could occupy, so `REQ-TRIP-002`'s "no partial simulation" is a property of
+        the shape rather than a rule somebody has to remember. Creating a trip is
+        `API-001`.
+      required: [region_id, display_name, nights, disclosures]
+      additionalProperties: false
+      properties:
+        region_id: { type: string }
+        display_name: { type: string }
+        nights:
+          type: integer
+          description: |
+            Nights, not days. The request is in inclusive days because that is how a
+            traveller counts; the solver schedules nights. Stated in the response so
+            the conversion happens once, here, rather than in each client.
+        disclosures:
+          type: array
+          items: { type: string }
+          description: |
+            Non-empty when the region is degraded, and where its documented
+            limitations are carried. Both are shown; they answer different questions
+            — what this region is always like, and what is wrong with it today.
+            `REQ-EVID-006`.
 
     JobEvent:
       type: object

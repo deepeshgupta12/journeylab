@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (10808 symbols, 16427 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (10841 symbols, 16457 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -57,9 +57,9 @@ This file is the condensed operating contract for anyone changing this repositor
 | Product | **JourneyLab** — a trip digital twin for comparing feasible futures before and during travel |
 | Target release | Phase 1 MVP — one region, 3–7 day trips, deep-link handoff |
 | Repository | `https://github.com/deepeshgupta12/journeylab.git` |
-| Implementation status | **STEP-001…005 `VERIFIED`, STEP-006 in progress** — 47 sub-steps verified, 1231 Python tests. Platform foundation: identity, tenancy, contracts, integrations, canonical model, event backbone. **Product flows are still ahead** — no FastAPI route handler serves a product operation yet (`BLK-002`) |
+| Implementation status | **STEP-001…006 `VERIFIED`, STEP-007 3/5** — 62 sub-steps verified, **1373 Python tests** + 71 web + 307 UI + 58 browser. Platform foundation complete: identity, tenancy, contracts, integrations, canonical model, event backbone. **Product flows have started** — `API-017` and `API-019` are served over HTTP by `apps/api/src/app.py`, and a traveller can read coverage and be refused honestly. **No trip can be created yet** (`STEP-008.06`), and **no real provider data has ever entered the pipeline** (`ENH-007`) |
 | Documentation | **210 files** across 10 groups — [start here](docs/product/00-START-HERE.md) |
-| Last reviewed | 2026-08-05 |
+| Last reviewed | 2026-09-05 |
 
 ---
 
@@ -257,14 +257,14 @@ These are product promises, not preferences. Breaking one is a defect regardless
 | ID | Blocker | Effect |
 | --- | --- | --- |
 | ~~BLK-001~~ | **CLOSED** — Deepesh Kumar Gupta owns all roles (`ADR-010`) | **New gap:** four-eyes approval unsatisfiable with one owner |
-| ~~BLK-002~~ | **PARTIALLY CLOSED** — application code exists: **985 Python tests** across `apps/api`, four services and `tools/` | **The open half is real:** every contract is `PROPOSED` and **no handler implements one**. The services are tested; nothing serves them over HTTP |
+| ~~BLK-002~~ | **CLOSED 2026-09-05** — application code exists (**1373 Python tests**) *and* is served: `GET /coverage` (`API-017`, STEP-007.01–.02) and `POST /coverage:check` (`API-019`, STEP-007.03) are implemented handlers on the one deployable ASGI app | **Superseded by `ENH-007`, which is narrower and real:** the handlers work, and nothing real has ever flowed through them. Every test runs against rows the tests insert |
 | ~~`DEC-002`~~ | **CLOSED 2026-08-13 — Switzerland** (`ADR-016`) | **`RISK-001` is not closed by it** — OSM is ODbL and the evidence pack is a derivative database; a posture is owed **before STEP-010** |
 | ~~`DEC-008`~~ | **CLOSED 2026-08-17 — OpenTripPlanner 2, self-hosted** (`ADR-018`) | Self-hosting arrives before Phase 1 and couples to `DEC-007`. Accepted knowingly |
 | ~~`DEC-009`~~ | **CLOSED 2026-08-13 — Kafka** (`ADR-015`), owner directive | Unblocks AsyncAPI client generation and compatibility diffing |
 | ~~`DEC-004`~~ | **CLOSED 2026-08-06 — Auth0** (`ADR-013`). Deferred behind a verifier port through .01–.04; resolved at .05 where OIDC sign-in had to actually run | **Unverified against a live tenant** — no Auth0 account exists. Passkey enrolment and rotation-under-concurrency are unproven (`BR-014` §9) |
 | `DEC-007` | Cloud provider / region / residency | Blocks `STEP-027` |
 | `RISK-001` | Provider licence viability unproven (exposure 20) | Highest delivery risk |
-| `RISK-016` | **The code graph reports 0 dependants for symbols that have them** (measured STEP-005.07: `CanonicalPlace` reported LOW/0 against 11 live call sites) | Test modules are indexed; their cross-file edges are not. Tests are currently the **only** callers of every symbol under `services/`, so `impact` understates essentially every change there — and reads like reassurance. **Cross-check every `LOW` verdict against a grep** |
+| `RISK-016` | **The code graph reports 0 dependants for symbols that have them** — 13 reproductions. Worst measured at STEP-007.03: `impact(get_coverage, upstream)` returned `0, LOW, "epistemic": "exact"` against a direct same-language call at `app.py:126` | **`apps/api/src/app.py` has no outgoing edges at all** and its route handlers are island nodes, while cross-file Python `CALLS` resolve 450 times elsewhere — so the failure is silent and specific to the only deployable HTTP surface (`BR-061` §2). Every impact query on anything the API application consumes under-reports by exactly the API application. **Cross-check every `LOW` verdict against a grep** |
 | ~~`RISK-014`~~ | **DOWNGRADED** (STEP-002.02) — the graph indexes Python: 8/8 files, 13 functions, 5 classes under `apps/api`. `KG-Q-014` ran for real and reproduced the manual auth trace | Pre-change checks are **runnable from `STEP-002.03`**. A `BLOCKED` status from here on is a real gap, not a vacuous one |
 
 ---

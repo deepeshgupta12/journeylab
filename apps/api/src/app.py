@@ -39,6 +39,7 @@ import os
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, date, datetime
 from typing import Any
 
 import psycopg
@@ -46,6 +47,13 @@ from conventions.problem import problem
 from fastapi import FastAPI, Header, Response
 from fastapi.responses import JSONResponse
 from platform_api.coverage import CoverageCache, get_coverage
+from platform_api.trip_request import (
+    PlanningAccepted,
+    PlanningCheckError,
+    check_planning_request,
+    read_region,
+)
+from pydantic import BaseModel, ConfigDict, StrictStr
 
 #: One process-wide cache for the one public document. Not a general-purpose cache
 #: — see `platform_api.coverage.CoverageCache`, which refuses a second key.
@@ -139,3 +147,126 @@ async def coverage(
             headers={"X-Correlation-Id": correlation_id},
         )
     return document
+
+
+class PlanningCheckBody(BaseModel):
+    """`API-019` request. Closed, matching `PlanningCheckRequest`.
+
+    `extra="forbid"` mirrors `additionalProperties: false` rather than restating it
+    loosely: a field the contract forbids is rejected here too, so a client that
+    sends traveller details to an unauthenticated endpoint is refused rather than
+    silently having them dropped.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    region_id: StrictStr
+    start_date: date
+    end_date: date
+
+
+@app.post("/coverage:check")
+async def check_planning(
+    body: PlanningCheckBody,
+    response: Response,
+    x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+) -> Any:
+    """`API-019`. Public and unauthenticated, as the contract declares.
+
+    THE HANDLER DECIDES NOTHING
+        Every rule lives in `platform_api.trip_request`, which takes a row and a
+        clock and returns a decision. This function reads, calls, and translates the
+        decision into HTTP. That split is what lets `POST /trips` (STEP-008.06)
+        enforce the identical rule instead of a second copy of it — the failure
+        `BUG-029` already demonstrated between a projection and a contract.
+
+    THE CLOCK IS PASSED IN, NOT REACHED FOR
+        `datetime.now(UTC)` is read here, once, and handed to the rule. The rule
+        then converts it into the destination's calendar date. A rule that read the
+        wall clock itself could not be tested across the boundary it exists to
+        handle.
+    """
+    correlation_id = x_correlation_id or f"cor_{uuid.uuid4().hex[:16]}"
+    response.headers["X-Correlation-Id"] = correlation_id
+    response.headers["X-Correlation-Id-Generated"] = "false" if x_correlation_id else "true"
+
+    try:
+        with psycopg.connect(app.state.dsn) as conn, conn.cursor() as cur:
+            region = read_region(cur, body.region_id)
+    except psycopg.Error:
+        # Not interpolated: a psycopg error routinely carries the DSN, and
+        # `safe_detail` would refuse it — after the fact, at the point of sending.
+        return _problem_response(
+            "platform.dependency_unavailable",
+            correlation_id=correlation_id,
+            detail="Coverage is temporarily unavailable.",
+        )
+
+    try:
+        decision = check_planning_request(
+            region=region,
+            region_id=body.region_id,
+            start=body.start_date,
+            end=body.end_date,
+            now=datetime.now(UTC),
+        )
+    except PlanningCheckError as exc:
+        # A malformed request, or a region whose declared zone is not a real zone.
+        # Neither is a refusal: nothing was decided, so saying "we do not cover
+        # those dates" would be a false statement about coverage.
+        return _problem_response(
+            "validation.invalid_request",
+            correlation_id=correlation_id,
+            detail=str(exc),
+        )
+
+    if isinstance(decision, PlanningAccepted):
+        return {
+            "region_id": decision.region_id,
+            "display_name": decision.display_name,
+            "nights": decision.nights,
+            "disclosures": list(decision.disclosures),
+        }
+
+    # A refusal. The status comes from the register via the code the rule chose —
+    # this handler does not know that `coverage.unsupported_dates` is a 422, and
+    # keeping it that way is what stops the status drifting from `ERROR_MODEL.md`.
+    return _problem_response(
+        decision.code,
+        correlation_id=correlation_id,
+        detail=decision.reason,
+        remediation=decision.remediation,
+    )
+
+
+def _problem_response(
+    code: str,
+    *,
+    correlation_id: str,
+    detail: str,
+    remediation: dict[str, object] | None = None,
+) -> JSONResponse:
+    """One place where a problem document becomes a response.
+
+    The HTTP status is taken from the document rather than passed in alongside it.
+    Two consequences, both deliberate:
+
+      * A caller cannot send `coverage.unsupported_dates` with a 200 and produce a
+        refusal that reads as an acceptance. The register decides.
+      * RFC 9457 requires the `status` member and the HTTP status to agree. Deriving
+        one from the other makes them unable to disagree, rather than requiring two
+        call sites to be kept in step.
+    """
+    document = problem(
+        code,
+        correlation_id=correlation_id,
+        detail=detail,
+        instance="/coverage:check",
+        remediation=remediation,
+    )
+    return JSONResponse(
+        status_code=int(document["status"]),
+        media_type="application/problem+json",
+        content=document,
+        headers={"X-Correlation-Id": correlation_id},
+    )

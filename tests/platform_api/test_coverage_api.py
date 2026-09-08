@@ -81,8 +81,9 @@ class TestBug028CoverageIsReadableWithoutATenant:
         with psycopg.connect(DSN, autocommit=True) as conn, conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO coverage_read_model (region_id, display_name, "
-                "date_bounds_start, date_bounds_end, freshness, accepting_trips) "
-                "VALUES ('bug028-bern','Bern','2026-04-01','2027-03-31','current',true) "
+                "date_bounds_start, date_bounds_end, time_zone, freshness, accepting_trips) "
+                "VALUES ('bug028-bern','Bern','2026-04-01','2027-03-31','Europe/Zurich',"
+                "'current',true) "
                 "ON CONFLICT (region_id) DO NOTHING"
             )
             cur.execute("SET ROLE journeylab_app")
@@ -317,8 +318,9 @@ class TestTheHandlerReadsTheRealTable:
         with psycopg.connect(DSN, autocommit=True) as conn, conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO coverage_read_model (region_id, display_name, "
-                "date_bounds_start, date_bounds_end, freshness, accepting_trips) "
-                "VALUES ('handler-bern','Bern','2026-04-01','2027-03-31','degraded',true) "
+                "date_bounds_start, date_bounds_end, time_zone, freshness, accepting_trips) "
+                "VALUES ('handler-bern','Bern','2026-04-01','2027-03-31','Europe/Zurich',"
+                "'degraded',true) "
                 "ON CONFLICT (region_id) DO NOTHING"
             )
             cur.execute("SET ROLE journeylab_app")
@@ -343,8 +345,9 @@ class TestTheTableEnforcesItsDeclaredFields:
             with pytest.raises(psycopg.errors.CheckViolation, match="display_name_present"):
                 cur.execute(
                     "INSERT INTO coverage_read_model (region_id, display_name, "
-                    "date_bounds_start, date_bounds_end, freshness, accepting_trips) "
-                    "VALUES ('blank','   ','2026-04-01','2027-03-31','current',true)"
+                    "date_bounds_start, date_bounds_end, time_zone, freshness, accepting_trips) "
+                    "VALUES ('blank','   ','2026-04-01','2027-03-31','Europe/Zurich',"
+                    "'current',true)"
                 )
 
     def test_date_bounds_cannot_end_before_they_start(self) -> None:
@@ -352,6 +355,7 @@ class TestTheTableEnforcesItsDeclaredFields:
             with pytest.raises(psycopg.errors.CheckViolation, match="date_bounds_ordered"):
                 cur.execute(
                     "INSERT INTO coverage_read_model (region_id, display_name, "
-                    "date_bounds_start, date_bounds_end, freshness, accepting_trips) "
-                    "VALUES ('backwards','Backwards','2027-03-31','2026-04-01','current',true)"
+                    "date_bounds_start, date_bounds_end, time_zone, freshness, accepting_trips) "
+                    "VALUES ('backwards','Backwards','2027-03-31','2026-04-01',"
+                    "'Europe/Zurich','current',true)"
                 )

@@ -147,6 +147,9 @@ Curator fact override. Auth: curator; **four-eyes approval required for high-imp
 ### API-017 — `GET /v1/coverage`
 Public. Returns supported regions, date bounds, freshness summary, provider health and documented limitations. **No authentication.** Must never expose provider identities or quota details. Tests: TST-TRIP-001/002, TST-EVID-006.
 
+### API-019 — `POST /v1/coverage:check`
+Public. Answers whether one region and date range can be planned, and produces nothing else. **No authentication** — same reason as `API-017`. Dates are evaluated in the **destination's** time zone, never the caller's. A refusal is an RFC 9457 problem document (`coverage.unsupported_region`, `coverage.unsupported_dates` → 422; `coverage.provider_degraded` → 503), never a `200` carrying a `refused` field. **No partial result on any path** — the acceptance schema is closed and has nowhere to put an itinerary. Tests: TST-TRIP-002.
+
 ### API-018 — `GET /v1/jobs/{jobId}/events`
 SSE stream of progress, warnings and terminal result. Auth: job owner. Supports cancellation via `DELETE /v1/jobs/{jobId}`. Heartbeats required so clients can distinguish a slow job from a dead connection. Tests: TST-A11Y-006, TST-NFR-003.
 

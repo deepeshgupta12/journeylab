@@ -13,7 +13,7 @@ last_updated: 2026-08-18
 # STEP-005.10 — Provider health events and coverage wiring
 
 ## 1. Outcome
-Provider degradation surfaces as `EVT-008`, drives the public coverage model, and causes new trips in affected regions to be **refused rather than partially simulated**.
+Provider degradation surfaces as `EVT-008`, drives the public coverage model, and causes new trips to be **refused rather than partially simulated** in regions whose health is *insufficient for reliable planning* — published `unavailable`. A region published `degraded` is **accepted with a disclosure**, not refused: `REQ-EVID-006` asks for degradation to be surfaced, and `RECOVERING` publishes as `degraded`, so refusing on it would turn every recovery into an outage. `BUG-034` records the terminology collision this sentence originally carried.
 
 ## 2. Scope and boundary
 **In scope:** Health state machine; `EVT-008` emission; coverage model updates; admin surface wiring.
@@ -113,7 +113,7 @@ Revert this sub-step's commit; prior sub-steps stay intact and `main` stays depl
 - [x] Health state machine with all four states and hysteresis on recovery
 - [x] `EVT-008` emitted on published-state change; every transition recorded
 - [x] Coverage consumes health and marks regions degraded
-- [x] Region degradation refuses new trips, with an explanation and no partial simulation
+- [x] A region whose health is insufficient for reliable planning (`unavailable`) refuses new trips, with an explanation and no partial simulation. A `degraded` region is accepted **with a disclosure** — see §1 and `BUG-034`
 - [x] Health surfaced without exposing provider identity
 
 ## 13. Completion record

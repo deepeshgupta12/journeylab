@@ -250,6 +250,46 @@ had passed.
 
 ---
 
+## STEP-007.03 — 2026-09-05 — Date and geography validation
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `7adead2` — matched HEAD at pre-change |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | **1373 Python** (from 1313) + **71 web** (from 63) + 307 UI + **58 browser** (from 56) |
+| R2 contract compatibility | **PASS — additive** | `[ADDITIVE] POST /coverage:check — new operation`. Clients regenerated; `error-codes.json` byte-identical after the `ERROR_MODEL.md` edit |
+| R3 graph diff as expected | **PASS** | One module, one route, one page component, one migration, three guards amended. **The graph could not see the route** — `RISK-016` #13, `BR-061` §2 |
+| R4 untested requirements | **PASS — improved** | REQ-TRIP-001 and REQ-TRIP-002 gain their first behavioural coverage |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…034; **guard meta-suite 76/76** |
+| R7 tenant isolation | **PASS — 18/18** | `read_region` binds no tenant and is asserted to name none. Coverage is global (`BUG-028`) and the operation is public |
+
+**Overall:** PASS
+
+### Mutation testing
+
+**20 seeded, 20 killed, 0 survivors.** One mutant per rule the sub-step claims. The
+two worth naming: #1 replaces the destination's date with the server's (killed by a
+date-line test, not by an ordinary one); #9 collapses `stale` and `degraded` into one
+refusal, which is `BUG-034` made executable, and is killed by the disclosure test.
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| 4 API contract tests | The new operation is a second `security: []` and a POST with no `Idempotency-Key`; its `remediation` example lacked the required `kind` | `kind` added. The idempotency exemption is declared in the **contract** as `x-journeylab-safe`, not allowlisted in the test, and two new tests verify the claim. The rule now has one definition instead of two copies |
+| Every DB-backed coverage test | `018` makes `time_zone` NOT NULL; six existing inserts omitted it | Columns added to all six. This is the migration working |
+| `test_every_refusal_validates_against_the_problem_schema` | My refusals had no `remediation.kind` — a real contract violation | Fixed in the rule and enforced at the type, so the next refusal cannot omit it |
+| `i18n.test.ts` — "The URL must be of scheme file" | I set `environment: 'jsdom'` for the whole web package. Under jsdom `import.meta.url` is an `http://` URL, and that test reads its own source to prove the locale never reaches a module specifier — a **security** property switched off by a config default | Per-file `@vitest-environment jsdom` on the one file that needs it |
+| 2 jsdom announcement tests | `[aria-live="polite"]` is not unique: every `Field` renders its own empty error slot, so the selector matched a field, found it empty, and reported the acceptance had not been announced | Select the notification regions by their own class. Correct markup, wrong selector |
+| 4 `[mobile]` a11y tests, first run | Timeouts on the gallery — the largest page — during a 27.6-minute run while Docker was still warming | **Re-run clean: 56/56 in 50.9s.** Recorded rather than dismissed: this repository forbids retries on a11y gates, so the claim here is a clean full run, not a passing retry of the failures alone |
+| `guard:node` and 2 meta-tests | Local Node 25.9.0 against the pinned 24 | Re-ran the gate on `node@24`. **Meta-suite 76/76**, which is the number CI sees |
+
+---
+
 ## STEP-007.02 — 2026-09-04 — Public coverage page and the API application
 
 | Field | Value |

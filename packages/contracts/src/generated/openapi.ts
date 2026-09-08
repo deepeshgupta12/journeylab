@@ -252,6 +252,33 @@ export type paths = {
      */
     get: operations["getCoverage"];
   };
+  "/coverage:check": {
+    /**
+     * Whether a destination and date range can be planned.
+     * @description **Public and unauthenticated.** Answers one question — *can JourneyLab plan
+     * this region for these dates* — and produces nothing else.
+     *
+     * **A refusal is a problem document, not a `200` carrying a `refused` field.**
+     * A success body that has to be inspected to discover it is a rejection is one
+     * a careless client renders as an acceptance. The codes and their statuses come
+     * from `ERROR_MODEL.md`, which had already decided this; `retryable` separates
+     * *the answer is no* (`false`) from *we could not answer* (`true`) without a
+     * client having to interpret the status.
+     *
+     * **No partial result on any path** (`REQ-TRIP-002`). A refusal carries a
+     * reason and, where one exists, the supported bounds under `remediation`. It
+     * never carries an itinerary, a scenario, a suggested alternative trip or a
+     * placeholder — a half-answer that looks like a plan is the specific harm the
+     * requirement names, and it is worse than a refusal because it looks like an
+     * answer.
+     *
+     * **Dates are evaluated in the destination's time zone**, never the caller's.
+     * At 23:30 UTC on 4 September it is already the 5th in Zurich and still the 4th
+     * in Honolulu; whichever clock were chosen by default, one of those two callers
+     * would be told a date had passed when it had not.
+     */
+    post: operations["checkPlanningRequest"];
+  };
   "/jobs/{jobId}/events": {
     /**
      * Server-sent progress, warnings and terminal result.
@@ -927,6 +954,55 @@ export type components = {
        * @enum {string}
        */
       provider_health: "healthy" | "degraded" | "unavailable";
+    };
+    /**
+     * @description A destination and a date range. **Nothing about the traveller.**
+     *
+     * `STEP-007` §8 collects origin, interest and locale on the discovery page,
+     * and none of it belongs here: a destination plus dates plus anything
+     * identifying is a travel plan, and this operation is unauthenticated. What is
+     * not sent cannot be stored, correlated or leaked, which is a stronger
+     * guarantee than a retention policy over data we chose to accept.
+     */
+    PlanningCheckRequest: {
+      region_id: string;
+      /**
+       * Format: date
+       * @description First day of the trip, inclusive. A local calendar date, not an instant
+       * — it is read in the destination's zone, so an offset here would be a
+       * second opinion about which day is meant.
+       */
+      start_date: string;
+      /**
+       * Format: date
+       * @description Last day of the trip, inclusive.
+       */
+      end_date: string;
+    };
+    /**
+     * @description Planning may proceed. **Carries no plan.**
+     *
+     * The schema is closed and has no field an itinerary, scenario or option list
+     * could occupy, so `REQ-TRIP-002`'s "no partial simulation" is a property of
+     * the shape rather than a rule somebody has to remember. Creating a trip is
+     * `API-001`.
+     */
+    PlanningAccepted: {
+      region_id: string;
+      display_name: string;
+      /**
+       * @description Nights, not days. The request is in inclusive days because that is how a
+       * traveller counts; the solver schedules nights. Stated in the response so
+       * the conversion happens once, here, rather than in each client.
+       */
+      nights: number;
+      /**
+       * @description Non-empty when the region is degraded, and where its documented
+       * limitations are carried. Both are shown; they answer different questions
+       * — what this region is always like, and what is wrong with it today.
+       * `REQ-EVID-006`.
+       */
+      disclosures: string[];
     };
     /**
      * @description One server-sent event. `heartbeat` is not filler: without it a client
@@ -1906,6 +1982,89 @@ export type operations = {
         };
       };
       429: components["responses"]["RateLimited"];
+    };
+  };
+  /**
+   * Whether a destination and date range can be planned.
+   * @description **Public and unauthenticated.** Answers one question — *can JourneyLab plan
+   * this region for these dates* — and produces nothing else.
+   *
+   * **A refusal is a problem document, not a `200` carrying a `refused` field.**
+   * A success body that has to be inspected to discover it is a rejection is one
+   * a careless client renders as an acceptance. The codes and their statuses come
+   * from `ERROR_MODEL.md`, which had already decided this; `retryable` separates
+   * *the answer is no* (`false`) from *we could not answer* (`true`) without a
+   * client having to interpret the status.
+   *
+   * **No partial result on any path** (`REQ-TRIP-002`). A refusal carries a
+   * reason and, where one exists, the supported bounds under `remediation`. It
+   * never carries an itinerary, a scenario, a suggested alternative trip or a
+   * placeholder — a half-answer that looks like a plan is the specific harm the
+   * requirement names, and it is worse than a refusal because it looks like an
+   * answer.
+   *
+   * **Dates are evaluated in the destination's time zone**, never the caller's.
+   * At 23:30 UTC on 4 September it is already the 5th in Zurich and still the 4th
+   * in Honolulu; whichever clock were chosen by default, one of those two callers
+   * would be told a date had passed when it had not.
+   */
+  checkPlanningRequest: {
+    parameters: {
+      header?: {
+        "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+      };
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *   "region_id": "ch-bernese-oberland",
+         *   "start_date": "2026-10-02",
+         *   "end_date": "2026-10-06"
+         * }
+         */
+        "application/json": components["schemas"]["PlanningCheckRequest"];
+      };
+    };
+    responses: {
+      /**
+       * @description Plannable. `disclosures` is non-empty when the region is running on
+       * degraded sources — `REQ-EVID-006` asks for degradation to be surfaced,
+       * and this is an acceptance that says what is weak about it rather than a
+       * refusal that says nothing.
+       */
+      200: {
+        headers: {
+          "X-Correlation-Id": components["headers"]["CorrelationId"];
+        };
+        content: {
+          "application/json": components["schemas"]["PlanningAccepted"];
+        };
+      };
+      400: components["responses"]["Problem"];
+      /**
+       * @description Refused. **A product state, not a failure** — the region is not covered,
+       * or the dates fall outside the supported window, have already passed at
+       * the destination, or describe a trip longer or shorter than Phase 1
+       * supports.
+       */
+      422: {
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      429: components["responses"]["RateLimited"];
+      /**
+       * @description Either a source the region depends on is unavailable — health
+       * insufficient for reliable planning, which is what
+       * `coverage.provider_degraded` names — or coverage itself could not be
+       * read. Both are `retryable`.
+       */
+      503: {
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
     };
   };
   /**

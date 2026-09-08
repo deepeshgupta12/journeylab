@@ -291,8 +291,9 @@ class TestTheReadModelIsDerivedAndIsolated:
             for region, (name, start, end) in declared.items():
                 cur.execute(
                     "INSERT INTO coverage_read_model (region_id, display_name, "
-                    "date_bounds_start, date_bounds_end, freshness, accepting_trips) "
-                    "VALUES (%s,%s,%s,%s,'current',true) ON CONFLICT (region_id) DO NOTHING",
+                    "date_bounds_start, date_bounds_end, time_zone, freshness, accepting_trips) "
+                    "VALUES (%s,%s,%s,%s,'Europe/Zurich','current',true) "
+                    "ON CONFLICT (region_id) DO NOTHING",
                     (region, name, start, end),
                 )
             for region, row in source.state.items():
@@ -384,6 +385,7 @@ class TestTheReadModelConstrainsItsOwnVocabulary:
             with pytest.raises(psycopg.errors.CheckViolation, match="freshness_known"):
                 cur.execute(
                     "INSERT INTO coverage_read_model (region_id, display_name, "
-                    "date_bounds_start, date_bounds_end, freshness, accepting_trips) "
-                    "VALUES ('vocab','Vocab','2026-04-01','2027-03-31','probably_fine',true)"
+                    "date_bounds_start, date_bounds_end, time_zone, freshness, accepting_trips) "
+                    "VALUES ('vocab','Vocab','2026-04-01','2027-03-31','Europe/Zurich',"
+                    "'probably_fine',true)"
                 )

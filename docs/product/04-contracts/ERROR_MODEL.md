@@ -66,6 +66,23 @@ Navigation: [API contracts](API_CONTRACTS.md) · [Frontend](../03-architecture/F
 | `coverage.unsupported_region` | 422 | Region not in the destination pack | Show supported regions; offer waitlist | REQ-TRIP-002 |
 | `coverage.unsupported_dates` | 422 | Dates outside coverage or planning window | Show supported bounds | REQ-TRIP-002 |
 | `coverage.provider_degraded` | 503 | Provider health insufficient for reliable planning | **Refuse rather than produce a partial simulation** | REQ-EVID-006 |
+> **`coverage.provider_degraded` does not mean the published state `degraded`.**
+>
+> It means what its `meaning` column says: health **insufficient for reliable
+> planning**, which is the published state `unavailable`. A region published
+> `degraded` is *less certain, and disclosed* — it is **accepted** with a disclosure,
+> under `REQ-EVID-006`, and never reaches this code.
+>
+> The distinction is not pedantic. `PUBLICATION[RECOVERING] is DEGRADED`
+> (`STEP-005.10`), so a provider that has just recovered publishes `degraded` for its
+> whole recovery window. Refusing on that state would turn every recovery — including
+> from a brief blip — into a total outage, which is the opposite of what the
+> hysteresis was added to achieve. `BUG-034`.
+>
+> The code is not renamed because the register is generated from this table and feeds
+> `problem()`, the client generator and the baseline digest. The `meaning` column
+> already carried the precision; it only needed to be believed.
+
 | `constraint.ambiguous_requires_clarification` | 422 | A blocking ambiguity prevents solving | Present the specific clarification question | REQ-CONS-002 |
 | `constraint.unsatisfiable` | 422 | Constraints conflict before search | Return minimal conflict set | REQ-CONS-005 |
 | `solver.infeasible` | 422 | No feasible schedule exists | Minimal conflict set + suggested relaxations | REQ-CONS-005 |

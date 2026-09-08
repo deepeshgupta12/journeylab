@@ -56,7 +56,8 @@ Origin, broad destination interest, dates, device locale; coverage read model; p
 | --- | --- | --- | --- |
 | Region unsupported | Refuse; show supported regions; offer waitlist | Honest scope statement | REQ-TRIP-002 |
 | Dates outside window | Refuse with supported bounds | Clear boundary | REQ-TRIP-002 |
-| Provider degraded | **Refuse rather than partially simulate**; disclose degradation | Region shown degraded | REQ-EVID-006 |
+| Provider health **insufficient for reliable planning** (published `unavailable`) | **Refuse rather than partially simulate** | Region not accepting new trips | REQ-TRIP-002 |
+| Provider published `degraded` — less certain, still usable | **Accept and disclose.** `REQ-EVID-006` asks for degradation to be *surfaced*, not refused; and `RECOVERING` publishes as `degraded`, so refusing here would make every provider recovery a total outage (`BUG-034`) | Region shown degraded, with the disclosure | REQ-EVID-006 |
 | Coverage service down | Static fallback listing regions with a staleness notice | Degraded but honest | REQ-EVID-006 |
 | Waitlist offered | Inquiry preserved **only with consent** | Consent prompt | REQ-PRIV-002 |
 
@@ -102,7 +103,7 @@ Low reach into other services, but **high customer criticality** — this is the
 | --- | --- |
 | STEP-007.01 | Coverage read model and `API-017` | — ✅ **VERIFIED** 2026-09-04 (BR-059, IMPL-059; closes BUG-028/029/030)
 | STEP-007.02 | Public coverage/SEO page with limitations and privacy summary | — ✅ **VERIFIED** 2026-09-04 (BR-060, IMPL-060)
-| STEP-007.03 | Date and geography validation with honest refusal states |
+| STEP-007.03 | Date and geography validation with honest refusal states | — ✅ **VERIFIED** 2026-09-05 (BR-061, IMPL-061; adds `API-019`, migration `018`, `DEC-011`; closes BUG-034)
 | STEP-007.04 | Waitlist / inspiration mode with consent |
 | STEP-007.05 | Provider-degradation disclosure wiring |
 
@@ -131,6 +132,6 @@ Refusal-path test output; degradation drill record; accessibility audit; SEO/CWV
 | Field | Value |
 | --- | --- |
 | Completed | — |
-| Sub-steps completed | 0 of 5 |
+| Sub-steps completed | 3 of 5 |
 | Regression result | — |
 | Verified by | — |

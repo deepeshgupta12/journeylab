@@ -60,6 +60,103 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-061 — STEP-007.03 — Today is a property of the destination
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-09-05 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-TRIP-001, REQ-TRIP-002, REQ-EVID-006, REQ-A11Y-001 |
+| Blast radius | [BR-061](blast-radius/BR-061-date-geography-validation.md) (MEDIUM, confidence MEDIUM, **owner approval outstanding** — a contract addition and `DEC-011`) |
+| Commit | see git log for this entry |
+
+### What was built
+
+`POST /v1/coverage:check` (`API-019`), the rule behind it, and the form a traveller
+meets it through. Python 1313 → **1373**; web unit 63 → **71**; browser 56 → **58**.
+
+| Artefact | What it is |
+| --- | --- |
+| `db/migrations/018_coverage_time_zone.sql` | `time_zone` on `coverage_read_model`, NOT NULL, no default |
+| `apps/api/src/platform_api/trip_request.py` | The rule. Pure, clock injected, no database |
+| `contracts/openapi.yaml` | `API-019` + `PlanningCheckRequest` / `PlanningAccepted` |
+| `apps/api/src/app.py` | The route. Reads, calls, translates to HTTP; decides nothing |
+| `apps/web/.../planning-check.tsx` | The form and the announcement |
+
+### The decision the sub-step was written to force
+
+`coverage_read_model` had date bounds and no zone, and comparing a requested date
+against them needs an answer to *what is today*. **Today is not a property of the
+server or of the browser.** At 23:30 UTC on 4 September it is already the 5th in
+Zurich and still 13:30 on the 4th in Honolulu; whichever clock is picked as the
+default, one of those two travellers is told their date has passed when it has not —
+and it renders as an off-by-one in a date picker, so it gets reported as a display
+bug and fixed in the wrong layer.
+
+So `018` adds the column with **no default**. `001` defaults `users.time_zone` to
+`'UTC'`, which is right for a display preference and would be a silent wrong answer
+for a feasibility bound. A region whose declared zone is not a real IANA zone is
+**refused, not defaulted** — mutant #13 seeds the UTC fallback and dies.
+
+### Three things I got wrong, and what caught each
+
+**1. I concluded the specification contradicted the code. It did not.**
+Four documents — including `ERROR_MODEL.md`, a contract — say a degraded region
+refuses new trips; `CoverageModel.assess` accepts it with a disclosure. I wrote
+`BR-061` §3 declaring the prose wrong, then read the error register properly:
+`coverage.provider_degraded` means *"health insufficient for reliable planning"*,
+which is `UNAVAILABLE`, not the enum member spelled `DEGRADED`. One word, two
+meanings. The structural proof it is the right reading: there is no
+`coverage.provider_unavailable`, so under the other reading the requirement's own
+refusal path would have no code and could not be served at all. Logged as `BUG-034`
+and fixed as prose, because an implementer following §9 literally would refuse
+through every provider recovery window.
+
+**2. A refusal is a problem document, not a 200 carrying `refused`.**
+I designed the 200 first — "can I plan this?" answered "no, because…" reads like a
+successful answer — and the register had already decided, with statuses attached. The
+argument that settled it is not deference: `BUG-032` was three tests passing against a
+404 because they asserted absence, and a body a client must inspect to discover it is
+a rejection has the same shape. A 422 cannot be misread by any client.
+
+**3. Setting `environment: 'jsdom'` for `apps/web` broke `i18n.test.ts`.**
+The component test needs a DOM; the package-wide default was the obvious way to give
+it one. Under jsdom `import.meta.url` is an `http://` URL, so that test's
+`readFileSync(new URL('./i18n.ts', import.meta.url))` died with "The URL must be of
+scheme file". It reads its own source to prove the locale never reaches a module
+specifier — a **security** property — and a config default had switched it off while
+looking like configuration. Fixed with a per-file `@vitest-environment jsdom`.
+
+### Three smaller surprises
+
+**The contract required a field my refusals did not have.** `Problem.remediation`
+requires `kind` — "an error must tell the user what to do next". Found by the schema
+test, not by reading. Now enforced at the type, so the next refusal cannot omit it.
+
+**Two guards fired, and both were right to.** A second `security: []` operation and a
+POST with no `Idempotency-Key`. The second is the interesting one: this POST changes
+nothing, and it is a POST rather than a GET because a destination plus dates in a
+query string lands in access logs, proxy logs and browser history, on a page that
+promises nothing identifies the visitor. The exemption is declared in the **contract**
+as `x-journeylab-safe` and the gate reads it — an allowlist of operation ids in the
+test would have grown silently. Two new tests check the claim is true.
+
+**"The polite region" is ambiguous on any page with a form.** Every `Field` renders
+its own empty `aria-live="polite"` error slot, so the first match was a field's error
+slot, not the notification region — the test reported that an acceptance had not been
+announced when it had. Correct markup; a wrong selector.
+
+### What this does not close
+
+No trip is created — that is `STEP-008.06`. The read model is still empty, so every
+path here runs against rows the tests insert (`ENH-007`). "No partial simulation" is
+asserted **structurally** — the types have nowhere to put a plan, the module imports
+nothing that could build one, and the page renders no table on a refusal — because
+there is no scenario engine yet for a behavioural assertion to observe. `DEC-011` is
+open: the 3-day lower bound ships as declared, and I have recommended against it.
+
+---
+
 ## IMPL-060 — STEP-007.02 — The page needed a server, and the server needed an error code
 
 | Field | Value |
