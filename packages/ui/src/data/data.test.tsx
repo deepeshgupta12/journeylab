@@ -93,6 +93,63 @@ describe('table semantics', () => {
   });
 });
 
+// --- the scroll region — BUG-033 ---------------------------------------------
+
+/**
+ * WHAT THESE CAN AND CANNOT SETTLE
+ *   jsdom has no layout engine, so `scrollWidth` is always 0 here and no
+ *   assertion in this file can know whether a table overflows. These tests
+ *   therefore assert the STRUCTURE that makes overflow survivable — a focusable,
+ *   named region holding the table and nothing else. Whether a keyboard can
+ *   actually reach the far edge is settled in a real browser, in
+ *   `apps/web/src/test/a11y.spec.ts`, at the phone profile that found the bug.
+ *
+ *   Stating the split matters. BUG-033 existed because a check passed for a
+ *   reason unrelated to the property it protected; a jsdom test claiming to
+ *   prove keyboard scrollability would be the same mistake in a new place.
+ */
+describe('scroll region', () => {
+  it('exposes the table in a focusable region', () => {
+    render(table());
+    const region = screen.getByRole('region', { name: /scenario comparison/i });
+    // Focusable, or a keyboard cannot enter it and the overflow is unreachable.
+    expect(region.getAttribute('tabindex')).toBe('0');
+    expect(within(region).getByRole('table')).toBeTruthy();
+  });
+
+  it('names the region from the caption rather than inventing a second name', () => {
+    // A region named differently from the table it holds gives a screen-reader
+    // user two names for one thing and no way to tell they are the same thing.
+    const { container } = render(table());
+    const region = screen.getByRole('region', { name: /scenario comparison/i });
+    const caption = container.querySelector('caption');
+    expect(region.getAttribute('aria-labelledby')).toBe(caption?.id);
+  });
+
+  it('KEEPS THE CSV BUTTON OUT of the scroll region', () => {
+    // This is the assertion that would have caught BUG-033, and the one a fix
+    // that only added `tabindex` would still fail.
+    //
+    // axe's `scrollable-region-focusable` is satisfied by any focusable
+    // descendant. While the CSV button sat inside the scrolling container it
+    // satisfied the rule from outside the content that actually overflowed — the
+    // rule passed, and 56px of table stayed unreachable by keyboard. Putting the
+    // button back inside makes the detector pass again and the product wrong
+    // again, so the boundary is asserted directly.
+    render(table());
+    const region = screen.getByRole('region', { name: /scenario comparison/i });
+    const csv = screen.getByRole('button', { name: /download csv/i });
+    expect(region.contains(csv)).toBe(false);
+  });
+
+  it('gives the empty table a scroll region too', () => {
+    // An empty table still renders a header row, and a header row is wide enough
+    // to overflow a phone. The empty state is not an exemption.
+    render(table({ rows: [] }));
+    expect(screen.getByRole('region', { name: /scenario comparison/i })).toBeTruthy();
+  });
+});
+
 // --- sorting -----------------------------------------------------------------
 
 describe('sorting', () => {
@@ -126,6 +183,14 @@ describe('sorting', () => {
   it('exposes sortable headers as buttons, reachable by keyboard', async () => {
     const user = userEvent.setup();
     render(table());
+
+    // The FIRST tab stop is the scroll region, not the sort button — BUG-033
+    // put it there so the overflow can be scrolled by keyboard. Asserting the
+    // order rather than skipping to the button keeps the extra stop deliberate:
+    // if it ever moves or disappears, this fails and someone decides again.
+    await user.tab();
+    expect(document.activeElement).toBe(screen.getByRole('region', { name: /scenario/i }));
+
     await user.tab();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Scenario' }));
     await user.keyboard('{Enter}');

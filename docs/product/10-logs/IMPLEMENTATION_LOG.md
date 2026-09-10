@@ -60,6 +60,96 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-062 — BUG-033 — The rule passed, and the table stayed unreachable
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-09-09 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-A11Y-001, REQ-A11Y-002 (WCAG 2.2 SC 2.1.1) |
+| Blast radius | [BR-062](blast-radius/BR-062-table-scroll-region.md) (MEDIUM, confidence HIGH, no approval required) |
+| Commit | see git log for this entry |
+
+Not a sub-step. `BUG-033` was found at STEP-007.02 by measuring a screenshot and
+deferred because the component belongs to `STEP-003.04`; a design-system change earns
+its own record rather than riding inside a product sub-step.
+
+### What was built
+
+`DataTable`'s wrapper became two elements: a focusable
+`<section class="jl-table__scroll">` holding the table and named from the caption,
+and the CSV button **outside** it. `.jl-table` keeps the table-shaped properties;
+scrolling moved to the new class, with `table.jl-table` retaining it for the bare
+form used on the home page.
+
+### The part that is not tidying
+
+Adding `tabindex` fixes the product. It does not fix the reason nobody noticed for
+two days.
+
+`BUG-033`'s root cause was that axe's `scrollable-region-focusable` was **satisfied by
+the CSV button** — focusable content inside the scrolling container but outside the
+part that overflowed. The rule passed, correctly by its own definition, while its
+purpose ("a keyboard user can reach what is in here") failed. Leave the button where
+it was and the detector keeps passing for the wrong reason forever.
+
+So the button moved, and the claim was **tested rather than asserted**: mutant #3 puts
+it back with `tabindex` retained, and all three axe assertions still report zero AA
+violations. One hand-written test catches it. That mutant is the most useful artefact
+here — it is a reproducible demonstration that a green accessibility gate is not
+evidence of the property it is named after.
+
+### Decisions taken during implementation
+
+| Decision | Alternatives | Rationale |
+| --- | --- | --- |
+| Focusable scroll region | Responsive swap to `DataList` below the breakpoint | The swap renders different content either side of a media query — either duplicated DOM or a branch the server cannot evaluate. And `DataList` conveying the same information is a claim that would itself need testing |
+| `<section aria-labelledby>` | `<div role="region" aria-label>` | The idiom `DataList` already states: a native element carries the role implicitly and cannot lose it to a typo. Named from the caption, so the region is not a second name for one thing |
+| Tab stop is unconditional | `tabindex` only when overflowing | Overflow is a layout fact that does not exist at render time and differs between server and client passes. A conditional `tabindex` is a hydration mismatch dressed as an accessibility feature |
+| Line-scoped `biome-ignore` | Disable `noNoninteractiveTabindex` in `biome.json` | The rule is right about the general case. Suppressed where the exception is, with the reason, rather than everywhere the next table would inherit it |
+| Home page left alone | Give the bare table the same wrapper | **Measured**: 380 scrollWidth of 380 clientWidth at 412px. It does not overflow, so a tab stop there would be noise. The invariant is asserted instead of the measurement |
+
+### What surprised us
+
+**1. The graph reported zero dependants for a component with four — in TypeScript.**
+`impact(DataTable, upstream)` returned `impactedCount 0`, `risk LOW`,
+`"epistemic": "exact"`, against a barrel export consumed by the coverage page, the
+gallery and the design-system suite. Every previous `RISK-016` reproduction — thirteen
+of them — was `apps/api/src/app.py`. The risk register says the failure is specific to
+the API application. **It is not**, and its wording would let a reader trust a
+TypeScript `LOW`. Widening it is the follow-up.
+
+Confidence here came from `tsc --noEmit` and grep, not from the graph. Worth naming:
+for an exported symbol in a typed workspace the compiler *is* the complete reference
+check, which is the thing the graph failed to be.
+
+**2. I wrote a test that reported a defect that did not exist.** The first browser
+assertion read `scrollLeft` immediately after each key press and saw `0, 0, 0, 1, 1` —
+Chrome animates key-driven scrolls. Two equal samples looked like "scrolling stopped
+22px short", and it failed with a confident message naming a product bug.
+
+This register has five entries about checks that pass for the wrong reason. This is
+the same error inverted, and it cost the same thing: a claim about the product that
+came from the harness. The diagnosis was a measurement, not a guess — a throwaway spec
+printing per-press positions, deleted after. The test now polls until two consecutive
+samples agree, and says why in a comment longer than the code.
+
+**3. One existing test failed, and that was the change working.** `exposes sortable
+headers as buttons, reachable by keyboard` asserted the first Tab landed on the sort
+button; the first stop is now the scroll region. It asserts both stops in order rather
+than skipping to the button, so the extra tab stop stays visible to whoever changes it
+next.
+
+### Follow-up created
+
+| Item | Type |
+| --- | --- |
+| Widen `RISK-016` beyond `apps/api/src/app.py` — reproduced in TypeScript | Risk register |
+| Analyser cannot scope `conventions/__init__.py`, `entity_resolution.py`, `test_api_operations.py` | Investigate before the next impact query touching them |
+| `every horizontally-scrolling element on /coverage can take focus` is vacuous while the region list is empty | Revisit when the first region is declared |
+
+---
+
 ## IMPL-061 — STEP-007.03 — Today is a property of the destination
 
 | Field | Value |

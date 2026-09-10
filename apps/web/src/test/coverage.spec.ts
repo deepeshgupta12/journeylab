@@ -101,8 +101,45 @@ test.describe('coverage page', () => {
   });
 
   test('is fully keyboard reachable', async ({ page }) => {
-    await page.keyboard.press('Tab');
-    const focused = await page.evaluate(() => document.activeElement?.tagName ?? '');
-    expect(focused).not.toBe('BODY');
+    /*
+     * THIS TEST USED TO BE ONE TAB AND `not.toBe('BODY')` — AND BUG-033 WALKED
+     * STRAIGHT PAST IT.
+     *
+     * "Something received focus" is not "the content is reachable". At a phone
+     * viewport the right-hand 56px of this very table could be reached by pointer
+     * and by no key at all, while this assertion stayed green: the skip link
+     * focused, so something was not BODY. It is the same vacuity as the absence
+     * assertions above, which a 404 satisfied.
+     *
+     * The tab order is now enumerated and the controls that must be in it are
+     * named. Whether a key actually MOVES the scroll region is geometry, so it is
+     * settled in a browser at the phone profile in a11y.spec.ts rather than
+     * claimed here.
+     */
+    const order: string[] = [];
+    for (let i = 0; i < 40; i += 1) {
+      await page.keyboard.press('Tab');
+      const signature = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null;
+        if (!el || el === document.body) return '<body>';
+        const label = el.getAttribute('aria-labelledby')
+          ? 'labelled'
+          : (el.textContent?.trim().slice(0, 20) ?? '');
+        return `${el.tagName.toLowerCase()}|${el.className}|${label}`;
+      });
+      if (signature === '<body>') break;
+      if (order.includes(signature)) break; // wrapped
+      order.push(signature);
+    }
+
+    expect(order.length, 'nothing is in the tab order').toBeGreaterThan(1);
+    expect(
+      order.some((s) => s.includes('jl-table__scroll')),
+      `the table's scroll region is not in the tab order:\n${order.join('\n')}`,
+    ).toBe(true);
+    expect(
+      order.some((s) => s.includes('jl-table__export')),
+      `the CSV control is not in the tab order:\n${order.join('\n')}`,
+    ).toBe(true);
   });
 });

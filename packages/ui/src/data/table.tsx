@@ -115,78 +115,121 @@ export function DataTable<Row>({
 
   return (
     <div className="jl-table">
-      <table
-        // +1 for the header row: aria-rowcount describes the grid, not the body.
-        aria-rowcount={rows.length + 1}
-        aria-describedby={captionId}
-      >
-        <caption id={captionId}>
-          {caption}
-          {virtualWindow ? (
-            <span className="jl-visually-hidden">
-              {` Showing ${visible.length} of ${rows.length} rows.`}
-            </span>
-          ) : null}
-        </caption>
-        <thead>
-          <tr aria-rowindex={1}>
-            {columns.map((column) => {
-              const isSorted = sort?.key === column.key;
-              return (
-                <th
-                  key={column.key}
-                  // `scope` is what associates a header with its column for a
-                  // screen reader. Without it the header is just bold text.
-                  scope="col"
-                  // aria-sort goes on the header, and ONLY on the sorted one.
-                  // Setting "none" on every other header is noise a screen reader
-                  // announces on each cell.
-                  aria-sort={isSorted ? sort.direction : undefined}
-                >
-                  {column.sortable ? (
-                    <button type="button" onClick={() => toggleSort(column.key)}>
-                      {column.header}
-                    </button>
-                  ) : (
-                    column.header
-                  )}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {visible.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length}>{emptyMessage}</td>
+      {/*
+       * THE SCROLL REGION IS FOCUSABLE, AND IT WRAPS ONLY THE TABLE — BUG-033.
+       *
+       * A container with `overflow-x: auto` is scrolled by a pointer for free and
+       * by a keyboard only if focus can enter it. Before this, the sole focusable
+       * descendant was the "Download CSV" button, which sits OUTSIDE the
+       * overflowing content — so at a 412px viewport the right-hand 56px of the
+       * table was reachable by touch and by no key at all.
+       *
+       * axe's `scrollable-region-focusable` passed throughout, correctly by its
+       * own definition: the region did contain focusable content. The rule's
+       * PURPOSE is "a keyboard user can reach what is in here", and the element
+       * satisfying it was not in the part that overflowed. Moving the button out
+       * of the region is therefore part of the fix, not tidying — it is what makes
+       * the detector's pass mean the thing the detector is for.
+       *
+       * `<section>` rather than `<div role="region">`, for the reason DataList
+       * gives below: a native element carries the role implicitly and cannot lose
+       * it to a typo. Named from the caption, so the region a screen reader
+       * announces is the table the sighted reader sees, not a second name
+       * invented for it.
+       *
+       * The tab stop is UNCONDITIONAL, and that is a deliberate trade. Whether
+       * the table overflows is a fact about layout, which does not exist at render
+       * time and differs between the server and client passes — a tabindex
+       * conditioned on it would be a hydration mismatch that reports itself as an
+       * accessibility feature. One extra tab stop on a table that happens to fit
+       * is a smaller defect than content no key can reach.
+       *
+       * ON THE SUPPRESSION BELOW
+       *   `noNoninteractiveTabindex` is right about the general case and wrong
+       *   about this one. Its reasoning — "adding non-interactive elements to the
+       *   keyboard navigation flow can confuse users" — assumes the element does
+       *   nothing when focused. A scrolling container is the exception the rule
+       *   does not model: focusing it is what makes the arrow keys scroll it, and
+       *   it is the pattern WAI and axe's own documentation prescribe for exactly
+       *   this. Suppressed at the line, with the measurement in BUG-033, rather
+       *   than switched off in biome.json where the next table would inherit it.
+       */}
+      {/* biome-ignore lint/a11y/noNoninteractiveTabindex: a scrolling region must be focusable or its overflow is keyboard-unreachable — BUG-033. */}
+      <section className="jl-table__scroll" tabIndex={0} aria-labelledby={captionId}>
+        <table
+          // +1 for the header row: aria-rowcount describes the grid, not the body.
+          aria-rowcount={rows.length + 1}
+          aria-describedby={captionId}
+        >
+          <caption id={captionId}>
+            {caption}
+            {virtualWindow ? (
+              <span className="jl-visually-hidden">
+                {` Showing ${visible.length} of ${rows.length} rows.`}
+              </span>
+            ) : null}
+          </caption>
+          <thead>
+            <tr aria-rowindex={1}>
+              {columns.map((column) => {
+                const isSorted = sort?.key === column.key;
+                return (
+                  <th
+                    key={column.key}
+                    // `scope` is what associates a header with its column for a
+                    // screen reader. Without it the header is just bold text.
+                    scope="col"
+                    // aria-sort goes on the header, and ONLY on the sorted one.
+                    // Setting "none" on every other header is noise a screen reader
+                    // announces on each cell.
+                    aria-sort={isSorted ? sort.direction : undefined}
+                  >
+                    {column.sortable ? (
+                      <button type="button" onClick={() => toggleSort(column.key)}>
+                        {column.header}
+                      </button>
+                    ) : (
+                      column.header
+                    )}
+                  </th>
+                );
+              })}
             </tr>
-          ) : (
-            visible.map((row, offset) => (
-              <tr
-                key={rowKey(row)}
-                // 1-based, and offset by the header row. This is the index within
-                // the WHOLE dataset, which is the point: a virtualised row 4,001
-                // must announce itself as 4,001, not as 3.
-                aria-rowindex={firstVisibleIndex + offset + 2}
-              >
-                {columns.map((column, columnIndex) => {
-                  const content = column.cell(row);
-                  // The first column acts as the row header, so a screen reader
-                  // reading a cell announces which row it belongs to.
-                  return columnIndex === 0 ? (
-                    <th key={column.key} scope="row">
-                      {content}
-                    </th>
-                  ) : (
-                    <td key={column.key}>{content}</td>
-                  );
-                })}
+          </thead>
+          <tbody>
+            {visible.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length}>{emptyMessage}</td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              visible.map((row, offset) => (
+                <tr
+                  key={rowKey(row)}
+                  // 1-based, and offset by the header row. This is the index within
+                  // the WHOLE dataset, which is the point: a virtualised row 4,001
+                  // must announce itself as 4,001, not as 3.
+                  aria-rowindex={firstVisibleIndex + offset + 2}
+                >
+                  {columns.map((column, columnIndex) => {
+                    const content = column.cell(row);
+                    // The first column acts as the row header, so a screen reader
+                    // reading a cell announces which row it belongs to.
+                    return columnIndex === 0 ? (
+                      <th key={column.key} scope="row">
+                        {content}
+                      </th>
+                    ) : (
+                      <td key={column.key}>{content}</td>
+                    );
+                  })}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </section>
 
+      {/* Outside the scroll region deliberately — see the note above. */}
       <button type="button" onClick={exportCsv} className="jl-table__export">
         Download CSV
       </button>

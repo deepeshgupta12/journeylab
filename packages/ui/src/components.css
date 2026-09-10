@@ -261,8 +261,22 @@ button:focus-visible {
   inline-size: 100%;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
-  /* Wide tables scroll INSIDE their own container rather than pushing the page
-     sideways — WCAG 1.4.10 Reflow. */
+}
+
+/* Wide tables scroll INSIDE their own container rather than pushing the page
+   sideways — WCAG 1.4.10 Reflow.
+
+   The scroll container is a SEPARATE element from `.jl-table`, which it was not
+   before BUG-033. When one element was both the block wrapper and the scroller,
+   the CSV button lived inside the scrolling area: it satisfied axe's
+   `scrollable-region-focusable` while sitting outside the content that actually
+   overflowed, so the rule passed and 56px of table stayed unreachable by
+   keyboard. Splitting them lets the region hold the table and nothing else.
+
+   `table.jl-table` is the bare-table form used where there is no DataTable — a
+   <table> must become a block before it can scroll at all. */
+.jl-table__scroll,
+table.jl-table {
   display: block;
   overflow-x: auto;
 }

@@ -69,6 +69,63 @@ trending up, coverage gaps accepted with a reason.
 
 ---
 
+## FIX — 2026-09-09 — BUG-033: the table's scroll region, and the rule that passed
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `7f17bb6` re-indexed before the change; matched HEAD at pre-change |
+| Blast radius | [BR-062](blast-radius/BR-062-table-scroll-region.md) — MEDIUM, confidence HIGH |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` **exit 0**. 1378 Python (4 skipped) + **311 UI** (from 307) + 71 web + **70 browser** (from 58) + R7 18/18 |
+| R2 contract compatibility | **PASS — no contract touched** | The standing diff against baseline is unchanged: `[ADDITIVE] JobEvent.sequence`, `[ADDITIVE] POST /coverage:check`, both from STEP-007.03 |
+| R3 graph diff as expected | **PASS** | 10 files, 53 symbols, **1 affected process** (`DataTable → EscapeCell`), risk `medium` — matching `BR-062`'s score. **`packages/ui/src/components.css` does not appear**, because CSS is not in the graph at all (`BR-025` §3). Expected, and a reminder that R3's scope is narrower than the change's |
+| R4 untested requirements | **PASS — improved** | No new requirements. `REQ-A11Y-001` gains keyboard-operability coverage it did not have: the assertion it relied on was `not.toBe('BODY')` |
+| R5 orphan/unowned nodes | **PASS** | `codeowners-coverage.sh`: all 589 tracked paths resolve to an owner |
+| R6 closed-bug tests | **PASS** | BUG-001…035 green; **guard meta-suite 76/76**; BUG-033's own eight tests added |
+| R7 tenant isolation | **PASS — 18/18** | Unchanged by this work: a public, unauthenticated surface with no data path. Gate run with the stack up, including the weakened-policy negative control |
+
+**Overall:** PASS
+
+### Mutation testing — 4 seeded, 4 killed
+
+| # | Seeded defect | Killed by |
+| --- | --- | --- |
+| 1 | `tabIndex` removed | 2 design-system tests |
+| 2 | `aria-labelledby` removed | 5 design-system tests |
+| 3 | **CSV button moved back inside the region** | **1 test — and axe passes it** |
+| 4 | `tabIndex` removed, real browser | 10 browser tests, both projects |
+
+Mutant 3 is the finding. It restores the exact condition of `BUG-033`, and `table has
+zero AA violations`, `list has zero AA violations` and `empty table has zero AA
+violations` **all stay green**. The gate that guards this property cannot see this
+defect. That is now written down where the next person will look.
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `lint/a11y/noNoninteractiveTabindex` on `<section tabIndex={0}>` | Biome is right in general: a non-interactive element in the tab order usually confuses. It does not model the scrolling-container exception, where focus is what makes arrow keys work | Line-scoped `biome-ignore` with the reason, **not** a rule disabled in `biome.json`. The first `verify` run died here, before any test ran — recorded because "verify failed" and "tests failed" are different facts |
+| `exposes sortable headers as buttons, reachable by keyboard` | The first Tab now lands on the scroll region, not the sort button | Test updated to assert **both** stops in order. A legitimate behaviour change, made visible rather than absorbed |
+| `a keyboard can reach the far edge…` failed on its first run, naming a product defect | **The test was wrong.** It read `scrollLeft` immediately after each key press; Chrome animates key-driven scrolls, so it sampled `0, 0, 0, 1, 1` and read two equal samples as "stopped 22px short" | Diagnosed by measurement — a throwaway spec printing per-press positions, since deleted — not by guessing. It now polls until two consecutive samples agree. **Recorded prominently: this register has five entries about checks that pass for the wrong reason, and this is the same error inverted** |
+| Node 25.9.0 on PATH vs. the pinned 24 | Local environment, as at STEP-007.03 | Whole run executed on `node@24`; `guard:node` green |
+
+### What was measured rather than assumed
+
+`apps/web/src/app/page.tsx` applies `.jl-table` to a bare `<table>`. At 412px it is
+**380 scrollWidth of 380 clientWidth** — no overflow, so no defect and no tab stop.
+Because that is a fact about content rather than code, a new invariant asserts the
+rule instead: every horizontally-scrolling element on `/`, `/coverage` and
+`/dev/gallery` must be able to take focus.
+
+Mutant 4 showed where that invariant does not yet bite: it passed on `/coverage`,
+whose region list is empty and therefore does not overflow. Real, presently vacuous
+on that surface, and load-bearing only on the gallery. Noted rather than dressed up.
+
+---
+
 ## CORRECTION — 2026-09-04 — "meta-suite 72/72" was claimed twenty times and never run
 
 **This is a process failure of mine, recorded here rather than repaired silently.**

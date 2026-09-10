@@ -220,6 +220,7 @@ seeds exactly this collapse (`freshness in ("stale", "degraded")`) and is killed
 | Date found | 2026-09-04 |
 | Affected requirements | REQ-A11Y-001, WCAG 2.2 SC 2.1.1 (Keyboard) |
 | Affected component | `packages/ui/src/data/table.tsx` — **the design system's `DataTable`, so every table in the product** |
+| Status | **FIXED 2026-09-09** — focusable scroll region; CSV control moved out of it. `BR-062`, 8 new tests, 4 mutants killed |
 
 ### Symptom
 
@@ -266,22 +267,74 @@ navigates it by table semantics rather than by scrolling. This affects specifica
 
 ### Fix
 
-Not applied — the component belongs to `STEP-003.04` and the fix is a design-system
-change with its own blast radius. Two candidates:
+**Applied 2026-09-09** — `BR-062`. Candidate 1 of the two recorded below, with one
+addition the original note did not contain.
 
-1. `tabindex="0"` plus `role="region"` and an accessible name on the wrapper — the
-   pattern axe's own documentation recommends, and it puts the scroll region in the
-   tab order.
-2. A responsive layout that does not overflow at phone widths, so there is nothing to
-   scroll — `DataList` already exists for exactly this and is unused here.
+The wrapper became two elements: a focusable `<section class="jl-table__scroll">`
+holding the table, named from the caption by `aria-labelledby`, and the **CSV button
+moved outside it**.
 
-Recorded for scheduling rather than fixed in passing.
+Candidate 2 — a responsive layout swapping in `DataList` at phone widths — was
+rejected. It renders different content on either side of a breakpoint, which means
+either duplicating the DOM (and the content a screen reader walks) or branching on a
+media query at render time, which the server does not have. Candidate 1 is also what
+axe's own documentation recommends.
 
-### Regression test owed
+**Moving the CSV button is the substance, not tidying.** Adding `tabindex` alone
+fixes the product and leaves the detector still passing for the wrong reason — the
+button would still be the focusable descendant that satisfies
+`scrollable-region-focusable` from outside the overflowing content. That claim was
+tested rather than asserted: with the button restored inside the region and
+`tabindex` retained, **all three axe assertions still report zero AA violations**,
+and only the explicit boundary test fails.
 
-A browser assertion that **every table cell is reachable by keyboard alone** at the
-mobile profile, not merely that focus lands somewhere. Plus a design-system test that
-an overflowing `DataTable` exposes a focusable scroll region.
+The tab stop is **unconditional**. Whether a table overflows is a fact about layout,
+which does not exist at render time and differs between the server and client passes;
+a `tabindex` conditioned on it is a hydration mismatch dressed as an accessibility
+feature. One extra tab stop on a table that fits is the smaller defect.
+
+### What this did NOT fix, deliberately
+
+`apps/web/src/app/page.tsx` applies `.jl-table` directly to a `<table>` with no
+wrapper. It was **measured, not assumed**: at 412px it is 380 scrollWidth of 380
+clientWidth — it does not overflow, so no content is unreachable and it was given no
+tab stop. Since that is a fact about content rather than about the code, the
+invariant is now asserted instead of the measurement (below).
+
+### Regression tests
+
+| Test | Where | Asserts |
+| --- | --- | --- |
+| `exposes the table in a focusable region` | `packages/ui/src/data/data.test.tsx` | `tabindex="0"`, contains the table |
+| `names the region from the caption…` | design system | `aria-labelledby` resolves to the caption |
+| `KEEPS THE CSV BUTTON OUT of the scroll region` | design system | the boundary axe cannot see |
+| `gives the empty table a scroll region too` | design system | the empty state is not an exemption |
+| `a keyboard can reach the far edge of every overflowing table` | `apps/web/src/test/a11y.spec.ts` | ArrowRight reaches `scrollWidth − clientWidth` at 412px |
+| `the last column … becomes visible, not merely scrolled` | browser | the far cell is inside the region's box |
+| `every horizontally-scrolling element on {/, /coverage, /dev/gallery} can take focus` | browser | **the invariant**, stricter than axe |
+| `the coverage table … is keyboard-operable` | browser | region exists, is named, is in the tab order |
+
+`is fully keyboard reachable` in `coverage.spec.ts` was **rewritten, not extended**.
+It pressed Tab once and asserted the focused element was not `BODY` — which this bug
+walked straight past, because the skip link focused. It now enumerates the tab order
+and names the controls that must appear in it.
+
+One existing test changed behaviour legitimately: `exposes sortable headers as
+buttons, reachable by keyboard` asserted the first Tab landed on the sort button. The
+first stop is now the scroll region. It asserts both stops in order rather than
+skipping to the button, so the extra stop stays deliberate.
+
+### Why the tests missed it
+
+Recorded above and worth keeping: `scrollable-region-focusable` passed **correctly by
+its own definition** while failing its purpose, and the browser suite asserted the
+page was keyboard *reachable* rather than that all content was. Both are the
+vacuous-pass shape this register has now logged five times.
+
+A sixth instance appeared while writing the fix, pointed the other way: the first
+version of the browser test read `scrollLeft` immediately after each key press, saw
+`0, 0, 0, 1, 1` — Chrome animates key-driven scrolls — and reported a product defect
+that did not exist. It now polls until two consecutive samples agree.
 
 ---
 

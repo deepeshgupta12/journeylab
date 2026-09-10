@@ -304,6 +304,258 @@ test.describe('touch targets and breakpoints', () => {
   });
 });
 
+// --- BUG-033: the page not scrolling is not the same as the content being reachable
+
+/**
+ * `nothing scrolls horizontally at a phone width` above passes because the TABLE
+ * scrolls instead of the page — which is the design, and which is exactly how
+ * BUG-033 hid. The page was fine; 56px of table was reachable by pointer and by
+ * no key at all, and axe's `scrollable-region-focusable` passed throughout
+ * because the CSV button counted as focusable content while sitting outside the
+ * part that overflowed.
+ *
+ * These are the assertions that would have caught it. They belong in a browser
+ * and nowhere else: `scrollWidth` is 0 in jsdom, so the design-system suite can
+ * only assert the structure, never that a key moves anything.
+ *
+ * PIXEL 7 WIDTH, 412px — the viewport the defect was measured at.
+ */
+test.describe('scrolling regions are operable by keyboard', () => {
+  test.skip(({ browserName }) => browserName !== 'chromium', 'geometry is engine-independent');
+
+  const PHONE = { width: 412, height: 915 };
+
+  /** Overflow per scroll region, in DOM order. */
+  async function overflowByRegion(page: Page): Promise<number[]> {
+    return page.evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLElement>('.jl-table__scroll')).map(
+        (el) => el.scrollWidth - el.clientWidth,
+      ),
+    );
+  }
+
+  /** Tab from the top of the document until `.jl-table__scroll` index `n` has focus. */
+  async function tabToRegion(page: Page, n: number, maxTabs = 200): Promise<boolean> {
+    await page.evaluate(() => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      window.scrollTo(0, 0);
+    });
+    for (let i = 0; i < maxTabs; i += 1) {
+      await page.keyboard.press('Tab');
+      const isTarget = await page.evaluate((index) => {
+        const regions = Array.from(document.querySelectorAll<HTMLElement>('.jl-table__scroll'));
+        return regions[index] === document.activeElement;
+      }, n);
+      if (isTarget) return true;
+    }
+    return false;
+  }
+
+  function scrollLeftOf(page: Page, index: number): Promise<number> {
+    return page.evaluate(
+      (i) => document.querySelectorAll<HTMLElement>('.jl-table__scroll')[i]?.scrollLeft ?? -1,
+      index,
+    );
+  }
+
+  /**
+   * `scrollLeft` once it has stopped moving.
+   *
+   * CHROME ANIMATES KEY-DRIVEN SCROLLS, AND THE FIRST VERSION OF THIS TEST DID
+   * NOT KNOW THAT. It read `scrollLeft` immediately after each press, saw 0, 0,
+   * 0, 1, 1 — the animation caught at its start — and concluded from two equal
+   * readings that scrolling had finished 22px short. It reported a product defect
+   * that did not exist, which is the same class of error as a check that passes
+   * for the wrong reason, pointed the other way.
+   *
+   * So the position is polled until two consecutive samples agree. Not a fixed
+   * sleep: a sleep long enough here is a sleep that is too long everywhere.
+   */
+  async function settledScrollLeft(page: Page, index: number): Promise<number> {
+    let last = -1;
+    for (let i = 0; i < 40; i += 1) {
+      const now = await scrollLeftOf(page, index);
+      if (now === last) return now;
+      last = now;
+      await page.waitForTimeout(50);
+    }
+    return last;
+  }
+
+  /** Press ArrowRight until the region stops moving. Returns the final position. */
+  async function keyboardScrollToEnd(page: Page, index: number): Promise<number> {
+    let previous = -1;
+    for (let round = 0; round < 30; round += 1) {
+      for (let press = 0; press < 5; press += 1) await page.keyboard.press('ArrowRight');
+      const now = await settledScrollLeft(page, index);
+      if (now === previous) break;
+      previous = now;
+    }
+    return previous;
+  }
+
+  test('a keyboard can reach the far edge of every overflowing table', async ({ page }) => {
+    await page.setViewportSize(PHONE);
+    await page.goto('/dev/gallery');
+
+    const overflow = await overflowByRegion(page);
+    // THE PRESENCE ANCHOR — BUG-032's lesson applied to this test.
+    //
+    // Everything below is conditional on a table actually overflowing. If none
+    // does, every assertion is vacuously true and this test reports success about
+    // a situation it never examined. So the overflow itself is asserted first: if
+    // the gallery ever stops producing a wide table, this fails and someone picks
+    // a fixture that does, rather than the check quietly becoming decoration.
+    const overflowing = overflow.filter((px) => px > 0);
+    expect(
+      overflowing.length,
+      `no .jl-table__scroll overflows at ${PHONE.width}px, so this test proves nothing. Measured: ${JSON.stringify(overflow)}`,
+    ).toBeGreaterThan(0);
+
+    for (const [index, hidden] of overflow.entries()) {
+      if (hidden <= 0) continue;
+
+      const reached = await tabToRegion(page, index);
+      expect(reached, `scroll region ${index} is not in the tab order`).toBe(true);
+
+      // Arrow keys, not End: End is defined against the block axis and Chrome
+      // does not reliably map it to the inline end of a horizontal-only scroller.
+      // A key a user would actually press.
+      const left = await keyboardScrollToEnd(page, index);
+
+      const max = await page.evaluate((i) => {
+        const el = document.querySelectorAll<HTMLElement>('.jl-table__scroll')[i];
+        return el ? el.scrollWidth - el.clientWidth : null;
+      }, index);
+
+      expect(max, `scroll region ${index} vanished mid-test`).not.toBeNull();
+      // Sub-pixel rounding only. Before the fix this was 0 against a max of 56.
+      expect(
+        Math.round(max ?? 0) - Math.round(left),
+        `scroll region ${index}: ${hidden}px was hidden and the keyboard moved it to ${left} of ${max}`,
+      ).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test('the last column of an overflowing table becomes visible, not merely scrolled', async ({
+    page,
+  }) => {
+    // Reaching scrollLeft === max is a statement about a number. This is the
+    // statement about the user: the content at the far end is inside the box they
+    // are looking at.
+    await page.setViewportSize(PHONE);
+    await page.goto('/dev/gallery');
+
+    const overflow = await overflowByRegion(page);
+    const index = overflow.findIndex((px) => px > 0);
+    expect(index, `no overflowing table at ${PHONE.width}px to examine`).toBeGreaterThanOrEqual(0);
+
+    expect(await tabToRegion(page, index)).toBe(true);
+    await keyboardScrollToEnd(page, index);
+
+    const visible = await page.evaluate((i) => {
+      const region = document.querySelectorAll<HTMLElement>('.jl-table__scroll')[i];
+      const headers = region?.querySelectorAll<HTMLElement>('thead th');
+      const last = headers?.[headers.length - 1];
+      if (!region || !last) return null;
+      const box = last.getBoundingClientRect();
+      const frame = region.getBoundingClientRect();
+      return {
+        header: last.textContent?.trim() ?? '',
+        // Fully inside the scrolling viewport, allowing a pixel of rounding.
+        inside: box.left >= frame.left - 1 && box.right <= frame.right + 1,
+      };
+    }, index);
+
+    expect(visible, 'the region or its header row disappeared').not.toBeNull();
+    expect(
+      visible?.inside,
+      `the last column ("${visible?.header}") is still clipped after scrolling by keyboard`,
+    ).toBe(true);
+  });
+
+  /*
+   * THE INVARIANT, RATHER THAN THE THREE PLACES IT HAPPENS TO HOLD TODAY.
+   *
+   * BUG-033 was a property of one component, but the shape is general: any
+   * element that scrolls horizontally and cannot take focus has content only a
+   * pointer can reach. `.jl-table` is still applied directly to a bare <table>
+   * on the home page, which at 412px measures 380 of 380 — it does not overflow,
+   * so it needs no tab stop and was deliberately left without one.
+   *
+   * "Does not overflow today" is a fact about content, and content grows. This
+   * asserts the rule instead of the current measurement, so the day a third
+   * column lands on that table the suite says so rather than shipping BUG-033
+   * again somewhere new.
+   *
+   * Stricter than axe's `scrollable-region-focusable` ON PURPOSE. That rule is
+   * satisfied by any focusable descendant, which is precisely how it passed while
+   * the CSV button stood in for 56px of unreachable table.
+   */
+  for (const surface of ['/', '/coverage', '/dev/gallery']) {
+    test(`every horizontally-scrolling element on ${surface} can take focus`, async ({ page }) => {
+      await page.setViewportSize(PHONE);
+      const response = await page.goto(surface);
+      expect(response?.status(), `${surface} must exist`).toBe(200);
+
+      const offenders = await page.evaluate(() => {
+        const bad: string[] = [];
+        for (const el of Array.from(document.querySelectorAll<HTMLElement>('*'))) {
+          const hidden = el.scrollWidth - el.clientWidth;
+          if (hidden <= 1) continue;
+          const style = getComputedStyle(el);
+          const scrolls = style.overflowX === 'auto' || style.overflowX === 'scroll';
+          if (!scrolls) continue;
+          const tabindex = el.getAttribute('tabindex');
+          if (tabindex !== null && Number.parseInt(tabindex, 10) >= 0) continue;
+          bad.push(
+            `${el.tagName.toLowerCase()}.${el.className || '(no class)'} hides ${hidden}px and cannot take focus`,
+          );
+        }
+        return bad;
+      });
+
+      expect(offenders, `keyboard-unreachable overflow:\n${offenders.join('\n')}`).toEqual([]);
+    });
+  }
+
+  test('the coverage table — the surface BUG-033 was found on — is keyboard-operable', async ({
+    page,
+  }) => {
+    await page.setViewportSize(PHONE);
+    const response = await page.goto('/coverage');
+    // Presence anchor: three of this page's tests once passed against a 404.
+    expect(response?.status(), 'the coverage route must exist').toBe(200);
+
+    const region = page.locator('.jl-table__scroll');
+    await expect(region, 'the coverage table has no scroll region').toHaveCount(1);
+    await expect(region).toHaveAttribute('tabindex', '0');
+
+    // Named, or a screen reader announces "region" and nothing else.
+    const name = await region.getAttribute('aria-labelledby');
+    expect(name, 'the scroll region has no accessible name').toBeTruthy();
+
+    expect(await tabToRegion(page, 0), 'the coverage scroll region is not in the tab order').toBe(
+      true,
+    );
+
+    // The measurement is RECORDED rather than asserted to be non-zero. This page
+    // renders an empty region list today, so whether it overflows depends on
+    // content that is expected to change. What must hold on this page regardless
+    // is that the region exists, is named and can be reached; whether a keyboard
+    // can traverse an overflow is settled on the gallery above, where the fixture
+    // is ours to control.
+    const hidden = (await overflowByRegion(page))[0] ?? 0;
+    if (hidden > 0) {
+      const left = await keyboardScrollToEnd(page, 0);
+      expect(
+        Math.round(hidden) - Math.round(left),
+        `${hidden}px hidden, keyboard reached ${left}`,
+      ).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
 // --- forced colors and RTL ---------------------------------------------------
 
 test.describe('rendering modes', () => {
