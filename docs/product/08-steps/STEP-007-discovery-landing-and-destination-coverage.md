@@ -105,7 +105,7 @@ Low reach into other services, but **high customer criticality** — this is the
 | STEP-007.02 | Public coverage/SEO page with limitations and privacy summary | — ✅ **VERIFIED** 2026-09-04 (BR-060, IMPL-060)
 | STEP-007.03 | Date and geography validation with honest refusal states | — ✅ **VERIFIED** 2026-09-05 (BR-061, IMPL-061; adds `API-019`, migration `018`, `DEC-011`; closes BUG-034)
 | STEP-007.04 | Waitlist / inspiration mode with consent | — ✅ **VERIFIED** 2026-09-11 (BR-063, IMPL-063; adds `API-020`, migration `019`). **The plan's `ConsentRecord` could not be written** — `consent_records` is tenant-scoped and the subject has no account, so consent lives in a platform-level table on `016`'s reasoning. `STEP-008.04` inherits reconciling the two |
-| STEP-007.05 | Provider-degradation disclosure wiring |
+| STEP-007.05 | Provider-degradation disclosure wiring | — ✅ **VERIFIED** 2026-09-14 (BR-064, IMPL-064; adds `Coverage.observed_at`, `services/events/src/read_models.py`). **No production code had written `coverage_read_model` until now.** Step close — §25 exit criteria — is a separate unit and is not claimed here |
 
 ## 22. Test and evaluation plan
 `TST-TRIP-001`, `TST-TRIP-002`, `TST-EVID-006`, `TST-A11Y-001`. A resilience drill must prove that a degraded provider produces a refusal, not a partial simulation.

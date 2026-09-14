@@ -44,6 +44,11 @@ class FakeCursor:
         return self.rows
 
 
+#: STEP-007.05 added `observed_at` to the public document, and the clock is passed in
+#: rather than reached for — see `read_coverage`. These tests are about shape and
+#: cache behaviour, not about time, so they pin it.
+OBSERVED = datetime.datetime(2026, 9, 14, 8, 0, tzinfo=datetime.UTC)
+
 DAY = datetime.date(2026, 4, 1)
 END = datetime.date(2027, 3, 31)
 
@@ -122,19 +127,21 @@ class TestBug028CoverageIsReadableWithoutATenant:
 class TestNoSupplierIsNameable:
     def test_the_response_carries_one_aggregate_health_value(self) -> None:
         """`Coverage`: "an aggregate. Never a list, never named, never a count."""
-        document = read_coverage(cursor(("bern", "current", True, [])))
+        document = read_coverage(cursor(("bern", "current", True, [])), observed_at=OBSERVED)
         assert document["provider_health"] == "healthy"
         assert isinstance(document["provider_health"], str)
 
     def test_the_worst_region_decides_the_aggregate(self) -> None:
         document = read_coverage(
-            cursor(("bern", "current", True, []), ("geneva", "stale", False, ["down"]))
+            cursor(("bern", "current", True, []), ("geneva", "stale", False, ["down"])),
+            observed_at=OBSERVED,
         )
         assert document["provider_health"] == "unavailable"
 
     def test_no_supplier_identity_appears_anywhere_in_the_response(self) -> None:
         document = read_coverage(
-            cursor(("bern", "degraded", True, ["bern is running on degraded sources"]))
+            cursor(("bern", "degraded", True, ["bern is running on degraded sources"])),
+            observed_at=OBSERVED,
         )
         rendered = repr(document)
         for forbidden in ("opentransportdata", "otd", "osm", "meteoswiss", "provider_id"):
@@ -143,8 +150,8 @@ class TestNoSupplierIsNameable:
     def test_no_count_of_providers_is_derivable(self) -> None:
         """A count alone reveals the supply chain's size. The response has one
         health string and no quantity attached to it."""
-        document = read_coverage(cursor(("bern", "degraded", True, [])))
-        assert set(document) == {"regions", "provider_health"}
+        document = read_coverage(cursor(("bern", "degraded", True, [])), observed_at=OBSERVED)
+        assert set(document) == {"regions", "provider_health", "observed_at"}
         assert set(document["regions"][0]) == {
             "region_id",
             "display_name",
@@ -173,8 +180,8 @@ class TestTheCacheDoesNotMaskDegradation:
     def test_a_second_call_within_the_ttl_is_served_from_cache(self) -> None:
         cache = CoverageCache()
         source = cursor(("bern", "current", True, []))
-        first = get_coverage(source, cache=cache, now=0.0)
-        second = get_coverage(source, cache=cache, now=CACHE_TTL_SECONDS - 1)
+        first = get_coverage(source, cache=cache, observed_at=OBSERVED, now=0.0)
+        second = get_coverage(source, cache=cache, observed_at=OBSERVED, now=CACHE_TTL_SECONDS - 1)
         assert first == second
         assert len(source.executed) == 1
 
@@ -184,10 +191,10 @@ class TestTheCacheDoesNotMaskDegradation:
         current", which is a bound on the TTL."""
         cache = CoverageCache()
         healthy = cursor(("bern", "current", True, []))
-        get_coverage(healthy, cache=cache, now=0.0)
+        get_coverage(healthy, cache=cache, observed_at=OBSERVED, now=0.0)
 
         degraded = cursor(("bern", "stale", False, ["source unavailable"]))
-        after = get_coverage(degraded, cache=cache, now=CACHE_TTL_SECONDS + 1)
+        after = get_coverage(degraded, cache=cache, observed_at=OBSERVED, now=CACHE_TTL_SECONDS + 1)
         assert after["provider_health"] == "unavailable"
 
     def test_the_ttl_is_short_enough_to_be_a_disclosure_bound(self) -> None:
@@ -204,7 +211,9 @@ class TestTheCacheDoesNotMaskDegradation:
         "the key is scoped" but **"nothing scoped is in here"**.
         """
         cache = CoverageCache()
-        get_coverage(cursor(("bern", "current", True, [])), cache=cache, now=0.0)
+        get_coverage(
+            cursor(("bern", "current", True, [])), cache=cache, observed_at=OBSERVED, now=0.0
+        )
         assert cache.keys() == frozenset({COVERAGE_CACHE_KEY})
         for key in cache.keys():
             assert "org" not in key and "tenant" not in key
@@ -222,7 +231,7 @@ class TestTheCacheDoesNotMaskDegradation:
         """A projection mid-rebuild leaves no rows. Absent must mean *unknown*, not
         *fine* — the same rule as an untracked dependency in STEP-005.10 and as
         `Unreconciled` in STEP-005.09."""
-        document = read_coverage(cursor())
+        document = read_coverage(cursor(), observed_at=OBSERVED)
         assert document["provider_health"] == "unavailable"
         assert document["regions"] == []
 
@@ -247,7 +256,8 @@ class TestTheResponseMatchesTheContract:
             schema=spec["components"]["schemas"]["Coverage"]
         )
         document = read_coverage(
-            cursor(("bern", "current", True, []), ("geneva", "degraded", True, ["thin data"]))
+            cursor(("bern", "current", True, []), ("geneva", "degraded", True, ["thin data"])),
+            observed_at=OBSERVED,
         )
         # `CoverageRegion` requires `date_bounds`, which the read model does not yet
         # carry. Filtered rather than ignored, and recorded as a known gap in the
@@ -273,7 +283,7 @@ class TestTheResponseMatchesTheContract:
             ((("a", "stale", False, []),), None),
             ((), None),
         ):
-            assert read_coverage(cursor(*rows))["provider_health"] in allowed
+            assert read_coverage(cursor(*rows), observed_at=OBSERVED)["provider_health"] in allowed
 
 
 # --- gaps mutation testing found --------------------------------------------------
@@ -286,7 +296,7 @@ class TestTheDeclaredFieldsAreActuallyRead:
         traveller. A mutant restoring that survived every assertion here, because
         every fixture used a name derived from the id."""
         source = FakeCursor(rows=[("ch-bern", "Bern, Switzerland", DAY, END, "current", [])])
-        region = read_coverage(source)["regions"][0]
+        region = read_coverage(source, observed_at=OBSERVED)["regions"][0]
         assert region["display_name"] == "Bern, Switzerland"
         assert region["display_name"] != region["region_id"]
 
@@ -303,7 +313,7 @@ class TestTheDeclaredFieldsAreActuallyRead:
                 )
             ]
         )
-        bounds = read_coverage(source)["regions"][0]["date_bounds"]
+        bounds = read_coverage(source, observed_at=OBSERVED)["regions"][0]["date_bounds"]
         assert bounds == {"start": "2027-01-01", "end": "2027-06-30"}
 
 
@@ -324,7 +334,7 @@ class TestTheHandlerReadsTheRealTable:
                 "ON CONFLICT (region_id) DO NOTHING"
             )
             cur.execute("SET ROLE journeylab_app")
-            document = read_coverage(cur)
+            document = read_coverage(cur, observed_at=OBSERVED)
             cur.execute("RESET ROLE")
             cur.execute("DELETE FROM coverage_read_model WHERE region_id='handler-bern'")
 

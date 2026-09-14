@@ -69,6 +69,59 @@ trending up, coverage gaps accepted with a reason.
 
 ---
 
+## STEP-007.05 — 2026-09-14 — Provider-degradation disclosure wiring
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `8d9d28b` — matched HEAD at pre-change |
+| Blast radius | [BR-064](blast-radius/BR-064-degradation-disclosure.md) — MEDIUM, confidence HIGH |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` exit 0. **1442 Python** (from 1424, 4 skipped) + **101 web** (from 87) + 311 UI + **82 browser** (from 76) + R7 18/18 + meta 76/76. **Two earlier runs were red and are not this result:** the first browser run lost its database, and the next failed the contract example gate — both in the table below | |
+| R2 contract compatibility | **PASS — additive** | `[ADDITIVE] Coverage.observed_at — new property`. Clients regenerated; `generated-clients.sh` green. The standing entries from `.03` and `.04` are unchanged |
+| R3 graph diff as expected | **PASS — with the same blind spot as `.04`** | 10 files, 32 symbols, **3 affected processes** — `Get_coverage → Execute`, `→ Fetchall`, `→ _aggregate_health` — risk `medium`, matching `BR-064`. `read_models.py` and `degradation.tsx` appear nowhere: a symbol that did not exist at `8d9d28b` cannot be reported as changed. The added surface is covered by 12 mutants and the end-to-end disclosure tests instead |
+| R4 untested requirements | **PASS — improved** | `REQ-EVID-006` gains its first **end-to-end** coverage — event → fold → table → cache → document. Every previous degradation test ran against rows the test had inserted by hand, because nothing in production code wrote the table. `REQ-EVID-001` gains an asserted observation time |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner; `codeowners-coverage.sh` green |
+| R6 closed-bug tests | **PASS** | BUG-001…035 green; guard meta-suite 76/76 |
+| R7 tenant isolation | **PASS — 18/18** | Unchanged in substance: coverage is platform data (`BUG-028`, `016`). `test_the_coverage_cache_holds_no_tenant_data` now runs through the `observed_at` signature and still finds no tenant token in the cached document or its key | |
+
+**Overall:** PASS
+
+### Mutation testing — 12 killed, and one guard deleted
+
+Table in `BR-064` §8. **Mutant 9 survived, and the right response was to remove code.**
+The banner carried a `useRef` guard on top of its `[health]` dependency array; deleting
+the guard changed nothing observable, because the array already prevents a re-run. A
+guard no test can distinguish from its absence is a comment with a maintenance cost. It
+went, and mutant 9b — widening the dependency array, the protection that is real — was
+seeded in its place and killed. Mutant 1, stamping `observed_at` on the way out, is the
+one the sub-step exists for: every cache hit would claim to be a fresh read.
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `test_the_module_reaches_no_clock_and_no_database` | I put the new writer in `projections.py`, beside the fold. That module is AST-scanned for `execute`, `fetchall` and `now`, because a fold that reads current state replays a year-old event into today's answer | Moved to `services/events/src/read_models.py`. The purity check was right and was left exactly as strict |
+| `InvalidTextRepresentation: invalid input syntax for type json` | `limitations` is `jsonb`; psycopg adapts a Python list to an ARRAY literal, `{"a"}`, which is not JSON | Serialised, and cast `::jsonb` on **both** sides of the `IS DISTINCT FROM` comparison — an untyped parameter that happened to infer `jsonb` is one schema change from comparing text |
+| Three exact-set assertions on the document's top-level keys | `observed_at` is a new key, and these tests exist to fail on a new key | Updated to include it and **kept exact** — a fourth key must still be a decision |
+| Misplaced arguments in updated call sites | **My error.** I rewrote eleven `read_coverage` call sites with a regex, which put `observed_at=` inside `cursor(...)` on two of them and missed a third | Corrected by hand and confirmed by running the suites. Recorded because a regex over test code is the same hazard `CLAUDE.md` rule 7 names for renames |
+| **22 browser tests**, all on the coverage page | **The Docker daemon died mid-run.** The page did exactly what it is built to do — rendered "the coverage service returned 503 … not a statement that your destination is unsupported" — and every assertion about the table, the waitlist and the banner failed downstream of that one fact | Diagnosed from the saved page snapshot and a direct reproduction of the handler's call (`OperationalError: connection refused`); schema confirmed intact after restart; clean rerun. **Not a product defect and not logged as a bug** — but recorded, because a wall of red pointing at missing content when the cause is a missing database is the failure that gets "fixed" in the wrong place |
+| `test_every_declared_example_validates` | Making `observed_at` required left the `API-017` example in the contract without it. My targeted runs covered `tests/platform_api`, `tests/events` and `tests/security` and **not `tests/api`**, where the example gate lives | Example updated, clients regenerated, `tests/api` 600/600. This is what R1 is for: the gate that caught it is one I had not run |
+| Node 25.9.0 on PATH vs. the pinned 24 | Local environment, as at `.03`, `.04` and BUG-033 | Whole run executed on `node@24` |
+
+### What this sub-step ships knowingly
+
+**Nothing runs `apply_coverage_state` in production.** No `EVT-008` consumer process
+exists yet. The seam is built and tested end to end — fold, write, changed-set,
+invalidation, document — but until deployment wires a consumer to it, a real provider
+degrading still changes nothing a traveller sees. That is `ENH-007` narrowed, not
+closed, and it is stated here so the tests passing is not mistaken for the pipeline
+running.
+
+---
+
 ## STEP-007.04 — 2026-09-11 — Waitlist, consent and withdrawal
 
 | Field | Value |

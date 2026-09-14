@@ -794,6 +794,9 @@ paths:
                     freshness: 'current'
                     limitations: ['Ferry timetables are seasonal and change monthly']
                 provider_health: 'healthy'
+                # When the answer was read, not when it was requested — a cached response
+                # carries the time of the read that filled the cache (STEP-007.05).
+                observed_at: '2026-09-14T08:00:00Z'
         '429': { $ref: '#/components/responses/RateLimited' }
 
   # ==========================================================================
@@ -2036,7 +2039,7 @@ components:
         degrades. This answers *what is supported*, never *how it is supplied* —
         which is why `provider_health` is one aggregate label rather than a
         per-provider breakdown, and why the schema is **closed**.
-      required: [regions, provider_health]
+      required: [regions, provider_health, observed_at]
       additionalProperties: false
       properties:
         regions:
@@ -2048,6 +2051,26 @@ components:
           description: |
             An aggregate. Never a list, never named, never a count — each of those
             leaks the shape of the supply chain.
+        observed_at:
+          type: string
+          format: date-time
+          description: |
+            **When this answer was read from the projection — not when you asked
+            for it.** Added at STEP-007.05.
+
+            This response is cached, and `REQ-EVID-006` names the precise failure
+            it guards against: degradation masked by cached data *presented as
+            current*. The requirement is not "do not cache". It is that a cached
+            answer must not claim to be a fresh one — so a cache hit returns the
+            timestamp of the read that filled the cache, and is therefore visibly
+            a few seconds old rather than silently so.
+
+            `REQ-EVID-001` asks the same thing more generally: every volatile fact
+            carries its observed time. Provider health is the most volatile fact on
+            this page.
+
+            A client that renders coverage without rendering this is presenting an
+            estimate as confirmed (`REQ-EVID-003`).
 
     PlanningCheckRequest:
       type: object

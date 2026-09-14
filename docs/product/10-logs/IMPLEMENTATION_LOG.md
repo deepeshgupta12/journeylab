@@ -60,6 +60,92 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-064 — STEP-007.05 — The projection nobody could observe
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-09-14 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-EVID-006, REQ-EVID-001, REQ-EVID-003, REQ-A11Y-001 |
+| Blast radius | [BR-064](blast-radius/BR-064-degradation-disclosure.md) (MEDIUM, confidence HIGH, no approval required) |
+| Commit | see git log for this entry |
+
+### What was built
+
+A write from the coverage projection to its table, an observation time on the public
+coverage document, and a banner that says how old the answer is and announces a change
+once. Python 1424 → **1442**; web unit 87 → **101**; browser 76 → **82**; UI 311 unchanged.
+
+| Artefact | What it is |
+| --- | --- |
+| `services/events/src/read_models.py` | `apply_coverage_state` — UPDATE the derived columns, never DELETE, never INSERT; returns what changed |
+| `apps/api/src/platform_api/coverage.py` | `observed_at` required on `read_coverage` and `get_coverage`, stamped before caching |
+| `contracts/openapi.yaml` | `Coverage.observed_at` — `[ADDITIVE]` |
+| `apps/web/.../degradation.tsx` | The status sentence, the observation time and the read model's own limitations |
+
+### The gap the plan did not name
+
+The first plan item was "coverage projection consumes `EVT-008`". It already did —
+`fold_coverage` has since STEP-006.09. **What did not exist was the next step: no
+production code wrote `coverage_read_model`.** A provider degrading changed an
+in-memory dict that nothing carried to the table `API-017` reads. Every degradation
+test in the repository passed against rows the tests had inserted by hand.
+
+And the rule for writing it safely — update the derived columns, never delete and
+reinsert, because the declared ones come from no event — **existed only as inline SQL
+inside a test.** A rule whose one statement is in a test is a rule production code
+cannot obey. It is now `apply_coverage_state`, and the test exercises that.
+
+### What `REQ-EVID-006` forbids, read carefully
+
+Not caching. *"Degradation masked by cached data **presented as current**."* So two
+guarantees, each insufficient alone: the document carries `observed_at`, stamped
+**before** it is cached so a cache hit shows the time of the read that filled it; and
+the writer returns the regions that changed so a caller can invalidate. A timestamp
+alone is thirty seconds of honest staleness. Invalidation alone is a cache hit that
+still claims to be fresh.
+
+Stamping `observed_at` on the way out is the obvious implementation, always accurate
+to the request — and it inverts the guarantee, making every cache hit claim to be a
+fresh read. Mutant 1 is exactly that.
+
+### What surprised us
+
+**1. The first home for the writer broke a purity check, correctly.** `projections.py`
+is AST-scanned for `execute`, `fetchall` and `now`, because a fold that reads current
+state replays a year-old event into today's answer. Persistence is impure by
+definition, so it got its own module rather than an argument for relaxing the check.
+
+**2. Mutation testing deleted code rather than adding a test.** The banner held a
+`useRef` guard on top of its `[health]` dependency array. Mutant 9 removed the guard
+and survived — the array already did the job, so no test could tell the versions
+apart. A guard indistinguishable from its absence is a comment with a maintenance
+cost. It went; mutant 9b widened the array instead, and died.
+
+**3. `limitations` is `jsonb`, and psycopg adapts a list to an array literal.**
+`{"a"}` is not JSON. The writer serialises and casts on both sides of the comparison,
+because a row comparison against an untyped parameter that happened to infer `jsonb`
+would be one schema change from comparing text.
+
+**4. Twenty-two browser tests failed, and none of them was about this change.** The
+Docker daemon died mid-run. The coverage page did precisely what it is built to do —
+rendered "the coverage service returned 503… not a statement that your destination is
+unsupported" — and every assertion about the table, the waitlist and the banner failed
+downstream of that one fact. The diagnosis was the saved page snapshot and a direct
+reproduction of the handler call (`OperationalError: connection refused`), then a clean
+rerun with the stack restored. Recorded because a wall of red that points at missing
+content, when the cause is a missing database, is exactly the kind of failure that
+gets "fixed" in the wrong place.
+
+### Follow-up created
+
+| Item | Type |
+| --- | --- |
+| No process runs `apply_coverage_state` in production — no `EVT-008` consumer exists yet. The seam is built and tested end to end | `STEP-027` / `ENH-007` |
+| `RISK-016` #15, and its mechanism narrowed to cross-file edges into `app.py` | Risk register |
+
+---
+
 ## IMPL-063 — STEP-007.04 — A consent with nowhere to live
 
 | Field | Value |

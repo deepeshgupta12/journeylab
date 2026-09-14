@@ -100,6 +100,56 @@ test.describe('coverage page', () => {
     await expect(page.getByRole('button', { name: /check these dates/i })).toHaveCount(0);
   });
 
+  test('the answer says when it was taken', async ({ page }) => {
+    /*
+     * STEP-007.05 · REQ-EVID-006, REQ-EVID-003.
+     *
+     * The API caches coverage for 30 seconds. The prohibition is not on caching —
+     * it is on cached data being *presented as current*, so the rendered page has
+     * to carry the moment the answer was read. A page that dropped `observed_at`
+     * would be presenting an estimate as confirmed, and the server could do
+     * nothing about it.
+     */
+    const stamp = page.locator('[data-observed-at]');
+    await expect(stamp, 'the page does not say when the answer was taken').toHaveCount(1);
+
+    const observed = await stamp.getAttribute('data-observed-at');
+    expect(observed, 'observed_at is empty').toBeTruthy();
+    expect(
+      Number.isNaN(Date.parse(observed ?? '')),
+      `observed_at is not a parseable instant: ${observed}`,
+    ).toBe(false);
+
+    // Machine-readable as well as legible, and it says it is not "now".
+    await expect(page.locator(`time[datetime="${observed}"]`)).toHaveCount(1);
+    await expect(page.getByText(/not the moment you asked for it/i)).toBeVisible();
+  });
+
+  test('the disclosure is announced ONCE, not on every render', async ({ page }) => {
+    // A live region that re-announces on each render interrupts a screen-reader
+    // user reading the table below it to repeat something they were already told.
+    // The count is published by the component because the DOM looks identical
+    // either way — an unobservable property is one nothing is checking.
+    const region = page.locator('[data-health-announcement]');
+    await expect(region).toHaveCount(1);
+    await expect(region).toHaveAttribute('aria-live', 'polite');
+    await expect(region).toHaveAttribute('data-announce-count', '1');
+
+    // Non-empty, or "announced once" is a count of nothing.
+    expect((await region.textContent())?.trim().length ?? 0).toBeGreaterThan(10);
+  });
+
+  test('the status disclosure names no supplier and counts none', async ({ page }) => {
+    const status = page.locator('[data-health-announcement]');
+    const text = ((await status.textContent()) ?? '').toLowerCase();
+    expect(text.length, 'the status region is empty').toBeGreaterThan(10);
+    for (const supplier of ['opentransportdata', 'otd', 'meteoswiss', 'openstreetmap', 'osm']) {
+      expect(text).not.toContain(supplier);
+    }
+    // A count reveals the supply chain's size by another route.
+    expect(text).not.toMatch(/\b\d+\s+(sources?|providers?|suppliers?)\b/);
+  });
+
   test('NO consent control anywhere on the page is pre-selected', async ({ page }) => {
     /*
      * STEP-007.04 · REQ-PRIV-002. The rule is about the FIRST PAINT of a real

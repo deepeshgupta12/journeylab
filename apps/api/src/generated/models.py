@@ -865,6 +865,10 @@ class Coverage(BaseModel):
         ...,
         description='An aggregate. Never a list, never named, never a count — each of those\nleaks the shape of the supply chain.\n',
     )
+    observed_at: AwareDatetime = Field(
+        ...,
+        description='**When this answer was read from the projection — not when you asked\nfor it.** Added at STEP-007.05.\n\nThis response is cached, and `REQ-EVID-006` names the precise failure\nit guards against: degradation masked by cached data *presented as\ncurrent*. The requirement is not "do not cache". It is that a cached\nanswer must not claim to be a fresh one — so a cache hit returns the\ntimestamp of the read that filled the cache, and is therefore visibly\na few seconds old rather than silently so.\n\n`REQ-EVID-001` asks the same thing more generally: every volatile fact\ncarries its observed time. Provider health is the most volatile fact on\nthis page.\n\nA client that renders coverage without rendering this is presenting an\nestimate as confirmed (`REQ-EVID-003`).\n',
+    )
 
 
 class PlanningCheckRequest(BaseModel):

@@ -31,6 +31,7 @@ Requires the local stack. Skips — reported as skips, never as passes — witho
 from __future__ import annotations
 
 import asyncio
+import datetime
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -241,7 +242,12 @@ def test_the_coverage_cache_holds_no_tenant_data() -> None:
             ]
 
     cache = CoverageCache()
-    document = get_coverage(_Rows(), cache=cache, now=0.0)
+    document = get_coverage(
+        _Rows(),
+        cache=cache,
+        observed_at=datetime.datetime(2026, 9, 14, 8, 0, tzinfo=datetime.UTC),
+        now=0.0,
+    )
 
     assert cache.keys() == frozenset({COVERAGE_CACHE_KEY})
     for key in cache.keys():

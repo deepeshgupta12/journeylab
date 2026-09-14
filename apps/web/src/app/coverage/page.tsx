@@ -1,4 +1,5 @@
 import { CoverageTable } from './coverage-table';
+import { DegradationNotice } from './degradation';
 import { fetchCoverage } from './fetch-coverage';
 import { PlanningCheck } from './planning-check';
 import { Inspiration, Waitlist } from './waitlist';
@@ -51,10 +52,14 @@ export default async function CoveragePage() {
         </section>
       ) : (
         <>
-          <section aria-labelledby="coverage-status">
-            <h2 id="coverage-status">Current data status</h2>
-            <p role="status">{HEALTH_SENTENCE[result.coverage.provider_health]}</p>
-          </section>
+          {/* STEP-007.05. The sentence, the observation time and the read
+              model's own limitations, announced once per state change rather
+              than on every render. */}
+          <DegradationNotice
+            health={result.coverage.provider_health}
+            observedAt={result.coverage.observed_at}
+            regions={result.coverage.regions}
+          />
 
           <CoverageTable regions={result.coverage.regions} />
 
@@ -89,15 +94,3 @@ export default async function CoveragePage() {
     </main>
   );
 }
-
-/**
- * One sentence per aggregate value. **No supplier is named**, and there is no
- * count: `REQ-EVID-006` permits disclosing *that* the answer is degraded and
- * forbids disclosing who degraded it, and a count reveals the supply chain's size
- * by another route.
- */
-const HEALTH_SENTENCE: Record<string, string> = {
-  healthy: 'All data sources are up to date.',
-  degraded: 'Some data is older than usual. Affected regions are marked in the table below.',
-  unavailable: 'Some data is unavailable. Regions relying on it are not accepting new trips.',
-};

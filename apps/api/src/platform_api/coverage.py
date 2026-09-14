@@ -38,6 +38,7 @@ from __future__ import annotations
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Protocol
 
 
@@ -125,13 +126,24 @@ def _aggregate_health(regions: Sequence[Mapping[str, Any]]) -> str:
     return worst
 
 
-def read_coverage(cursor: Cursor) -> dict[str, Any]:
+def read_coverage(cursor: Cursor, *, observed_at: datetime) -> dict[str, Any]:
     """Read the coverage read model. No tenant binding, because there is none.
 
     Deliberately does not open a `UnitOfWork`: that abstraction binds a tenant and
     refuses without one (`STEP-006.04`), which is correct for every other operation
     and wrong for this one. Using it here would mean inventing a tenant for a public
     request, and an invented tenant is a tenant somebody will later trust.
+
+    THE CLOCK IS PASSED IN, NOT REACHED FOR — STEP-007.05
+        `observed_at` is required and has no default. A default would be
+        `datetime.now(UTC)` evaluated here, and the one thing this timestamp must
+        survive is being **stored in a cache and returned later**: the value has to
+        be the moment of the read, not the moment of the render, or a cache hit
+        would re-stamp itself as current and the field would actively lie.
+
+        Which is the failure `REQ-EVID-006` names. A clock reached for inside a
+        cached function is the mechanism of exactly the defect the field exists to
+        prevent, so it is not available to be reached for.
     """
     cursor.execute(
         "SELECT region_id, display_name, date_bounds_start, date_bounds_end, "
@@ -153,23 +165,45 @@ def read_coverage(cursor: Cursor) -> dict[str, Any]:
     # `accepting_trips` is read by the refusal path and deliberately not selected
     # here: `CoverageRegion` is `additionalProperties: false`, and adding a field to
     # a public contract to fit an implementation is the wrong direction of fit.
-    return {"regions": regions, "provider_health": _aggregate_health(regions)}
+    return {
+        "regions": regions,
+        "provider_health": _aggregate_health(regions),
+        "observed_at": observed_at.isoformat(),
+    }
 
 
 def get_coverage(
-    cursor: Cursor, *, cache: CoverageCache, now: float | None = None
+    cursor: Cursor,
+    *,
+    cache: CoverageCache,
+    observed_at: datetime,
+    now: float | None = None,
 ) -> dict[str, Any]:
     """`API-017`. Cached, public, and naming no supplier.
 
-    The cache is checked before the read and the result is stored after it. A
-    degraded region reaches the traveller within `CACHE_TTL_SECONDS`, which is the
-    number `REQ-EVID-006` actually constrains — the requirement is not "do not
-    cache", it is "do not present cached data as current".
+    THE CACHED DOCUMENT KEEPS THE TIMESTAMP OF THE READ THAT FILLED IT
+        `observed_at` is stamped inside `read_coverage` and then stored *with* the
+        document, so a cache hit returns the moment of the underlying read and not
+        the moment of the request. That is the whole point: `REQ-EVID-006` forbids
+        degradation being masked by cached data **presented as current**, and a
+        response that carries a timestamp a few seconds old is not presenting
+        itself as current.
+
+        The tempting alternative — stamp `observed_at` on the way out, so it is
+        always accurate to the request — inverts the guarantee. It would make every
+        cache hit claim to be a fresh read, which is the defect with the field
+        added as decoration.
+
+    TWO CLOCKS, ON PURPOSE
+        `now` is monotonic and measures the TTL; `observed_at` is wall-clock and is
+        published. Monotonic cannot be published (it has no epoch) and wall-clock
+        cannot measure an interval safely (it steps). Conflating them would be a
+        cache that expires wrongly across an NTP correction.
     """
     moment = time.monotonic() if now is None else now
     cached = cache.cache_get(COVERAGE_CACHE_KEY, now=moment)
     if cached is not None:
         return cached
-    document = read_coverage(cursor)
+    document = read_coverage(cursor, observed_at=observed_at)
     cache.cache_set(COVERAGE_CACHE_KEY, document, now=moment)
     return document

@@ -55,7 +55,7 @@ class TestTheApplicationBoundary:
         response = client.get("/coverage")
         assert response.status_code == 200
         body = response.json()
-        assert set(body) == {"regions", "provider_health"}
+        assert set(body) == {"regions", "provider_health", "observed_at"}
 
     def test_a_supplied_correlation_id_is_echoed(self, client: TestClient) -> None:
         response = client.get("/coverage", headers={"X-Correlation-Id": "cor_from_caller"})

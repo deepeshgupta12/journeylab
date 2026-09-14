@@ -1014,6 +1014,26 @@ export type components = {
        * @enum {string}
        */
       provider_health: "healthy" | "degraded" | "unavailable";
+      /**
+       * Format: date-time
+       * @description **When this answer was read from the projection — not when you asked
+       * for it.** Added at STEP-007.05.
+       *
+       * This response is cached, and `REQ-EVID-006` names the precise failure
+       * it guards against: degradation masked by cached data *presented as
+       * current*. The requirement is not "do not cache". It is that a cached
+       * answer must not claim to be a fresh one — so a cache hit returns the
+       * timestamp of the read that filled the cache, and is therefore visibly
+       * a few seconds old rather than silently so.
+       *
+       * `REQ-EVID-001` asks the same thing more generally: every volatile fact
+       * carries its observed time. Provider health is the most volatile fact on
+       * this page.
+       *
+       * A client that renders coverage without rendering this is presenting an
+       * estimate as confirmed (`REQ-EVID-003`).
+       */
+      observed_at: string;
     };
     /**
      * @description A destination and a date range. **Nothing about the traveller.**

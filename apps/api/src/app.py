@@ -186,7 +186,11 @@ async def coverage(
 
     try:
         with psycopg.connect(app.state.dsn) as conn, conn.cursor() as cur:
-            document = get_coverage(cur, cache=_COVERAGE_CACHE)
+            # The clock is read here, once, and handed down — the same split
+            # `check_planning` makes. `get_coverage` stamps it onto the document
+            # *before* caching, so a cache hit returns the moment of the read that
+            # filled the cache rather than the moment of this request.
+            document = get_coverage(cur, cache=_COVERAGE_CACHE, observed_at=datetime.now(UTC))
     except psycopg.Error:
         # The exception is deliberately not interpolated. `safe_detail` would refuse
         # a connection string, and a psycopg error message routinely contains one.
