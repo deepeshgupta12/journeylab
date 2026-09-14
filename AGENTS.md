@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (11107 symbols, 16914 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (11283 symbols, 17219 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -43,7 +43,7 @@ This project is indexed by GitNexus as **journeylab** (11107 symbols, 16914 rela
 <!-- gitnexus:end -->
 
 
-## vexp - Context-Aware AI Coding <!-- vexp v3.1.2 -->
+## vexp - Context-Aware AI Coding <!-- vexp v3.1.3 -->
 
 ### Context strategy: call run_pipeline ONCE at task start
 If the task already names the files/symbols to touch, SKIP vexp. Otherwise one
