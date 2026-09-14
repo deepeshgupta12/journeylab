@@ -43,6 +43,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 import psycopg
+from conventions.concurrency import IdempotencyError, require_idempotency_key
 from conventions.problem import problem
 from fastapi import FastAPI, Header, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -54,7 +55,15 @@ from platform_api.trip_request import (
     check_planning_request,
     read_region,
 )
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from platform_api.waitlist import (
+    EMAIL_MAX_LENGTH,
+    EMAIL_MIN_LENGTH,
+    REGION_QUERY_MAX_LENGTH,
+    WaitlistError,
+    join_waitlist,
+    withdraw_waitlist_consent,
+)
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 
 #: One process-wide cache for the one public document. Not a general-purpose cache
 #: — see `platform_api.coverage.CoverageCache`, which refuses a second key.
@@ -260,6 +269,7 @@ async def check_planning(
             "platform.dependency_unavailable",
             correlation_id=correlation_id,
             detail="Coverage is temporarily unavailable.",
+            instance="/coverage:check",
         )
 
     try:
@@ -278,6 +288,7 @@ async def check_planning(
             "validation.invalid_request",
             correlation_id=correlation_id,
             detail=str(exc),
+            instance="/coverage:check",
         )
 
     if isinstance(decision, PlanningAccepted):
@@ -295,8 +306,205 @@ async def check_planning(
         decision.code,
         correlation_id=correlation_id,
         detail=decision.reason,
+        instance="/coverage:check",
         remediation=decision.remediation,
     )
+
+
+class WaitlistConsentBody(BaseModel):
+    """`API-020` consent block. Closed, matching `WaitlistConsent`.
+
+    `granted` has **no default**, here or in the contract or in the database. A
+    default of `true` is a pre-ticked box written in Python; a default of `false` is
+    a field clients quietly stop sending. Requiring it is what makes the grant an
+    action somebody took.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    purpose: StrictStr
+    #: `StrictBool`, so `"true"`, `1` and `"yes"` are refused rather than coerced.
+    #: A truthy string arriving where a consent decision belongs is exactly the kind
+    #: of accident that should fail loudly.
+    granted: StrictBool
+
+
+class WaitlistJoinBody(BaseModel):
+    """`API-020` request. Closed, matching `WaitlistJoinRequest`.
+
+    The length bounds are the module's constants rather than literals, so the schema,
+    the rule and the database cannot drift apart — the same argument
+    `PlanningCheckBody` makes about `region_id`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    email: StrictStr = Field(min_length=EMAIL_MIN_LENGTH, max_length=EMAIL_MAX_LENGTH)
+    region_query: StrictStr | None = Field(default=None, max_length=REGION_QUERY_MAX_LENGTH)
+    consent: WaitlistConsentBody
+
+
+class WaitlistWithdrawBody(BaseModel):
+    """`API-020` withdrawal request. The token is the entire authorisation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    withdrawal_token: StrictStr = Field(min_length=16, max_length=128)
+
+
+@app.post("/waitlist", status_code=201)
+async def join_the_waitlist(
+    body: WaitlistJoinBody,
+    request: Request,
+    response: Response,
+    x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+) -> Any:
+    """`API-020`. Public, unauthenticated, and the first operation that writes
+    personal data belonging to somebody with no account.
+
+    THE HANDLER DECIDES NOTHING, AGAIN
+        Validation, the consent rule and the SQL all live in `platform_api.waitlist`.
+        This function reads headers, calls, and translates. `POST /trips`
+        (STEP-008.06) and the account consent screen (STEP-008.04) will need the
+        same rules, and a copy here is how `BUG-029` happened.
+
+    NOTHING IS LOGGED
+        No log line, no trace attribute, no event. The address is personal data from
+        the moment it is typed (§8), and this handler holds it only long enough to
+        pass it to the rule.
+    """
+    correlation_id = x_correlation_id or f"cor_{uuid.uuid4().hex[:16]}"
+    response.headers["X-Correlation-Id"] = correlation_id
+    response.headers["X-Correlation-Id-Generated"] = "false" if x_correlation_id else "true"
+
+    try:
+        require_idempotency_key(dict(request.headers))
+    except IdempotencyError as exc:
+        # The contract declares the parameter; this enforces it. A form that
+        # double-submits without a key would otherwise rotate its own token, which
+        # is harmless but indistinguishable from the case that is not.
+        return _problem_response(
+            "validation.invalid_request",
+            correlation_id=correlation_id,
+            detail=str(exc),
+            instance="/waitlist",
+            remediation={"kind": "correct_fields", "fields": ["Idempotency-Key"]},
+        )
+
+    try:
+        with psycopg.connect(app.state.dsn) as conn, conn.cursor() as cur:
+            try:
+                grant = join_waitlist(
+                    cur,
+                    email=body.email,
+                    region_query=body.region_query,
+                    purpose=body.consent.purpose,
+                    granted=body.consent.granted,
+                    now=datetime.now(UTC),
+                )
+            except WaitlistError as exc:
+                # Rolled back rather than committed: a refused request must leave no
+                # row, which is what makes "no entry without consent" a property of
+                # the code rather than a claim about it.
+                conn.rollback()
+                return _problem_response(
+                    "validation.invalid_request",
+                    correlation_id=correlation_id,
+                    # `str(exc)` names fields, never values — see `WaitlistError`.
+                    detail=str(exc),
+                    instance="/waitlist",
+                    remediation={"kind": "correct_fields", "fields": list(exc.fields)},
+                )
+            conn.commit()
+    except psycopg.Error:
+        # Not interpolated: a psycopg error routinely carries the DSN, and on this
+        # operation it can also carry the row it failed to write — which contains an
+        # email address.
+        return _problem_response(
+            "platform.dependency_unavailable",
+            correlation_id=correlation_id,
+            detail="The waitlist is temporarily unavailable.",
+            instance="/waitlist",
+        )
+
+    return {
+        "purpose": grant.purpose,
+        "basis": grant.basis,
+        "granted_at": grant.granted_at.isoformat(),
+        "withdrawal_token": grant.withdrawal_token,
+    }
+
+
+@app.post("/waitlist:withdraw")
+async def withdraw_from_the_waitlist(
+    body: WaitlistWithdrawBody,
+    request: Request,
+    response: Response,
+    x_correlation_id: str | None = Header(default=None, alias="X-Correlation-Id"),
+) -> Any:
+    """`API-020`. Withdraw one purpose and delete the address it was granted with.
+
+    AN UNKNOWN TOKEN IS `authz.forbidden`, WHOSE REGISTER ENTRY READS
+    "Identical to not-found"
+        Returning a distinguishable 404 would make this an oracle for whether a
+        token ever existed. The code is reused rather than a new one invented,
+        because the register had already decided this exact question.
+    """
+    correlation_id = x_correlation_id or f"cor_{uuid.uuid4().hex[:16]}"
+    response.headers["X-Correlation-Id"] = correlation_id
+    response.headers["X-Correlation-Id-Generated"] = "false" if x_correlation_id else "true"
+
+    try:
+        require_idempotency_key(dict(request.headers))
+    except IdempotencyError as exc:
+        return _problem_response(
+            "validation.invalid_request",
+            correlation_id=correlation_id,
+            detail=str(exc),
+            instance="/waitlist:withdraw",
+            remediation={"kind": "correct_fields", "fields": ["Idempotency-Key"]},
+        )
+
+    try:
+        with psycopg.connect(app.state.dsn) as conn, conn.cursor() as cur:
+            withdrawal = withdraw_waitlist_consent(
+                cur,
+                token=body.withdrawal_token,
+                now=datetime.now(UTC),
+            )
+            conn.commit()
+    except psycopg.Error:
+        return _problem_response(
+            "platform.dependency_unavailable",
+            correlation_id=correlation_id,
+            detail="The waitlist is temporarily unavailable.",
+            instance="/waitlist:withdraw",
+        )
+
+    if withdrawal is None:
+        # 404, NOT the register's default 403 for this code — `NotFoundOrForbidden`.
+        #
+        # The contract forbids a bare 403 anywhere, and the reason applies exactly
+        # here: a 403 discloses that there is something there to be forbidden. A
+        # token that never existed and a token belonging to somebody else must be
+        # indistinguishable, or this endpoint becomes an oracle for which tokens
+        # have been issued.
+        return _problem_response(
+            "authz.forbidden",
+            correlation_id=correlation_id,
+            detail="That withdrawal token does not authorise anything.",
+            instance="/waitlist:withdraw",
+            status=404,
+        )
+
+    # A repeat withdrawal is a success. The state the caller asked for is the state
+    # that holds, and `changed` is deliberately not in the response: telling a
+    # caller "you already did this" is information about the record, and this
+    # operation exists to remove information about the record.
+    return {
+        "purpose": withdrawal.purpose,
+        "withdrawn_at": withdrawal.withdrawn_at.isoformat(),
+    }
 
 
 def _problem_response(
@@ -304,7 +512,9 @@ def _problem_response(
     *,
     correlation_id: str,
     detail: str,
+    instance: str,
     remediation: dict[str, object] | None = None,
+    status: int | None = None,
 ) -> JSONResponse:
     """One place where a problem document becomes a response.
 
@@ -316,13 +526,23 @@ def _problem_response(
       * RFC 9457 requires the `status` member and the HTTP status to agree. Deriving
         one from the other makes them unable to disagree, rather than requiring two
         call sites to be kept in step.
+
+    `instance` became a parameter at STEP-007.04, when a second operation started
+    using this. It was hardcoded to `/coverage:check` — correct while there was one
+    caller, and a wrong `instance` on every waitlist problem the moment there were
+    two. Required rather than defaulted: a default would have been the same bug
+    with a longer fuse.
     """
     document = problem(
         code,
         correlation_id=correlation_id,
         detail=detail,
-        instance="/coverage:check",
+        instance=instance,
         remediation=remediation,
+        # Almost always None, so the register decides. The one caller that passes it
+        # is the withdrawal denial, where the contract's shared `NotFoundOrForbidden`
+        # deliberately answers 404 for a code the register statuses at 403.
+        status=status,
     )
     return JSONResponse(
         status_code=int(document["status"]),

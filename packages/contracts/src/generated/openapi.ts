@@ -279,6 +279,66 @@ export type paths = {
      */
     post: operations["checkPlanningRequest"];
   };
+  "/waitlist": {
+    /**
+     * Ask to be told when an unsupported destination becomes plannable.
+     * @description **Public and unauthenticated**, and the first operation in this contract
+     * that writes a stranger's personal data.
+     *
+     * **Consent is an action, not a default.** `consent.granted` has no default
+     * in the schema, no default in the request model and no default in the
+     * database. A request that omits it fails validation; a request that sends
+     * `false` is refused with the field named and nothing is stored. There is no
+     * path on which an entry is written because consent was assumed.
+     *
+     * **The address is never echoed.** A validation failure names the offending
+     * *fields* and never their contents — `BUG-035` was precisely this, an
+     * unauthenticated endpoint reflecting the value that failed back to whoever
+     * sent it, which on this operation would be somebody's email address.
+     *
+     * **`withdrawal_token` is returned exactly once and never again.** Only its
+     * hash is stored, so it cannot be re-read, re-sent or recovered — it is the
+     * entire authorisation for `withdrawWaitlistConsent`. Email delivery is not
+     * part of this sub-step, so there is nothing to send a link through; the
+     * token is what makes withdrawal exercisable today by somebody who has no
+     * account and no session.
+     *
+     * **The response does not reveal whether the address was already listed.**
+     * A repeated request returns the same shape with a fresh token rather than a
+     * conflict, so this operation cannot be used to test whether a given address
+     * is on the list.
+     */
+    post: operations["joinWaitlist"];
+  };
+  "/waitlist:withdraw": {
+    /**
+     * Withdraw waitlist consent and delete the stored address.
+     * @description **Withdrawal keeps the grant and destroys the address.** Two rules that
+     * sound contradictory and are not: the grant is the evidence that processing
+     * was once lawful and survives as a dated record holding nothing that
+     * identifies anybody, while the address is personal data and is deleted
+     * (`REQ-PRIV-006`). A database constraint enforces the pair, so a withdrawn
+     * record cannot retain an address even if a future code path forgets.
+     *
+     * **This purpose only** (`REQ-PRIV-004`). One record is matched by one token
+     * and no other consent in the system is reachable from this operation.
+     * Withdrawing here cannot affect a permission granted anywhere else.
+     *
+     * **Withdrawing twice succeeds.** The state the caller asked for is the state
+     * that holds, and reporting failure would tell the holder of a valid token
+     * that something had gone wrong when nothing had.
+     *
+     * **An unknown token returns the shared indistinguishable denial.** A token
+     * that never existed and a token that is not yours produce the same status,
+     * the same body and the same headers. Distinguishing them would turn this
+     * into an oracle for whether a given token had ever been issued.
+     *
+     * It reuses `NotFoundOrForbidden` rather than declaring a bare `403`, which
+     * the contract forbids everywhere for this reason: a `403` discloses that
+     * there is something there to be forbidden.
+     */
+    post: operations["withdrawWaitlistConsent"];
+  };
   "/jobs/{jobId}/events": {
     /**
      * Server-sent progress, warnings and terminal result.
@@ -1003,6 +1063,107 @@ export type components = {
        * `REQ-EVID-006`.
        */
       disclosures: string[];
+    };
+    /**
+     * @description An explicit, purpose-specific grant.
+     *
+     * **`granted` has no default, and that is the whole design.** A boolean with a
+     * default of `true` is a pre-ticked box expressed in a schema; a default of
+     * `false` is a field clients stop sending. Requiring it means a client cannot
+     * submit this form without having asked somebody, which is what `REQ-PRIV-002`
+     * means by consent being specific and informed.
+     *
+     * `purpose` is an enum of one. Not an oversight and not a placeholder for a
+     * list that will grow here — a second purpose is a second decision by the
+     * person, and adding it to this enum would let one tick cover both.
+     */
+    WaitlistConsent: {
+      /**
+       * @description Being told when this destination becomes plannable. Nothing else — not
+       * product news, not research invitations, not anything a later feature
+       * finds convenient.
+       *
+       * @enum {string}
+       */
+      purpose: "waitlist_notification";
+      /**
+       * @description `true` is the only value that records an entry. `false` is refused with
+       * this field named, and nothing is stored.
+       */
+      granted: boolean;
+    };
+    /**
+     * @description An address, optionally what they were looking for, and a grant.
+     *
+     * **Deliberately nothing else.** No name, no origin, no locale, no interests —
+     * `STEP-007` §8 collects some of those on the discovery page and none of them
+     * are needed to send one message about one region. What is not collected
+     * cannot be stored, correlated or leaked.
+     */
+    WaitlistJoinRequest: {
+      /**
+       * Format: email
+       * @description 254 is the longest address that can exist: RFC 5321 caps a path at 256
+       * octets including the angle brackets. Bounded because this operation is
+       * unauthenticated, so an unbounded string is something anyone can send.
+       */
+      email: string;
+      /**
+       * @description The destination they were looking for, as they typed it. Free text and
+       * not an identifier — the entire circumstance is that this place has no
+       * identifier in coverage yet.
+       */
+      region_query?: string;
+      consent: components["schemas"]["WaitlistConsent"];
+    };
+    /**
+     * @description The recorded grant, and the one-time capability to undo it.
+     *
+     * **The address is not echoed.** It is what the caller just sent, so returning
+     * it adds nothing, and a response that contains an email address is a response
+     * that ends up in a client-side log somebody forgot about.
+     */
+    WaitlistJoined: {
+      /** @enum {string} */
+      purpose: "waitlist_notification";
+      /**
+       * @description The lawful basis, recorded with the grant rather than inferred later.
+       *
+       * @enum {string}
+       */
+      basis: "consent";
+      /**
+       * Format: date-time
+       * @description When consent was first given. A repeated submission does not move it — a
+       * re-sent form is not a new decision, and moving the date would quietly
+       * extend anything measured from it.
+       */
+      granted_at: string;
+      /**
+       * @description **Shown once. Only its hash is stored, so it cannot be re-read or
+       * recovered — losing it means the entry can no longer be withdrawn by its
+       * holder.** A client must present it to the user rather than keeping it to
+       * itself.
+       */
+      withdrawal_token: string;
+    };
+    /** @description The token, and nothing else. It is the entire authorisation. */
+    WaitlistWithdrawRequest: {
+      withdrawal_token: string;
+    };
+    /**
+     * @description The consent is no longer in force and the address no longer exists.
+     *
+     * The grant itself remains as a dated record that processing was once lawful,
+     * holding nothing that identifies anybody. That is not a retention loophole —
+     * it is the evidence obligation and the erasure obligation being satisfied by
+     * different halves of the same row.
+     */
+    WaitlistWithdrawn: {
+      /** @enum {string} */
+      purpose: "waitlist_notification";
+      /** Format: date-time */
+      withdrawn_at: string;
     };
     /**
      * @description One server-sent event. `heartbeat` is not filler: without it a client
@@ -2065,6 +2226,138 @@ export type operations = {
           "application/problem+json": components["schemas"]["Problem"];
         };
       };
+    };
+  };
+  /**
+   * Ask to be told when an unsupported destination becomes plannable.
+   * @description **Public and unauthenticated**, and the first operation in this contract
+   * that writes a stranger's personal data.
+   *
+   * **Consent is an action, not a default.** `consent.granted` has no default
+   * in the schema, no default in the request model and no default in the
+   * database. A request that omits it fails validation; a request that sends
+   * `false` is refused with the field named and nothing is stored. There is no
+   * path on which an entry is written because consent was assumed.
+   *
+   * **The address is never echoed.** A validation failure names the offending
+   * *fields* and never their contents — `BUG-035` was precisely this, an
+   * unauthenticated endpoint reflecting the value that failed back to whoever
+   * sent it, which on this operation would be somebody's email address.
+   *
+   * **`withdrawal_token` is returned exactly once and never again.** Only its
+   * hash is stored, so it cannot be re-read, re-sent or recovered — it is the
+   * entire authorisation for `withdrawWaitlistConsent`. Email delivery is not
+   * part of this sub-step, so there is nothing to send a link through; the
+   * token is what makes withdrawal exercisable today by somebody who has no
+   * account and no session.
+   *
+   * **The response does not reveal whether the address was already listed.**
+   * A repeated request returns the same shape with a fresh token rather than a
+   * conflict, so this operation cannot be used to test whether a given address
+   * is on the list.
+   */
+  joinWaitlist: {
+    parameters: {
+      header: {
+        "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+        "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+      };
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *   "email": "traveller@example.com",
+         *   "region_query": "Faroe Islands",
+         *   "consent": {
+         *     "purpose": "waitlist_notification",
+         *     "granted": true
+         *   }
+         * }
+         */
+        "application/json": components["schemas"]["WaitlistJoinRequest"];
+      };
+    };
+    responses: {
+      /** @description Recorded. `withdrawal_token` appears here and nowhere else, ever. */
+      201: {
+        headers: {
+          "X-Correlation-Id": components["headers"]["CorrelationId"];
+        };
+        content: {
+          "application/json": components["schemas"]["WaitlistJoined"];
+        };
+      };
+      /**
+       * @description The request does not satisfy the contract, or consent was not granted.
+       * The offending fields are named; their values are not.
+       */
+      400: {
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      429: components["responses"]["RateLimited"];
+      503: components["responses"]["Problem"];
+    };
+  };
+  /**
+   * Withdraw waitlist consent and delete the stored address.
+   * @description **Withdrawal keeps the grant and destroys the address.** Two rules that
+   * sound contradictory and are not: the grant is the evidence that processing
+   * was once lawful and survives as a dated record holding nothing that
+   * identifies anybody, while the address is personal data and is deleted
+   * (`REQ-PRIV-006`). A database constraint enforces the pair, so a withdrawn
+   * record cannot retain an address even if a future code path forgets.
+   *
+   * **This purpose only** (`REQ-PRIV-004`). One record is matched by one token
+   * and no other consent in the system is reachable from this operation.
+   * Withdrawing here cannot affect a permission granted anywhere else.
+   *
+   * **Withdrawing twice succeeds.** The state the caller asked for is the state
+   * that holds, and reporting failure would tell the holder of a valid token
+   * that something had gone wrong when nothing had.
+   *
+   * **An unknown token returns the shared indistinguishable denial.** A token
+   * that never existed and a token that is not yours produce the same status,
+   * the same body and the same headers. Distinguishing them would turn this
+   * into an oracle for whether a given token had ever been issued.
+   *
+   * It reuses `NotFoundOrForbidden` rather than declaring a bare `403`, which
+   * the contract forbids everywhere for this reason: a `403` discloses that
+   * there is something there to be forbidden.
+   */
+  withdrawWaitlistConsent: {
+    parameters: {
+      header: {
+        "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+        "X-Correlation-Id"?: components["parameters"]["CorrelationId"];
+      };
+    };
+    requestBody: {
+      content: {
+        /**
+         * @example {
+         *   "withdrawal_token": "K8s1_o0Wq3nR2vF7pZ4bLyX6dTgH9cJmA0eQnU5tYwI"
+         * }
+         */
+        "application/json": components["schemas"]["WaitlistWithdrawRequest"];
+      };
+    };
+    responses: {
+      /** @description Withdrawn, or already withdrawn. The address no longer exists either way. */
+      200: {
+        headers: {
+          "X-Correlation-Id": components["headers"]["CorrelationId"];
+        };
+        content: {
+          "application/json": components["schemas"]["WaitlistWithdrawn"];
+        };
+      };
+      400: components["responses"]["Problem"];
+      404: components["responses"]["NotFoundOrForbidden"];
+      429: components["responses"]["RateLimited"];
+      503: components["responses"]["Problem"];
     };
   };
   /**

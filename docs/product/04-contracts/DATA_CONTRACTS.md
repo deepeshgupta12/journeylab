@@ -71,6 +71,14 @@ Segregated store, narrower access, shorter retention. **Payment credentials stru
 ### DATA-016 — `ConsentRecord`
 One row per purpose per subject, with basis, timestamp and withdrawal. Withdrawing one purpose must not cascade to unrelated purposes. Retained after account deletion **only where legally required**, documented as an explicit exception.
 
+> **This shape covers subjects who have an account, and only those.** `consent_records` is `organization_id NOT NULL, user_id NOT NULL` under forced row-level security, so a subject with no account cannot be represented in it at all.
+>
+> Pre-signup consent therefore lives in `waitlist_entries` (`019_waitlist.sql`, STEP-007.04): the same grain — one row per purpose per subject, with basis, timestamp and withdrawal — on a platform-level table with no tenant columns, because there is no tenant. The reasoning is `016`'s: an unauthenticated operation cannot touch tenant-scoped data, so either the data is platform-level or the endpoint is wrong.
+>
+> **Withdrawal differs in one respect, deliberately.** Here the grant is retained and the withdrawal recorded. There, the grant is retained *and the email address is destroyed* — the evidence that processing was lawful survives, and the personal data that made it identifiable does not (`REQ-PRIV-006`). A CHECK constraint makes the pair inseparable.
+>
+> **`STEP-008.04` owns the reconciliation**: when a waitlist subject later creates an account, their pre-signup grant and their `ConsentRecord` describe the same person under two schemes, and something has to decide what that means. Named here so it is inherited rather than discovered.
+
 *(DATA-001/002/003/006/009/012/014/015 follow the same contract shape; entity definitions are in [DATA_ARCHITECTURE](../03-architecture/DATA_ARCHITECTURE.md) §2.)*
 
 ---

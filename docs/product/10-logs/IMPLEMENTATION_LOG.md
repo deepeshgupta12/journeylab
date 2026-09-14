@@ -60,6 +60,123 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-063 — STEP-007.04 — A consent with nowhere to live
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-09-11 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-TRIP-002, REQ-PRIV-002, REQ-PRIV-004, REQ-PRIV-006, REQ-A11Y-001 |
+| Blast radius | [BR-063](blast-radius/BR-063-waitlist-consent.md) (MEDIUM, confidence HIGH, **owner approval obtained**) |
+| Commit | see git log for this entry |
+
+### What was built
+
+`API-020` — `POST /waitlist` and `POST /waitlist:withdraw` — the rule behind them, the
+table underneath, and the form a traveller meets them through. Python 1378 →
+**1424**; web unit 71 → **87**; browser 70 → **76**.
+
+The Python figure is +46 for 44 new tests: the contract-convention tests are
+parametrised over the operation list, so two new operations add two cases to a
+test nobody edited.
+
+| Artefact | What it is |
+| --- | --- |
+| `db/migrations/019_waitlist.sql` | `waitlist_entries`. No `organization_id`, no RLS, and a CHECK that makes withdrawal erase the address |
+| `apps/api/src/platform_api/waitlist.py` | The rules. Validation, the consent gate, the token, the SQL |
+| `contracts/openapi.yaml` | `API-020` + five schemas |
+| `apps/api/src/app.py` | Two routes. They read, call and translate |
+| `apps/web/.../waitlist.tsx` | The form, the one-time code, and the inspiration section |
+
+### The decision the sub-step was written to force, and it was not the one named
+
+The plan said *"Waitlist entry writes a `ConsentRecord` (`DATA-016`)"*, so I went to
+write one. **It cannot be written.** `consent_records` is `organization_id NOT NULL,
+user_id NOT NULL` under forced row-level security, and a waitlist subject — the whole
+point of whom is that they have not signed up — has neither value.
+
+The two ways to make it fit were to invent an organization, or to make the isolation
+columns nullable on the one table holding consent so that an unauthenticated endpoint
+could write to it. The first fabricates a fact. The second aims a loaded weapon at
+`R7`.
+
+So the consent lives in a platform-level table, for the same reason `016` moved
+coverage there: **an unauthenticated operation cannot touch tenant-scoped data, so
+either the data is platform-level or the endpoint is wrong**, and the endpoint is the
+requirement. `BUG-028` was this exact collision on the read side.
+
+This went to the owner rather than being decided in passing, along with how
+withdrawal is exercised and how far inspiration content should go. All three are
+privacy decisions on an unauthenticated surface, and none was settled by the plan.
+
+### Two rules that sound contradictory, and are not
+
+`STEP-008.04`: *"Withdrawal is a column, not a delete — erasing the grant destroys
+the evidence that processing was lawful."*
+`STEP-007.04`: *"Email stored against the consent record, deletable on withdrawal."*
+
+Read as written, one says keep the row and the other says delete the data. They
+reconcile exactly, and the resolution is the design: **the grant is evidence and
+survives; the address is personal data and does not.** A withdrawn row is a dated
+record that a lawful grant existed, holding nothing that identifies anybody.
+
+It is a CHECK constraint rather than a convention, so a future code path that marks a
+row withdrawn and forgets the address **cannot commit**. Mutant 7 is the version of
+that mistake worth fearing: clearing `email`, leaving `email_normalized`, and
+therefore leaving a lower-cased, indexed, searchable copy of somebody's address
+behind a withdrawal they cannot inspect.
+
+### What surprised us
+
+**1. The error register had already answered a question I was about to answer badly.**
+I designed the withdrawal denial as `403` and wrote a paragraph about why it must be
+indistinguishable from not-found. The contract test refused it in one line —
+`test_no_operation_declares_a_bare_403`, "a 403 discloses that something is there to
+be forbidden" — and pointed at `NotFoundOrForbidden`, a shared response that already
+existed and already did it better. I had reasoned my way to the right principle and
+then implemented it in the one way the repository forbids.
+
+**2. `granted` had to be `StrictBool`, and that was not obvious.** Pydantic coerces
+`"true"`, `1` and `"yes"` to `True` by default. A consent field that accepts a truthy
+string records a grant nobody gave, from a client that made a type error. It is the
+kind of thing that never fails a test because no test sends the wrong type.
+
+**3. The graph was right, for once, and the previous record was too confident.**
+`impact(_problem_response, upstream)` returned exactly the one caller. `BR-061` §2
+had concluded `app.py` "has no outgoing edges at all", which this contradicts:
+intra-file edges resolve, cross-file ones into it do not. Corrected in `BR-063` §2
+rather than left standing — an over-strong claim in a risk record is as misleading as
+an under-strong one.
+
+**4. The RLS gate exempted the new table by its own rule.** I expected to argue for
+an exception and found `test_no_tenant_scoped_table_is_missing_forced_rls` derives its
+set from tables that *have* an `organization_id` column. A table with no tenant column
+is not tenant-scoped and the gate says so without being told. That is what a derived
+assertion buys, and it is the opposite of the hardcoded list `BUG-021` cost us.
+
+### The trade taken, stated rather than buried
+
+Until an address is verified — which needs email delivery, out of scope here —
+anybody who knows an address can rotate its withdrawal token and remove that entry.
+The ceiling is removal from a notification list, and no personal data is disclosed,
+because the response is identical whether or not the address was already on it, which
+is the same property that stops the endpoint being a membership oracle.
+
+It cannot be closed inside this sub-step: only the hash is stored, so a repeat join
+*cannot* hand back the original token. The alternatives were to answer differently
+(a membership oracle) or not to return a token at all (no withdrawal). Logged against
+verification.
+
+### Follow-up created
+
+| Item | Type |
+| --- | --- |
+| Address verification, closing the token-rotation trade | Deferred to email delivery |
+| Rate limiting: `429` is declared in the contract and nothing enforces it | Deferred — no limiter exists |
+| Reconciling a waitlist grant with `consent_records` at signup | `STEP-008.04` |
+
+---
+
 ## IMPL-062 — BUG-033 — The rule passed, and the table stayed unreachable
 
 | Field | Value |

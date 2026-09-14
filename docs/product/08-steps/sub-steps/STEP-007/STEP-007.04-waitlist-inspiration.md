@@ -2,12 +2,12 @@
 sub_step_id: STEP-007.04
 parent_step: STEP-007
 title: Waitlist and inspiration mode with consent
-status: NOT_STARTED
+status: VERIFIED
 owners: ["Deepesh Kumar Gupta"]
-requirement_ids: [REQ-TRIP-002, REQ-PRIV-002, REQ-PRIV-004]
-blast_radius_id: TBD
+requirement_ids: [REQ-TRIP-002, REQ-PRIV-002, REQ-PRIV-004, REQ-PRIV-006]
+blast_radius_id: BR-063
 depends_on: [STEP-007.03]
-last_updated: 2026-09-04
+last_updated: 2026-09-11
 ---
 
 # STEP-007.04 — Waitlist and inspiration mode with consent
@@ -28,23 +28,45 @@ Somebody outside coverage can ask to be told when it opens, having explicitly co
 ## 4. Pre-change analysis
 | Field | Value |
 | --- | --- |
-| Graph status | *(record at execution)* — run `npx gitnexus status` and confirm it matches HEAD |
-| HEAD / indexed commit | *(record at execution)* |
-| Queries run | `impact` on each symbol to be modified, **each cross-checked against grep** — `RISK-016`: the graph under-reports dependants, reproduced twelve times |
-| Migration present? | If this sub-step adds one, `RISK-017` applies: the graph holds one node per `.sql` file, so the blast radius comes from the migration and from **mutation against the deployed schema** |
-| Unknown / low-confidence areas | Whether inspiration content for an uncovered region is useful or misleading. Showing a beautiful page for a place we cannot plan may read as a promise. |
-| Blast radius | **TBD** — assigned at execution. Pre-assigned numbers in STEP-005 and STEP-006 were wrong in every case, so this record does not invent one |
-| Approval required? | Per blast-radius score (HIGH/CRITICAL/low-confidence ⇒ owner approval) |
+| Graph status | ✅ up to date at `7a95fb6` before any edit |
+| HEAD / indexed commit | `7a95fb6` / `7a95fb6` |
+| Queries run | `impact(_problem_response, upstream)` — the one existing symbol modified. **1, LOW, `"epistemic": "exact"`, and grep agreed**: three call sites, all inside `check_planning`. Recorded because the last two records did not go this way; see `BR-063` §2, which also corrects `BR-061`'s over-strong claim that `app.py` has no outgoing edges. Everything else added here is new, and a new symbol has no dependants to under-report |
+| Migration present? | **Yes — `019_waitlist.sql`.** `RISK-017` applies, so the blast radius came from running it against the deployed schema and from mutation: mutants 6, 7 and 9 are killed by CHECK constraints and by the partial index, not by application code |
+| Unknown / low-confidence areas | Resolved before implementing, by **owner decision on three questions**: where pre-signup consent lives (`consent_records` cannot hold it), how withdrawal is exercised with no email delivery, and how far inspiration content goes. The recorded risk — "a beautiful page for a place we cannot plan may read as a promise" — was answered by keeping it text-only with the limitation stated first, and asserted by two tests |
+| Blast radius | **`BR-063` — MEDIUM, confidence HIGH** |
+| Approval required? | **Yes, and obtained.** Not from the score — MEDIUM would not have required it — but because all three open questions were privacy decisions on an unauthenticated surface that writes a stranger's personal data |
 
 ## 5. Implementation plan
-- [ ] Waitlist entry writes a `ConsentRecord` with **purpose `waitlist_notification` only**
-- [ ] Consent is independently withdrawable without affecting any other purpose (`REQ-PRIV-004`)
-- [ ] No pre-ticked boxes; consent is an action, not a default
-- [ ] Inspiration content clearly marked as not plannable yet
-- [ ] Email stored against the consent record, deletable on withdrawal (`REQ-PRIV-006`)
+- [x] Waitlist entry writes a consent record with **purpose `waitlist_notification` only** — **but not into `consent_records`; see §6**
+- [x] Consent is independently withdrawable without affecting any other purpose (`REQ-PRIV-004`)
+- [x] No pre-ticked boxes; consent is an action, not a default
+- [x] Inspiration content clearly marked as not plannable yet
+- [x] Email stored against the consent record, deletable on withdrawal (`REQ-PRIV-006`)
 
 ## 6. Contracts and schema changes
-Consumes the `ConsentRecord` shape from `DATA-016`.
+
+**The plan said "consumes the `ConsentRecord` shape from `DATA-016`". It cannot, and
+that is the substance of this sub-step.**
+
+`consent_records` is `organization_id NOT NULL, user_id NOT NULL` under forced
+row-level security, and `STEP-008.04` owns it. A waitlist subject has no account, so
+neither column has a value. The two ways to force a fit were to invent an
+organization or to make the isolation columns nullable on the one table holding
+consent so an unauthenticated endpoint could write to it — the first fabricates a
+fact, the second aims at `R7`.
+
+So `019_waitlist.sql` adds a platform-level `waitlist_entries`, for the reason `016`
+moved coverage: an unauthenticated operation cannot touch tenant-scoped data, so
+either the data is platform-level or the endpoint is wrong. `BUG-028` was this
+collision on the read side. `BR-063` §3 carries the full reasoning and the owner
+decision.
+
+| Change | Classification |
+| --- | --- |
+| `db/migrations/019_waitlist.sql` | New table, no RLS — exempt from the isolation gate **by its own derivation rule**, having no `organization_id` column |
+| `API-020` — `POST /waitlist`, `POST /waitlist:withdraw` | **`[ADDITIVE]` ×2** |
+| `WaitlistConsent`, `WaitlistJoinRequest`, `WaitlistJoined`, `WaitlistWithdrawRequest`, `WaitlistWithdrawn` | New schemas, all closed |
+| `ERROR_MODEL.md` | **Unchanged** — `validation.invalid_request` and `authz.forbidden` already existed and already said what was needed |
 
 ## 7. Tests to add
 | Test | Type | Asserts |
@@ -92,11 +114,34 @@ Revert the commit and delete captured entries — the consent basis disappears w
 ## 13. Completion record
 | Field | Value |
 | --- | --- |
-| Completed | — |
-| Commit SHA | — |
-| Pushed | — |
-| Graph re-indexed at | — |
-| `main` green and deployable | — |
-| Mutation testing | — |
-| Bugs found | — |
+| Completed | 2026-09-11 |
+| Commit SHA | see git log for `STEP-007.04` |
+| Pushed | see §14 |
+| Graph re-indexed at | after commit, per the workflow loop |
+| `main` green and deployable | ✅ `pnpm verify` exit 0 |
+| Mutation testing | **13 seeded, 13 killed, 0 survivors** — `BR-063` §7 |
+| Bugs found | **None.** Two of my own defects were caught by existing gates rather than shipped: a bare `403` (refused by `test_no_operation_declares_a_bare_403`) and a `possibly undefined` in a new test file (refused by the typecheck guard's meta-test, on the run where I had typechecked *before* writing it) |
 | Notes / surprises | **Rolling this back is not just reverting code.** The consent basis for holding those emails is the feature itself, so a revert that leaves the rows behind converts a rollback into a retention problem. This is the first sub-step where the rollback plan has a legal component, and it will not be the last. |
+
+### What the record should have said, and now does
+
+The plan's central instruction — write a `ConsentRecord` — was not executable, and
+finding that out was most of the work. The reconciliation that resolved it is worth
+carrying forward, because `STEP-008.04` inherits it:
+
+> **The grant is evidence and survives; the address is personal data and does not.**
+
+`STEP-008.04` says withdrawal is a column and not a delete, because erasing the grant
+destroys the evidence that processing was lawful. This sub-step says the email is
+deletable on withdrawal. Both hold: a withdrawn row is a dated record that a lawful
+grant existed, holding nothing that identifies anybody. It is a CHECK constraint
+rather than a convention, so the mistake cannot be made quietly.
+
+### The trade this sub-step ships with
+
+Until an address is verified — which needs email delivery, out of scope here —
+anybody who knows an address can rotate its withdrawal token and remove that entry.
+The ceiling is removal from a notification list, and no personal data is disclosed.
+It cannot be closed inside this scope: only the hash is stored, so a repeat join
+cannot return the original token, and the alternatives were a membership oracle or no
+withdrawal at all. Carried to email delivery.

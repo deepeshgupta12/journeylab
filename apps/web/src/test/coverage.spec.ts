@@ -100,6 +100,57 @@ test.describe('coverage page', () => {
     await expect(page.getByRole('button', { name: /check these dates/i })).toHaveCount(0);
   });
 
+  test('NO consent control anywhere on the page is pre-selected', async ({ page }) => {
+    /*
+     * STEP-007.04 · REQ-PRIV-002. The rule is about the FIRST PAINT of a real
+     * browser, which is the one place it can be checked honestly: a component test
+     * renders what the test imports, and this asserts what the server actually
+     * sent to a visitor who has clicked nothing.
+     *
+     * Every checkbox and radio, not only the waitlist one. A pre-ticked consent
+     * usually arrives as a default written for convenience somewhere far from the
+     * control, so naming the specific box would be checking the place the mistake
+     * has already been avoided.
+     */
+    const controls = page.locator('input[type="checkbox"], input[type="radio"]');
+
+    // THE PRESENCE ANCHOR. Every assertion below is over a set that is empty when
+    // the form fails to render, and "no ticked boxes" is vacuously true of a page
+    // with no boxes — the exact shape that let three tests pass against a 404.
+    await expect(
+      controls,
+      'no consent control rendered, so this test would pass over nothing',
+    ).not.toHaveCount(0);
+
+    const ticked = await page.evaluate(() =>
+      Array.from(
+        document.querySelectorAll<HTMLInputElement>('input[type="checkbox"], input[type="radio"]'),
+      )
+        .filter((el) => el.checked || el.hasAttribute('checked'))
+        .map((el) => el.getAttribute('aria-label') ?? el.id ?? el.name ?? '(unnamed)'),
+    );
+
+    expect(ticked, `pre-selected consent controls: ${ticked.join(', ')}`).toEqual([]);
+  });
+
+  test('the waitlist says what the permission covers before asking for it', async ({ page }) => {
+    // REQ-PRIV-002 is "specific and informed", not merely "opt-in". A tick box with
+    // no statement of scope is opt-in to something unstated.
+    await expect(page.getByRole('heading', { name: /tell me when this changes/i })).toBeVisible();
+    await expect(page.getByText(/covers that message and nothing else/i)).toBeVisible();
+    await expect(page.getByText(/withdraw it at any time/i)).toBeVisible();
+  });
+
+  test('inspiration content does not read as a promise', async ({ page }) => {
+    // The sub-step's own risk: a beautiful page for a place we cannot plan reads as
+    // a commitment. The caveat must be on the page, and no date may be implied.
+    await expect(page.getByText(/cannot plan a trip here yet/i)).toBeVisible();
+    const body = ((await page.locator('body').textContent()) ?? '').toLowerCase();
+    for (const promise of ['coming soon', 'launching', 'next month']) {
+      expect(body, `the page implies a date: "${promise}"`).not.toContain(promise);
+    }
+  });
+
   test('is fully keyboard reachable', async ({ page }) => {
     /*
      * THIS TEST USED TO BE ONE TAB AND `not.toBe('BODY')` — AND BUG-033 WALKED

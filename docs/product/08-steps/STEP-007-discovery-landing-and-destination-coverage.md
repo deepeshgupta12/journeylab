@@ -104,7 +104,7 @@ Low reach into other services, but **high customer criticality** — this is the
 | STEP-007.01 | Coverage read model and `API-017` | — ✅ **VERIFIED** 2026-09-04 (BR-059, IMPL-059; closes BUG-028/029/030)
 | STEP-007.02 | Public coverage/SEO page with limitations and privacy summary | — ✅ **VERIFIED** 2026-09-04 (BR-060, IMPL-060)
 | STEP-007.03 | Date and geography validation with honest refusal states | — ✅ **VERIFIED** 2026-09-05 (BR-061, IMPL-061; adds `API-019`, migration `018`, `DEC-011`; closes BUG-034)
-| STEP-007.04 | Waitlist / inspiration mode with consent |
+| STEP-007.04 | Waitlist / inspiration mode with consent | — ✅ **VERIFIED** 2026-09-11 (BR-063, IMPL-063; adds `API-020`, migration `019`). **The plan's `ConsentRecord` could not be written** — `consent_records` is tenant-scoped and the subject has no account, so consent lives in a platform-level table on `016`'s reasoning. `STEP-008.04` inherits reconciling the two |
 | STEP-007.05 | Provider-degradation disclosure wiring |
 
 ## 22. Test and evaluation plan

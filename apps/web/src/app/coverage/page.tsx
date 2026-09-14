@@ -1,6 +1,7 @@
 import { CoverageTable } from './coverage-table';
 import { fetchCoverage } from './fetch-coverage';
 import { PlanningCheck } from './planning-check';
+import { Inspiration, Waitlist } from './waitlist';
 
 /**
  * Public coverage page — STEP-007.02 (REQ-TRIP-002, REQ-A11Y-002, REQ-PRIV-001).
@@ -61,6 +62,16 @@ export default async function CoveragePage() {
               first; the form is the interactive path to the same fact and should
               not be the only way to learn it. */}
           <PlanningCheck regions={result.coverage.regions} />
+
+          {/* STEP-007.04, and only on this branch.
+
+              Both of these say "your destination is not supported yet", which is a
+              statement about coverage. On the `unavailable` branch we do not know
+              whether it is supported — we could not ask — so inviting somebody onto
+              a waitlist there would assert the one thing that page exists to avoid
+              asserting. */}
+          <Waitlist />
+          <Inspiration />
         </>
       )}
 

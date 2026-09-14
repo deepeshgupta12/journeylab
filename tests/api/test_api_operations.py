@@ -668,15 +668,37 @@ class TestPublicCoverageLeaksNothing:
         Global `security` requires a bearer token; an operation opts out by
         declaring `security: []`. Counting them is how a second one added by
         accident becomes visible.
+
+        THE FOURTH AND FIFTH WERE ADDED AT STEP-007.04, AND HERE IS THE REASON
+            `joinWaitlist` and `withdrawWaitlistConsent` are the two halves of one
+            action taken by somebody who has just been told no. Requiring a token
+            would mean asking a person to create an account in order to be kept
+            informed about a product they cannot yet use — and then, worse, to
+            create one in order to be forgotten.
+
+            **Withdrawal must be at least as reachable as the grant.** A consent an
+            unauthenticated visitor can give and only an account holder can take
+            back is not withdrawable in any sense `REQ-PRIV-004` would recognise. So
+            if the first is public the second has to be, and it authorises on a
+            high-entropy token rather than on a session.
+
+            These two do write, unlike the coverage pair, which is why they carry
+            `IdempotencyKey` and make no `x-journeylab-safe` claim.
         """
         public = [op["operationId"] for _, _, op in operations() if op.get("security") == []]
-        assert public == ["getCoverage", "checkPlanningRequest"], (
-            f"unauthenticated operations: {public}. Exactly two are intended, both "
-            f"answering the same question — a traveller must be able to learn their "
+        assert public == [
+            "getCoverage",
+            "checkPlanningRequest",
+            "joinWaitlist",
+            "withdrawWaitlistConsent",
+        ], (
+            f"unauthenticated operations: {public}. Four are intended, in two pairs. "
+            f"`getCoverage` and `checkPlanningRequest` let a traveller learn their "
             f"destination is unsupported without registering to be told no. "
-            f"`getCoverage` lists what is supported; `checkPlanningRequest` answers "
-            f"it for one request. A third is a decision, not an oversight: say why "
-            f"here, or the endpoint should require a token."
+            f"`joinWaitlist` and `withdrawWaitlistConsent` are what they do next, "
+            f"and the second must be no harder to reach than the first or the "
+            f"consent is not withdrawable. A fifth is a decision, not an oversight: "
+            f"say why here, or the endpoint should require a token."
         )
 
     def test_neither_public_operation_reads_or_writes_a_tenant(self) -> None:

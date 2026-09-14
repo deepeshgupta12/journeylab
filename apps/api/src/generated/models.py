@@ -13,7 +13,15 @@ from datetime import date
 from enum import StrEnum
 from typing import Any
 
-from pydantic import AnyUrl, AwareDatetime, BaseModel, ConfigDict, Field, RootModel
+from pydantic import (
+    AnyUrl,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    RootModel,
+)
 
 
 class ErrorCodes(StrEnum):
@@ -906,6 +914,144 @@ class PlanningAccepted(BaseModel):
         ...,
         description='Non-empty when the region is degraded, and where its documented\nlimitations are carried. Both are shown; they answer different questions\n— what this region is always like, and what is wrong with it today.\n`REQ-EVID-006`.\n',
     )
+
+
+class Purpose(StrEnum):
+    """
+    Being told when this destination becomes plannable. Nothing else — not
+    product news, not research invitations, not anything a later feature
+    finds convenient.
+
+    """
+
+    waitlist_notification = 'waitlist_notification'
+
+
+class WaitlistConsent(BaseModel):
+    """
+    An explicit, purpose-specific grant.
+
+    **`granted` has no default, and that is the whole design.** A boolean with a
+    default of `true` is a pre-ticked box expressed in a schema; a default of
+    `false` is a field clients stop sending. Requiring it means a client cannot
+    submit this form without having asked somebody, which is what `REQ-PRIV-002`
+    means by consent being specific and informed.
+
+    `purpose` is an enum of one. Not an oversight and not a placeholder for a
+    list that will grow here — a second purpose is a second decision by the
+    person, and adding it to this enum would let one tick cover both.
+
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    purpose: Purpose = Field(
+        ...,
+        description='Being told when this destination becomes plannable. Nothing else — not\nproduct news, not research invitations, not anything a later feature\nfinds convenient.\n',
+    )
+    granted: bool = Field(
+        ...,
+        description='`true` is the only value that records an entry. `false` is refused with\nthis field named, and nothing is stored.\n',
+    )
+
+
+class WaitlistJoinRequest(BaseModel):
+    """
+    An address, optionally what they were looking for, and a grant.
+
+    **Deliberately nothing else.** No name, no origin, no locale, no interests —
+    `STEP-007` §8 collects some of those on the discovery page and none of them
+    are needed to send one message about one region. What is not collected
+    cannot be stored, correlated or leaked.
+
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    email: EmailStr = Field(
+        ...,
+        description='254 is the longest address that can exist: RFC 5321 caps a path at 256\noctets including the angle brackets. Bounded because this operation is\nunauthenticated, so an unbounded string is something anyone can send.\n',
+        max_length=254,
+        min_length=3,
+    )
+    region_query: str | None = Field(
+        None,
+        description='The destination they were looking for, as they typed it. Free text and\nnot an identifier — the entire circumstance is that this place has no\nidentifier in coverage yet.\n',
+        max_length=64,
+    )
+    consent: WaitlistConsent
+
+
+class Purpose1(StrEnum):
+    waitlist_notification = 'waitlist_notification'
+
+
+class Basis(StrEnum):
+    """
+    The lawful basis, recorded with the grant rather than inferred later.
+
+    """
+
+    consent = 'consent'
+
+
+class WaitlistJoined(BaseModel):
+    """
+    The recorded grant, and the one-time capability to undo it.
+
+    **The address is not echoed.** It is what the caller just sent, so returning
+    it adds nothing, and a response that contains an email address is a response
+    that ends up in a client-side log somebody forgot about.
+
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    purpose: Purpose1
+    basis: Basis = Field(
+        ...,
+        description='The lawful basis, recorded with the grant rather than inferred later.\n',
+    )
+    granted_at: AwareDatetime = Field(
+        ...,
+        description='When consent was first given. A repeated submission does not move it — a\nre-sent form is not a new decision, and moving the date would quietly\nextend anything measured from it.\n',
+    )
+    withdrawal_token: str = Field(
+        ...,
+        description='**Shown once. Only its hash is stored, so it cannot be re-read or\nrecovered — losing it means the entry can no longer be withdrawn by its\nholder.** A client must present it to the user rather than keeping it to\nitself.\n',
+    )
+
+
+class WaitlistWithdrawRequest(BaseModel):
+    """
+    The token, and nothing else. It is the entire authorisation.
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    withdrawal_token: str = Field(..., max_length=128, min_length=16)
+
+
+class WaitlistWithdrawn(BaseModel):
+    """
+    The consent is no longer in force and the address no longer exists.
+
+    The grant itself remains as a dated record that processing was once lawful,
+    holding nothing that identifies anybody. That is not a retention loophole —
+    it is the evidence obligation and the erasure obligation being satisfied by
+    different halves of the same row.
+
+    """
+
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    purpose: Purpose1
+    withdrawn_at: AwareDatetime
 
 
 class Event(StrEnum):

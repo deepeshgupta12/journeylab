@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (11054 symbols, 16850 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (11107 symbols, 16914 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -57,9 +57,9 @@ This file is the condensed operating contract for anyone changing this repositor
 | Product | **JourneyLab** — a trip digital twin for comparing feasible futures before and during travel |
 | Target release | Phase 1 MVP — one region, 3–7 day trips, deep-link handoff |
 | Repository | `https://github.com/deepeshgupta12/journeylab.git` |
-| Implementation status | **STEP-001…006 `VERIFIED`, STEP-007 3/5** — 62 sub-steps verified, **1378 Python tests** + 71 web + 307 UI + 58 browser. Platform foundation complete: identity, tenancy, contracts, integrations, canonical model, event backbone. **Product flows have started** — `API-017` and `API-019` are served over HTTP by `apps/api/src/app.py`, and a traveller can read coverage and be refused honestly. **No trip can be created yet** (`STEP-008.06`), and **no real provider data has ever entered the pipeline** (`ENH-007`) |
+| Implementation status | **STEP-001…006 `VERIFIED`, STEP-007 4/5** — 63 sub-steps verified, **1424 Python tests** + 87 web + 311 UI + 76 browser. Platform foundation complete: identity, tenancy, contracts, integrations, canonical model, event backbone. **Product flows have started** — `API-017`, `API-019` and `API-020` are served over HTTP by `apps/api/src/app.py`: a traveller can read coverage, be refused honestly, and ask to be told when that changes. **The product now holds personal data** (`019_waitlist.sql`) — pre-signup, purpose-specific, withdrawable. **No trip can be created yet** (`STEP-008.06`), and **no real provider data has ever entered the pipeline** (`ENH-007`) |
 | Documentation | **210 files** across 10 groups — [start here](docs/product/00-START-HERE.md) |
-| Last reviewed | 2026-09-05 |
+| Last reviewed | 2026-09-11 |
 
 ---
 

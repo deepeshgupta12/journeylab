@@ -69,6 +69,64 @@ trending up, coverage gaps accepted with a reason.
 
 ---
 
+## STEP-007.04 — 2026-09-11 — Waitlist, consent and withdrawal
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `7a95fb6` — matched HEAD at pre-change |
+| Blast radius | [BR-063](blast-radius/BR-063-waitlist-consent.md) — MEDIUM, confidence HIGH, **owner approval obtained** |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` exit 0. **1424 Python** (from 1378, 4 skipped) + **87 web** (from 71) + 311 UI + **76 browser** (from 70) + R7 18/18 + meta 76/76 |
+| R2 contract compatibility | **PASS — additive** | `[ADDITIVE] POST /waitlist`, `[ADDITIVE] POST /waitlist:withdraw`. Clients regenerated. **`ERROR_MODEL.md` unchanged** — the two codes needed already existed |
+| R3 graph diff as expected | **PASS — with a stated blind spot** | 14 files, 45 symbols, **0 affected processes**, risk `low`. Every symbol named is one that already existed. **The two new handlers, the new rule module, the new component, the migration and the contract block appear nowhere in the diff** — the graph was indexed at `7a95fb6` and a symbol that did not exist then cannot be reported as changed. So R3 confirms *what this change disturbed*, which is little, and says nothing at all about what it *added*. Same shape as `BUG-033`, where `components.css` was absent because CSS is not in the graph. The added surface is covered by the contract gate, the migration run and 13 mutants instead |
+| R4 untested requirements | **PASS — improved** | `REQ-PRIV-002`, `REQ-PRIV-004` and `REQ-PRIV-006` gain their first behavioural coverage. All three were previously asserted only in prose |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner; `codeowners-coverage.sh` green |
+| R6 closed-bug tests | **PASS** | BUG-001…035 green. `BUG-035`'s rule — name the field, never the value — is re-asserted here on an endpoint where the value is somebody's email address |
+| R7 tenant isolation | **PASS — 18/18** | Unchanged. `waitlist_entries` has **no `organization_id`**, and `test_no_tenant_scoped_table_is_missing_forced_rls` derives its set from that column — so the new table is exempt **by the gate's own rule**, not by an exception somebody added |
+
+**Overall:** PASS
+
+### Mutation testing — 13 seeded, 13 killed
+
+One per rule the sub-step claims; the table is in `BR-063` §7. Three worth naming:
+
+- **#7** clears `email` and leaves `email_normalized`. It passes any assertion that
+  checks the column somebody thought of, and leaves a lower-cased, indexed,
+  searchable copy of the address behind a withdrawal nobody can inspect. Killed by
+  the CHECK constraint and by a whole-row assertion, not by a column-specific one.
+- **#12** starts the consent box ticked. It is a property of the first paint, so
+  **every Python test in this repository passes with it**. Only a rendered document
+  can kill it.
+- **#13** removes the client-side consent guard. The server still refuses, so the
+  product stays correct — but the address has already left the browser, which is a
+  different and weaker guarantee than the one being claimed.
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `test_no_operation_declares_a_bare_403` and its Phase-3 twin | I designed the withdrawal denial as a `403` and wrote a paragraph about why it must be indistinguishable from not-found. The contract forbids a bare 403 **anywhere** — "a 403 discloses that something is there to be forbidden" | Reused `NotFoundOrForbidden`, the shared response that already existed and already did it better. `problem()` takes a `status` override, so the code stays `authz.forbidden` and the status is 404. **I had reasoned to the right principle and implemented it the one way the repository forbids** |
+| `typecheck.sh` meta-test, first `verify` | `possibly undefined` on `fetchMock.mock.calls[0][1]` in a new test file. I had run `pnpm typecheck` *before* writing that file and carried the green result forward | Destructured with the tuple cast the sibling assertions use. Recorded because the mistake was procedural, not technical: a gate run before the change is not a gate |
+| `substep-docs.sh` meta-test, second `verify` | I marked the sub-step `VERIFIED` while its regression entry — this one — did not yet exist | Written. The guard is doing exactly its job: `SUB_STEP_PROTOCOL` §8 requires the records in the same commit as the work, and the status flag is what makes that checkable |
+| Node 25.9.0 on PATH vs. the pinned 24 | Local environment, as at STEP-007.03 and BUG-033 | Whole run executed on `node@24` |
+
+### What this sub-step ships knowingly
+
+Until an address is verified — which needs email delivery, out of scope — anybody who
+knows an address can rotate its withdrawal token and remove that entry. The ceiling is
+removal from a notification list and no personal data is disclosed. It cannot be
+closed inside this scope: only the hash is stored, so a repeat join cannot return the
+original token, and the alternatives were a membership oracle or no withdrawal at all.
+
+`429` is declared on both operations and **nothing enforces it** — no rate limiter
+exists yet. On an unauthenticated write that is a real gap, recorded rather than
+implied by the contract's presence.
+
+---
+
 ## FIX — 2026-09-09 — BUG-033: the table's scroll region, and the rule that passed
 
 | Field | Value |
