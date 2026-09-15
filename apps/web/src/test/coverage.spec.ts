@@ -189,6 +189,8 @@ test.describe('coverage page', () => {
     await expect(page.getByRole('heading', { name: /tell me when this changes/i })).toBeVisible();
     await expect(page.getByText(/covers that message and nothing else/i)).toBeVisible();
     await expect(page.getByText(/withdraw it at any time/i)).toBeVisible();
+    // BUG-036 / DEC-012: how long the address is kept is part of what is consented to.
+    await expect(page.getByText(/after 12 months/i)).toBeVisible();
   });
 
   test('inspiration content does not read as a promise', async ({ page }) => {

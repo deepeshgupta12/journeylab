@@ -291,3 +291,16 @@ describe('inspiration', () => {
     expect(screen.queryByRole('img')).toBeNull();
   });
 });
+
+// --- BUG-036 / DEC-012: the retention period is stated before consent ----------
+
+describe('retention is stated at the point of consent', () => {
+  test('the consent text says how long the address is kept', () => {
+    // REQ-PRIV-002 is "specific and informed". A permission that does not say how
+    // long it lasts is informed about everything except the part that expires.
+    render(<Waitlist />);
+    const text = document.body.textContent ?? '';
+    expect(text).toMatch(/delete your address once it is sent/i);
+    expect(text).toMatch(/after 12 months/i);
+  });
+});

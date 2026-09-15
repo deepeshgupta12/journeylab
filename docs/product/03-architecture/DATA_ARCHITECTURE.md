@@ -112,6 +112,7 @@ graph LR
 | Precise location | **Ephemeral** — not persisted unless explicitly saved | Nothing to delete by default |
 | Booking references and documents | Shorter retention, narrower access, segregated | Hard delete with the trip or earlier |
 | Consent records | Retained as legally required | Retained after account deletion where law requires; documented as an exception |
+| Waitlist addresses (pre-signup, `waitlist_entries`) | Until the requested message is sent; 12-calendar-month cap (`DEC-012`) | Address nulled on withdrawal, sending or the cap; the dated grant survives as evidence |
 | Analytics/evaluation aggregates | Must meet de-identification thresholds; **no free-form sensitive text by default** | Aggregates survive deletion only if genuinely non-identifiable |
 | Audit events | Legally required minimum | Immutable; documented exception to deletion |
 

@@ -46,6 +46,70 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-036 — Waitlist addresses were kept with no retention period
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — personal data held with no expiry, against a retention rule the parent step states. Not S1: nothing was disclosed, and no deployment exists, so no real address has ever been stored |
+| Found during | STEP-007 step-close evidence review, reading the parent step's §14 and §27 |
+| Date found | 2026-09-14 |
+| Affected requirements | REQ-PRIV-002, REQ-PRIV-006; `STEP-007` §14 "Waitlist inquiries … carry a retention period"; `DATA_RETENTION_AND_DELETION` §4 |
+| Affected component | `db/migrations/019_waitlist.sql`, `apps/api/src/platform_api/waitlist.py`, the waitlist form |
+| Status | **FIXED 2026-09-14** — `020_waitlist_retention.sql`, `expire_waitlist_entries`, `DEC-012`. `BR-065` |
+
+### Symptom
+
+`waitlist_entries` held an address until its owner withdrew — and for anyone who never
+withdrew, forever. Nothing expired an entry, no column recorded that the one promised
+message had been sent, and the form asked for consent without saying how long the
+address would be kept.
+
+### Root cause
+
+**The requirement lived in the parent step and the work was planned from the
+sub-step.** `STEP-007` §14 says waitlist inquiries "carry a retention period", and §27
+says the period "needs privacy-owner approval". `STEP-007.04`'s own plan listed consent,
+withdrawal and deletion-on-withdrawal and never mentioned retention. The pre-change
+analysis read the sub-step, so the obligation was never on the page being worked from.
+
+### Why the tests missed it
+
+There was nothing for a test to check. `.04` asserted every rule it claimed — 13
+mutants, 13 killed — and retention was not a rule it claimed. Mutation testing proves
+a test notices a change to the code; it cannot notice a requirement the code was never
+written against. The same limit `STEP-006`'s close recorded: it finds unexercised
+changes, not unwritten features.
+
+It surfaced only because closing the step meant reading the parent step's exit
+criteria, which is the first point at which §14 was read against what had shipped.
+
+### Fix
+
+Owner decision **`DEC-012`: keep the address until the one message it was given for is
+sent, and never more than 12 calendar months after the grant.**
+
+- `020_waitlist_retention.sql` adds `notified_at` and `expired_at`, and widens
+  `waitlist_active_has_address` so an *expired* row, like a withdrawn one, must hold no
+  address. The dated grant survives either way.
+- `expire_waitlist_entries(cursor, now=…)` nulls the address on every entry that has
+  been notified or is 12 calendar months old. Idempotent; computes the cutoff in UTC
+  with the day clamped, never in the database's session time zone.
+- The consent text on the form now states the period. Consent collected without it is
+  not informed.
+
+**Stated, not implied: nothing runs the sweep yet.** No scheduler exists anywhere in the
+repository. `expire_waitlist_entries` is the body of the scheduled job `§4` calls for,
+tested against the real schema; running it periodically is deployment work, and until
+then retention is enforceable but not enforced.
+
+### Regression test
+
+`tests/platform_api/test_waitlist_retention.py` — the calendar arithmetic including the
+leap day, the exact 12-month boundary in both directions, expiry after notification,
+withdrawn rows left alone, idempotence, the widened CHECK, and rejoining after expiry.
+
+---
+
 ## BUG-035 — Validation failures were not problem documents, and echoed the request back
 
 | Field | Value |

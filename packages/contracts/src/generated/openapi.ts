@@ -303,6 +303,11 @@ export type paths = {
      * token is what makes withdrawal exercisable today by somebody who has no
      * account and no session.
      *
+     * **The address is kept until the one message it was given for is sent, and
+     * never more than 12 calendar months after the grant** (`DEC-012`). Then it is
+     * deleted exactly as on withdrawal: the dated grant survives as evidence that
+     * processing was lawful, and the address does not.
+     *
      * **The response does not reveal whether the address was already listed.**
      * A repeated request returns the same shape with a fresh token rather than a
      * conflict, so this operation cannot be used to test whether a given address
@@ -2270,6 +2275,11 @@ export type operations = {
    * part of this sub-step, so there is nothing to send a link through; the
    * token is what makes withdrawal exercisable today by somebody who has no
    * account and no session.
+   *
+   * **The address is kept until the one message it was given for is sent, and
+   * never more than 12 calendar months after the grant** (`DEC-012`). Then it is
+   * deleted exactly as on withdrawal: the dated grant survives as evidence that
+   * processing was lawful, and the address does not.
    *
    * **The response does not reveal whether the address was already listed.**
    * A repeated request returns the same shape with a fresh token rather than a

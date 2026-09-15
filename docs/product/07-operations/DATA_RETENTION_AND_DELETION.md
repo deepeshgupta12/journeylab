@@ -23,6 +23,7 @@ Navigation: [Data architecture](../03-architecture/DATA_ARCHITECTURE.md) · [Dat
 | **Precise location** | **Not persisted** — ephemeral processing only | Data minimisation | Nothing to delete by default |
 | Booking references and travel documents | **Shorter than trip data**; segregated store | Consent + necessity | Trip deletion or earlier expiry |
 | Consent records | As legally required | Legal obligation | **Survives account deletion where law requires** — documented exception |
+| **Waitlist addresses (pre-signup)** | Until the one requested message is sent; **never more than 12 calendar months** after the grant (`DEC-012`) | Consent | Withdrawal (immediate), message sent, or 12-month cap — address deleted, dated grant retained as evidence. **The first rule in this table with an implementation** (`expire_waitlist_entries`); not yet scheduled, see `BUG-036` |
 | Audit events (security/business) | Legally required minimum | Legal obligation | Immutable; documented exception |
 | Analytics and evaluation aggregates | Indefinite **only if genuinely non-identifiable** | Legitimate interest | Re-identification risk review |
 | Support diagnostic bundles | Short, fixed window | Operational | Automatic expiry |

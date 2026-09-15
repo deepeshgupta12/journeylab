@@ -33,10 +33,11 @@ THE ADDRESS IS NEVER LOGGED, ECHOED OR RAISED
 
 from __future__ import annotations
 
+import calendar
 import hashlib
 import secrets
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from platform_api.coverage import Cursor
 
@@ -355,4 +356,113 @@ def withdraw_waitlist_consent(
         purpose=str(purpose),
         withdrawn_at=withdrawn_at,
         changed=bool(changed),
+    )
+
+
+# --- retention — BUG-036, DEC-012 ---------------------------------------------
+
+#: `DEC-012`, owner decision 2026-09-14: an address is kept until the one message it
+#: was given for has been sent, and never longer than this many **calendar months**
+#: after the grant. Calendar months rather than 365 days because "12 months" is what
+#: the form tells the person, and a year containing 29 February is 366 days long.
+RETENTION_MONTHS = 12
+
+
+class WaitlistRetentionError(RuntimeError):
+    """A retention sweep was refused. Nothing was expired."""
+
+
+@dataclass(frozen=True, slots=True)
+class RetentionSweep:
+    """What one sweep expired, and why.
+
+    Row ids rather than counts: enough to audit exactly which entries a sweep ended,
+    and nothing that identifies anybody. A count alone could not show that the
+    *right* rows went.
+    """
+
+    expired_after_notification: frozenset[str]
+    expired_at_cap: frozenset[str]
+
+    @property
+    def expired_ids(self) -> frozenset[str]:
+        return self.expired_after_notification | self.expired_at_cap
+
+
+def months_before(moment: datetime, months: int) -> datetime:
+    """`moment` moved back `months` calendar months, in UTC, with the day clamped.
+
+    COMPUTED HERE, NOT IN POSTGRES
+        `timestamptz - interval '12 months'` is evaluated in the session's `TimeZone`,
+        so the same entry could be due on one connection and not on another. The
+        cutoff is computed once, in UTC, and passed to the query as a value — the same
+        reason `check_planning_request` is handed a clock rather than reading one.
+
+    CLAMPED, NOT OVERFLOWED
+        Twelve months before 29 February 2028 is 28 February 2027, the last day of
+        that month. Not an exception, and not 1 March — which would keep an address a
+        day longer than the person was told.
+    """
+    if moment.tzinfo is None:
+        raise WaitlistRetentionError("a retention cutoff must be computed from an aware instant")
+    if months < 0:
+        raise WaitlistRetentionError("a retention period cannot be negative")
+    utc = moment.astimezone(UTC)
+    index = utc.year * 12 + (utc.month - 1) - months
+    year, month_zero = divmod(index, 12)
+    month = month_zero + 1
+    day = min(utc.day, calendar.monthrange(year, month)[1])
+    return utc.replace(year=year, month=month, day=day)
+
+
+def expire_waitlist_entries(cursor: Cursor, *, now: datetime) -> RetentionSweep:
+    """Delete the address from every entry whose retention has ended. Keeps the grant.
+
+    THE RULE, `DEC-012`
+        An entry ends when its message has been sent (`notified_at` is set) or when
+        its grant is 12 calendar months old — whichever comes first. A grant exactly
+        12 months old has ended: the person was told "12 months", not "more than 12".
+
+    WHAT SURVIVES
+        The row, `purpose`, `basis` and `granted_at` — the evidence that processing was
+        lawful, as on withdrawal. `email` and `email_normalized` are set to NULL in the
+        same statement, and `waitlist_active_has_address` refuses a version of this
+        that forgot either one.
+
+    IDEMPOTENT
+        Only entries with no `withdrawn_at` and no `expired_at` are candidates, so a
+        second sweep at the same instant ends nothing. `DATA_RETENTION_AND_DELETION`
+        §4 requires scheduled deletion to be idempotent and resumable; a sweep that
+        stops half way loses nothing, because the next one finds whatever is left.
+
+    A ROW CANNOT EXPIRE BEFORE IT WAS GRANTED
+        `granted_at <= now` is part of the predicate, so a sweep run with a clock that
+        lags a writer's leaves that row for next time instead of failing
+        `waitlist_expiry_after_grant` and ending nothing at all.
+
+    NOTHING RUNS THIS YET
+        There is no scheduler in this repository. This is the body of the job `§4`
+        calls for; running it on a schedule is deployment work. Until then retention is
+        enforceable and tested, and **not enforced** — recorded in `BUG-036` rather
+        than implied by the function existing.
+    """
+    cutoff = months_before(now, RETENTION_MONTHS)
+    cursor.execute(
+        """
+        UPDATE waitlist_entries
+           SET expired_at       = %s,
+               email            = NULL,
+               email_normalized = NULL
+         WHERE withdrawn_at IS NULL
+           AND expired_at   IS NULL
+           AND granted_at  <= %s
+           AND (notified_at IS NOT NULL OR granted_at <= %s)
+        RETURNING id::text, notified_at IS NOT NULL
+        """,
+        (now, now, cutoff),
+    )
+    rows = cursor.fetchall()
+    return RetentionSweep(
+        expired_after_notification=frozenset(str(row[0]) for row in rows if row[1]),
+        expired_at_cap=frozenset(str(row[0]) for row in rows if not row[1]),
     )

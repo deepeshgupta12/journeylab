@@ -190,7 +190,7 @@ export function Waitlist() {
           label="You may email me when this destination becomes plannable."
           checked={consented}
           onChange={(e) => setConsented(e.currentTarget.checked)}
-          description="This permission covers that message and nothing else. You can withdraw it at any time, and doing so deletes your address."
+          description="This permission covers that message and nothing else. We delete your address once it is sent, or after 12 months if this destination has not opened by then. You can withdraw it at any time, and doing so deletes your address immediately."
         />
 
         {formError ? <p role="alert">{formError}</p> : null}

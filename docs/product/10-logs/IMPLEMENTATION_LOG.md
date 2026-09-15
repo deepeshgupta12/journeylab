@@ -60,6 +60,93 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-065 — BUG-036 — A consent that never expired
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-09-15 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-PRIV-002, REQ-PRIV-006; `STEP-007` §14 |
+| Blast radius | [BR-065](blast-radius/BR-065-waitlist-retention.md) (MEDIUM, confidence HIGH, **owner approval obtained** — `DEC-012`) |
+| Commit | see git log for this entry |
+
+Not a sub-step. Found while gathering `STEP-007`'s exit evidence, and fixed before the
+step closes because it is a gap in shipped personal-data handling.
+
+### What was built
+
+A retention rule for waitlist addresses — until the one requested message is sent, and
+never more than 12 calendar months after the grant — and the schema, sweep and consent
+text that carry it. Python 1442 → **1463**; web unit 101 → **102**; browser 82 (an assertion added to an existing test, so the count is unchanged); UI 311 unchanged.
+
+| Artefact | What it is |
+| --- | --- |
+| `db/migrations/020_waitlist_retention.sql` | `notified_at`, `expired_at`, and `waitlist_active_has_address` widened so an expired row, like a withdrawn one, holds no address |
+| `platform_api/waitlist.py` | `months_before` (UTC, day clamped) and `expire_waitlist_entries` (idempotent; returns expired ids by reason) |
+| The waitlist form and `joinWaitlist` | State the period at the point of consent |
+
+### How a shipped feature missed a stated requirement
+
+`STEP-007` §14 says waitlist inquiries "carry a retention period", and §27 says the period
+needs privacy-owner approval. **`STEP-007.04`'s own plan never mentioned retention**, and
+the pre-change analysis was done from the sub-step, so the obligation was never on the
+page being worked from. `.04` then killed all 13 of its mutants — which proves every rule
+it claimed was checked, and says nothing about a rule it never claimed.
+
+It surfaced only because closing the step meant reading the parent's exit criteria against
+what had shipped. That is an argument for reading the parent step's §14 and §27 at
+**every** sub-step's pre-change analysis, not only at the close.
+
+### Decisions taken during implementation
+
+| Decision | Alternatives | Rationale |
+| --- | --- | --- |
+| Calendar months | 365 days | The form says "12 months", and a year containing 29 February is 366 days long |
+| Cutoff computed in Python, UTC | `now() - interval '12 months'` in SQL | Interval arithmetic runs in the session's `TimeZone`, so the same row could be due on one connection and not another |
+| Same constraint name, wider rule | A second constraint for expiry | One rule — an ended entry holds no address — with two ways to end. A new name would leave every reference to the old one describing a constraint that no longer exists |
+| Return expired ids, by reason | Counts | Ids let a test assert exactly which rows went, and let an audit do the same, while identifying nobody |
+| `granted_at <= now` in the predicate | Trust the clock | A sweep whose clock lags a writer's would otherwise fail `waitlist_expiry_after_grant` and end nothing |
+| No date library | `python-dateutil` | A new dependency is its own blast radius; the arithmetic is eight lines, tested at both month ends and across a leap year |
+
+### What surprised us
+
+**1. Planning the mutants found a test gap before any mutant ran.** The mutant that
+matters most swaps the 12-calendar-month cutoff for `now - 365 days`. Writing it down
+showed it would survive: every sweep test spanned a year with no 29 February, where the
+two agree, and only `months_before` itself was tested across a leap year. The sweep got a
+test where they disagree — granted 1 March 2027, still held on 29 February 2028.
+
+**2. My first test of that difference asserted a difference that does not exist.**
+`test_it_is_not_365_days` used 1 March 2029, whose preceding year holds no leap day. The
+code was right and the test failed; the date was moved to 1 March 2028.
+
+**3. R3 saw no code at all.** `detect_changes` named 19 symbols, and every one is
+documentation. A purely additive change to an indexed file touches no symbol the index
+knows, so the graph diff cannot say anything about it.
+
+**4. A negative control was missing from the mutation run, and its absence would have
+lied.** The first draft ran each mutant's tests with a stripped `PATH`. A test command
+that cannot find `pnpm` fails — and a failing test is reported as a killed mutant. The run
+now inherits the environment and requires the **unmutated** suites to pass under the same
+invocation before any kill is counted.
+
+**5. Mutation testing caught two of my own errors, neither in the product.** Mutant 10 survived because the test meant to prove UTC conversion used an instant where local and UTC arithmetic agree — its docstring claimed otherwise. And the mutation script restored mutant 14 in the wrong order, so its repair was rejected by the mutant constraint and the weaker rule stayed live until restored by hand. The script reported that instead of carrying on, which is the only reason it was caught.
+
+**6. The work was interrupted twice by the environment, and neither is a product fact.**
+The Docker daemon died again, and a batch of tool calls was aborted before executing —
+including the one that would have written this entry. Both were detected by checking
+state rather than assuming the last command had run.
+
+### Follow-up created
+
+| Item | Type |
+| --- | --- |
+| Nothing runs `expire_waitlist_entries` — no scheduler exists | Deployment (`STEP-027`) |
+| Nothing sets `notified_at` — there is no sender, so only the cap can end an entry today | Email delivery |
+| Read the parent step's §14 and §27 at every sub-step's pre-change analysis | Process |
+
+---
+
 ## IMPL-064 — STEP-007.05 — The projection nobody could observe
 
 | Field | Value |

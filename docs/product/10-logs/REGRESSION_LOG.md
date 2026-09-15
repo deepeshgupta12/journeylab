@@ -69,6 +69,51 @@ trending up, coverage gaps accepted with a reason.
 
 ---
 
+## FIX — 2026-09-15 — BUG-036: waitlist addresses were kept with no retention period
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `345b593` — matched HEAD at pre-change |
+| Blast radius | [BR-065](blast-radius/BR-065-waitlist-retention.md) — MEDIUM, confidence HIGH, owner approval `DEC-012` |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` exit 0. **1463 Python** (from 1442, 4 skipped) + **102 web** (from 101) + 311 UI + 82 browser + R7 18/18 + meta 76/76. Run after the mutation suite restored the live constraint, with `convalidated = true` confirmed first — a verify over the weaker mutant rule would not be this result | |
+| R2 contract compatibility | **PASS — no schema change** | `joinWaitlist`'s description now states the period; descriptions are not compatibility-relevant. Clients regenerated, `generated-clients.sh` green |
+| R3 graph diff as expected | **PASS — and it saw none of the code** | 16 files, 34 symbols, **0 affected processes**, risk `low`, re-run immediately before commit. **Every symbol named is documentation.** The new functions in `waitlist.py`, the form text and both test files appear nowhere: a purely additive change to an indexed file touches no symbol the index knows. The code is covered by the migration run against real rows, the retention tests and the mutation run instead |
+| R4 untested requirements | **PASS — improved** | The retention schedule in `DATA_RETENTION_AND_DELETION` §1 gets its first rule with an implementation and a test |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…035 green; guard meta-suite 76/76. BUG-036's own 22 retention tests added, plus the consent-copy assertions | |
+| R7 tenant isolation | **PASS — 18/18** | Unchanged: `waitlist_entries` has no tenant column, and the isolation gate derives its set from `organization_id`, so the new columns fall outside it by its own rule | |
+
+**Overall:** PASS
+
+### Mutation testing
+
+**14 seeded, 14 killed** against a green baseline; the table is in `BR-065` §7. Two needed a second look — mutant 10 survived because its test used an instant where local and UTC arithmetic agree, and mutant 14's first restore rolled back and left the weaker constraint live. Both are below.
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `test_it_is_not_365_days` | **The test was wrong.** It used 1 March 2029, whose preceding year holds no 29 February, so 365 days and 12 months agree there | Date moved to 1 March 2028. The code was correct throughout |
+| Biome format on `waitlist.test.tsx` | The appended test block left a trailing blank line | Formatted |
+| Ruff reported `No such file or directory` | A parallel command had changed the working directory to `apps/web`, so the lint ran against paths that did not exist there | Re-run with absolute paths. **Procedural** — a lint that reports a missing directory is a lint that checked nothing |
+| A mutant that would have survived, found before running any | Every sweep test spanned a year with no leap day, so a `now - 365 days` cutoff was indistinguishable from 12 calendar months | A sweep test that crosses 29 February, added before mutation testing |
+| Mutant 10 survived | **The test was wrong.** `test_a_zoned_instant_is_converted_to_utc_first` used 1 January, where local and UTC month arithmetic land on the same instant; its docstring claimed a different day | Rewritten around 00:30 on 29 February 2028 in Zurich, where they genuinely differ. Mutant 10 now killed by that test alone |
+| Mutant 14 left the **weaker constraint live** | **The mutation script was wrong.** It repaired rows before swapping the constraint back, so the mutant CHECK rejected the repair and the restore rolled back | Detected by the script's own restore check, restored by hand as drop → repair → add, one row repaired, `convalidated = true` confirmed; rerun in the correct order |
+| Aborted tool batch; Docker daemon down again | Environment | Detected by checking state rather than assuming; records re-created, stack restarted, migration `020` confirmed persisted |
+
+### What this fix ships knowingly
+
+**Nothing runs `expire_waitlist_entries`.** No scheduler exists in the repository.
+Retention is enforceable and tested against the real schema, and it is **not enforced**
+until deployment schedules the sweep. And **nothing sets `notified_at`**, because there is
+no sender — so today the 12-month cap is the only way an entry can end on its own.
+
+---
+
 ## STEP-007.05 — 2026-09-14 — Provider-degradation disclosure wiring
 
 | Field | Value |
