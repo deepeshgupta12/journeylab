@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (11557 symbols, 17720 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (11589 symbols, 17771 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -137,20 +137,25 @@ A failure means the sub-step is not done. Fix forward or revert; never proceed r
 
 > **Embeddings stay disabled** (`--embeddings` off) until a documented scan proves no secret or customer payload can enter them (`REQ-KG-007`).
 
-### Verified state (2026-08-05)
+### Verified state (2026-09-16)
 
 | Fact | Value |
 | --- | --- |
-| Indexed | **~1,860 nodes, ~2,535 edges**, 0 clusters, 0 execution flows |
-| Freshness | `status` reports up to date at the indexed commit |
-| **Coverage** | **Markdown documentation only — no application source exists** |
-| Impact analysis on app code | **`BLOCKED`** — static fallback applies (`RISK-014`) |
+| Indexed | **11,589 nodes, 17,771 edges, 243 clusters, 77 execution flows** at `38f77f5` |
+| Freshness | Re-indexed at the STEP-007 close; `analyze` completed in 6.4s |
+| **Coverage** | **Application source is indexed** — Python and TypeScript, not only documentation. The 2026-08-05 entry this replaces read "Markdown documentation only — no application source exists"; that was true when written and has been false since STEP-002.02, while still instructing readers to skip the graph and apply a static fallback |
+| **Three files failed scope extraction** | `apps/api/src/conventions/__init__.py` — **empty file**, so nothing is lost and the message is correct behaviour. `services/ingestion/src/entity_resolution.py` and `tests/api/test_api_operations.py` — both `Invalid argument`. **Their symbols are still present**: `metres_between` and `TestIdempotency` both resolve at `"epistemic": "exact"`, so the loss is in the scope layer, not the symbol layer |
+| Impact analysis on app code | **Runnable — and never sufficient on its own.** `RISK-014`'s `BLOCKED` status no longer applies; `RISK-016` does |
 
-**What this means in practice:** until the first source-code merge, `gitnexus_impact` cannot answer questions about application behavior. Use the [static fallback](docs/product/05-knowledge-graph/CHANGE_IMPACT_PROTOCOL.md#6-static-fallback--when-the-graph-cannot-answer) and state plainly in every record:
+**What this means in practice:** the pre-change check is real and must be run, so a `BLOCKED`
+answer from here is a genuine gap rather than a vacuous one. But a `0 dependants` result is
+never evidence of isolation by itself — cross-check every `LOW` verdict against grep, in every
+language, and record both (`RISK-016`, **19 reproductions**).
 
-> Knowledge-graph pre-change check: `BLOCKED`. Static fallback applied. Dependency coverage is unverified; confidence is low. This does not satisfy the `REQ-KG-008` release gate.
-
-**First action after the first code merge:** run `npx gitnexus analyze`, then evaluate `REQ-KG-001` (≥95% files parsed) and `REQ-KG-002` (≥90% symbols owned) for the first time.
+**Still owed, and never yet computed:** `REQ-KG-001` (≥95% files parsed) and `REQ-KG-002`
+(≥90% symbols owned) have never been evaluated, at any commit. The three extraction failures
+above are the first measured input to `REQ-KG-001`, and neither ratio has been derived — so
+neither is claimed here.
 
 ### Key queries
 
@@ -264,7 +269,7 @@ These are product promises, not preferences. Breaking one is a defect regardless
 | ~~`DEC-004`~~ | **CLOSED 2026-08-06 — Auth0** (`ADR-013`). Deferred behind a verifier port through .01–.04; resolved at .05 where OIDC sign-in had to actually run | **Unverified against a live tenant** — no Auth0 account exists. Passkey enrolment and rotation-under-concurrency are unproven (`BR-014` §9) |
 | `DEC-007` | Cloud provider / region / residency | Blocks `STEP-027` |
 | `RISK-001` | Provider licence viability unproven (exposure 20) | Highest delivery risk |
-| `RISK-016` | **The code graph reports 0 dependants for symbols that have them** — **18 reproductions, and it is not one language's problem.** STEP-007.03: `impact(get_coverage, upstream)` returned `0, LOW, "epistemic": "exact"` against a direct call at `app.py:126`. **BUG-033: `impact(DataTable, upstream)` returned the same against four dependants, three of them not tests, one of them the shipped coverage page**. **STEP-007.05: `impact(get_coverage, upstream)` returned it again against 8 call sites** — a cross-file call *into* `app.py`, the precise shape `BR-063` §2 isolated: intra-file edges there resolve, cross-file ones do not. **BUG-036: `join_waitlist` and `withdraw_waitlist_consent` both returned 0 against their production callers in `app.py`** — the same mechanism, twice more. **BUG-037: `HealthChanged.dedupe_key` returned 0 against the test that read it** — while `coverage_projection` returned all 19 of its dependants, the first complete answer in six records | `apps/api/src/app.py` has no outgoing edges at all (`BR-061` §2) — but the TypeScript reproduction (`BR-062` §2) shows the failure is **not** confined to it. A symbol exported through a barrel and imported by four modules also reports zero at `"epistemic": "exact"`, the word the tool uses to mean the count is not an estimate. **Cross-check every `LOW` verdict against a grep — in every language.** For an exported TypeScript symbol, `tsc --noEmit` is the complete reference check the graph is not |
+| `RISK-016` | **The code graph reports 0 dependants for symbols that have them** — **19 reproductions, and it is not one language's problem.** STEP-007.03: `impact(get_coverage, upstream)` returned `0, LOW, "epistemic": "exact"` against a direct call at `app.py:126`. **BUG-033: `impact(DataTable, upstream)` returned the same against four dependants, three of them not tests, one of them the shipped coverage page**. **STEP-007.05: `impact(get_coverage, upstream)` returned it again against 8 call sites** — a cross-file call *into* `app.py`, the precise shape `BR-063` §2 isolated: intra-file edges there resolve, cross-file ones do not. **BUG-036: `join_waitlist` and `withdraw_waitlist_consent` both returned 0 against their production callers in `app.py`** — the same mechanism, twice more. **BUG-037: `HealthChanged.dedupe_key` returned 0 against the test that read it** — while `coverage_projection` returned all 19 of its dependants, the first complete answer in six records. **STEP-007 close: `context(metres_between)` returned empty `incoming` and `outgoing` against five references** — the nineteenth, and the first in a file the same `analyze` run reported it could not scope | `apps/api/src/app.py` has no outgoing edges at all (`BR-061` §2) — but the TypeScript reproduction (`BR-062` §2) shows the failure is **not** confined to it. A symbol exported through a barrel and imported by four modules also reports zero at `"epistemic": "exact"`, the word the tool uses to mean the count is not an estimate. **Cross-check every `LOW` verdict against a grep — in every language.** For an exported TypeScript symbol, `tsc --noEmit` is the complete reference check the graph is not. **The STEP-007 close produced the first lead on a mechanism:** the one symbol that lost *all* its edges sits in a file the indexer logged as `scope extraction failed … Invalid argument` in the same run. **Treated as a lead, not a cause** — `app.py` fails the same way with no extraction error, and another symbol in a failed file kept its edges. See `RISK_REGISTER` `RISK-016` |
 | ~~`RISK-014`~~ | **DOWNGRADED** (STEP-002.02) — the graph indexes Python: 8/8 files, 13 functions, 5 classes under `apps/api`. `KG-Q-014` ran for real and reproduced the manual auth trace | Pre-change checks are **runnable from `STEP-002.03`**. A `BLOCKED` status from here on is a real gap, not a vacuous one |
 
 ---
