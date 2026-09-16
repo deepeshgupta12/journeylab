@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (11476 symbols, 17565 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (11557 symbols, 17720 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -57,9 +57,9 @@ This file is the condensed operating contract for anyone changing this repositor
 | Product | **JourneyLab** — a trip digital twin for comparing feasible futures before and during travel |
 | Target release | Phase 1 MVP — one region, 3–7 day trips, deep-link handoff |
 | Repository | `https://github.com/deepeshgupta12/journeylab.git` |
-| Implementation status | **STEP-001…006 `VERIFIED`, STEP-007 5/5 sub-steps (step close pending)** — 64 sub-steps verified, **1463 Python tests** + 102 web + 311 UI + 82 browser. Platform foundation complete: identity, tenancy, contracts, integrations, canonical model, event backbone. **Product flows have started** — `API-017`, `API-019` and `API-020` are served over HTTP by `apps/api/src/app.py`: a traveller can read coverage, be refused honestly, and ask to be told when that changes. **The product now holds personal data** (`019_waitlist.sql`) — pre-signup, purpose-specific, withdrawable, and **kept until sent or 12 months** (`DEC-012`, `020`) — a sweep that is tested and **not yet scheduled**. **Degradation is disclosed with the time the answer was taken**, and a projection write to `coverage_read_model` exists for the first time — though no `EVT-008` consumer runs it yet. **No trip can be created yet** (`STEP-008.06`), and **no real provider data has ever entered the pipeline** (`ENH-007`) |
+| Implementation status | **STEP-001…006 `VERIFIED`, STEP-007 `IN_REVIEW` at 5/5** — 64 sub-steps verified, **1478 Python tests** + 102 web + 311 UI + 92 browser. STEP-007 is not `VERIFIED` because §25's screen-reader criterion needs manual journeys (`ACCESSIBILITY_AUTOMATION_LIMITS` §3.2) that no machine performs and nobody has performed; everything automatable is done. Platform foundation complete: identity, tenancy, contracts, integrations, canonical model, event backbone. **Product flows have started** — `API-017`, `API-019` and `API-020` are served over HTTP by `apps/api/src/app.py`: a traveller can read coverage, be refused honestly, and ask to be told when that changes. **The product now holds personal data** (`019_waitlist.sql`) — pre-signup, purpose-specific, withdrawable, and **kept until sent or 12 months** (`DEC-012`, `020`) — a sweep that is tested and **not yet scheduled**. **Degradation is disclosed with the time the answer was taken**, and a projection write to `coverage_read_model` exists for the first time — though no `EVT-008` consumer runs it yet. **No trip can be created yet** (`STEP-008.06`), and **no real provider data has ever entered the pipeline** (`ENH-007`) |
 | Documentation | **210 files** across 10 groups — [start here](docs/product/00-START-HERE.md) |
-| Last reviewed | 2026-09-15 |
+| Last reviewed | 2026-09-16 |
 
 ---
 

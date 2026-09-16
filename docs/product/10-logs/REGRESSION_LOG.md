@@ -69,6 +69,91 @@ trending up, coverage gaps accepted with a reason.
 
 ---
 
+## STEP-007 — 2026-09-16 — Step close: the evidence, and the gate a machine cannot pass
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `d527a52` — matched HEAD at pre-change |
+| Status reached | **`IN_REVIEW`, not `VERIFIED`** — see below |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` **exit 0** — 1478 Python (4 skipped), 102 web, 311 UI, 92 browser, meta 76/76, R7 18/18. **The exit code was captured wrongly the first time:** `${PIPESTATUS[0]}` is bash and this shell is zsh, so `VERIFY_EXIT=` came back empty and the harness's "exit 0" was just the trailing `echo`. Re-run taking the code directly. **A green-looking log is not a green run** |
+| R2 contract compatibility | **PASS — no contract change** | This unit adds tests and records only. The standing `[ADDITIVE]` entries are unchanged |
+| R3 graph diff as expected | **PASS** | 22 touched symbols across 7 files, **0 affected processes**, risk `low` — and **not one production symbol among them**, which is what a step close should look like. **Limitation stated:** `detect_changes` reads the git diff, so the two *new* files were invisible to it while untracked |
+| R4 untested requirements | **PASS — improved** | `REQ-TRIP-001` gains SEO and CWV measurement on `/coverage`; `REQ-EVID-006` gains the end-to-end drill |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner in `CODEOWNERS`, checked by `guard:codeowners`. **R4 and R5 are reasoned, not counted:** no script computes either ratchet, so neither number was recomputed here |
+| R6 closed-bug tests | **PASS — with the gate named honestly** | **No guard enumerates closed-bug tests.** R6 holds because those tests live in the suites `pnpm test` runs, and that ran green. No script checked the set was *complete*, and recording it as one would overstate the evidence |
+| R7 tenant isolation | **PASS** | `guard:tenant-isolation` — 18 assertions passed, 0 failed |
+| CI mirror | **PASS** | `tests/ci-mirror.sh` **exit 0** against `6a5665f` — 609 tracked files cloned, no `node_modules`, cold `--frozen-lockfile` install, Linux `node:24-bookworm`, `postgres:18-alpine` healthy in 4s. Reproduced there: **1478 Python** (4 skipped), 311 UI, 102 web, 92 browser, R7 18/18, 119 files typechecked. **Meta-tests 73, not the 76 seen locally** — see below |
+
+**Overall:** PASS — and the step still does not reach `VERIFIED`.
+
+### A finding the mirror produced about itself
+
+The mirror ran **73** meta-tests where the local run reports **76**, and the three
+missing ones are not noise:
+
+```
+skip gallery-gate meta-test — no production build present (run pnpm build)
+```
+
+`pnpm verify` runs `guard:meta` **before** `pnpm build`. In a clean, cold environment
+there is therefore no `.next` when the meta-suite executes, and the gallery-gate
+meta-test skips. It passes on my machine only because a build from earlier work happens
+to be lying around — the exact "verified in an environment that cannot reproduce CI's"
+shape this script was written for after `BUG-008`/`012`/`013`/`014`.
+
+Three `assert_guard` calls are lost (`run-all.sh:197`, `:201`, `:204`), and **`:201` is
+the negative control** — "gallery-gate catches an always-on gate". So in CI the gallery
+guard runs, while the test proving that guard is capable of failing never does. A guard
+whose negative control never executes is a guard nobody has confirmed is alive.
+
+**Not fixed here, and not silently carried either.** The fix is an ordering change to
+`verify` (build before the meta-suite, or have the meta-test build what it needs), which
+alters the gate every commit passes through and does not belong in a step close. Recorded
+as a tooling gap alongside the AsyncAPI compatibility gap `BR-066` §7 found.
+
+**One honesty note on this row:** the mirror ran against `6a5665f`. Filling this result in
+required editing this file, so the pushed commit is that tree **plus this row**. No code,
+test or contract differs between what CI's conditions validated and what is pushed.
+
+### What this unit added
+
+| Evidence | What it settles |
+| --- | --- |
+| `tests/platform_api/test_degradation_drill.py` | §22's resilience drill: healthy → degraded → unavailable → recovered, driven through the fold, the read model, the cache and both public operations. The refusal is asserted to carry no `nights`, `itinerary`, `scenario`, `plan` or `options` — "not a partial simulation" as a property, not a hope. **The recovery stage was impossible to write before `BUG-037`** |
+| `apps/web/src/test/seo.spec.ts` | §26's SEO measurement, fetched with `request` rather than `page` so **no JavaScript runs** — a `page` fetch would pass for a document that renders nothing until hydration, which is the failure §8's "server-rendered for SEO" rules out |
+| `/coverage` added to the CWV test | `FRONTEND_ARCHITECTURE` §7's budget row is literally "LCP (coverage/landing)", and only `/` had ever been measured |
+
+### Why the step is `IN_REVIEW`
+
+Three of §25's four criteria are met with recorded evidence. The fourth — "completes all
+tasks by keyboard **and screen reader**" — is met on the keyboard half and **not** on the
+other: `ACCESSIBILITY_AUTOMATION_LIMITS` §3.2 requires manual journeys across five
+reader/browser pairs every release, no headless browser reproduces any of them, and none
+has been run.
+
+`VERIFIED` is defined in this tracker as "exit criteria met with recorded evidence".
+Claiming it today would be a claim about evidence that does not exist. `IN_REVIEW` —
+"implementation complete, awaiting verification" — is the status that is true.
+
+### Two defects the close itself found
+
+Neither was found by a test or a mutant. Both were found by reading the parent step's
+requirements against what had shipped, which is the argument for doing that at every
+sub-step rather than only at a close:
+
+- **`BUG-036`** — §14 requires waitlist inquiries to carry a retention period; `.04`
+  shipped personal data with none, and §27's "needs privacy-owner approval" had never
+  been answered.
+- **`BUG-037`** — a region that lost a provider could never recover, live or after a
+  rebuild, because the fold kept the worst state ever seen; and the `EVT-008` dedupe key
+  would have discarded a provider's second outage.
+
+---
+
 ## FIX — 2026-09-16 — BUG-037: a region that lost a provider could never recover
 
 | Field | Value |

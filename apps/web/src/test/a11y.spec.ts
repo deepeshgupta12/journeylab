@@ -623,73 +623,89 @@ test.describe('rendering modes', () => {
 test.describe('Core Web Vitals (FRONTEND_ARCHITECTURE §7)', () => {
   test.skip(({ browserName }) => browserName !== 'chromium', 'the vitals APIs are Chromium-only');
 
-  test('LCP is within 2.5s and CLS within 0.1', async ({ page }) => {
-    /*
-     * THESE ARE LAB NUMBERS, AND THAT IS A REAL LIMITATION
-     *   §7's budgets are field metrics: "mid-tier mobile, 4G". This runs on
-     *   whatever CPU the runner has, over loopback, with no network. It cannot
-     *   confirm the budget is met for a traveller on a ferry.
-     *
-     *   What it CAN do is catch a regression — a layout shift introduced by a
-     *   change, or an LCP that goes from 200 ms to 2 s. That is worth gating on.
-     *   The field measurement needs real-user monitoring, which arrives with the
-     *   observability work at STEP-024.
-     */
-    await page.goto('/', { waitUntil: 'load' });
+  /*
+   * `/coverage` ADDED AT THE STEP-007 CLOSE.
+   *
+   * FRONTEND_ARCHITECTURE §7's LCP row is literally "LCP (coverage/landing)", and
+   * until now only `/` was measured — the shell, not the product page the budget
+   * names. `/coverage` is also the heavier of the two: it is server-rendered
+   * against a live API call, which is exactly what LCP should be measured across.
+   */
+  for (const surface of ['/', '/coverage'] as const) {
+    test(`LCP is within 2.5s and CLS within 0.1 on ${surface}`, async ({ page }) => {
+      /*
+       * THESE ARE LAB NUMBERS, AND THAT IS A REAL LIMITATION
+       *   §7's budgets are field metrics: "mid-tier mobile, 4G". This runs on
+       *   whatever CPU the runner has, over loopback, with no network. It cannot
+       *   confirm the budget is met for a traveller on a ferry.
+       *
+       *   What it CAN do is catch a regression — a layout shift introduced by a
+       *   change, or an LCP that goes from 200 ms to 2 s. That is worth gating on.
+       *   The field measurement needs real-user monitoring, which arrives with the
+       *   observability work at STEP-024.
+       */
+      const response = await page.goto(surface, { waitUntil: 'load' });
+      // Presence anchor (BUG-032): a 404 has an LCP too, and would pass this budget
+      // about a page that is not there.
+      expect(response?.status(), `${surface} must exist before its vitals mean anything`).toBe(200);
 
-    const vitals = await page.evaluate(
-      () =>
-        new Promise<{ lcp: number; cls: number }>((resolve) => {
-          let lcp = 0;
-          let cls = 0;
-          new PerformanceObserver((list) => {
-            for (const entry of list.getEntries()) lcp = Math.max(lcp, entry.startTime);
-          }).observe({ type: 'largest-contentful-paint', buffered: true });
+      const vitals = await page.evaluate(
+        () =>
+          new Promise<{ lcp: number; cls: number }>((resolve) => {
+            let lcp = 0;
+            let cls = 0;
+            new PerformanceObserver((list) => {
+              for (const entry of list.getEntries()) lcp = Math.max(lcp, entry.startTime);
+            }).observe({ type: 'largest-contentful-paint', buffered: true });
 
-          new PerformanceObserver((list) => {
-            for (const entry of list.getEntries()) {
-              const shift = entry as PerformanceEntry & { value: number; hadRecentInput: boolean };
-              if (!shift.hadRecentInput) cls += shift.value;
-            }
-          }).observe({ type: 'layout-shift', buffered: true });
+            new PerformanceObserver((list) => {
+              for (const entry of list.getEntries()) {
+                const shift = entry as PerformanceEntry & {
+                  value: number;
+                  hadRecentInput: boolean;
+                };
+                if (!shift.hadRecentInput) cls += shift.value;
+              }
+            }).observe({ type: 'layout-shift', buffered: true });
 
-          setTimeout(() => resolve({ lcp, cls }), 2_000);
-        }),
-    );
-
-    /*
-     * CLS IS ENFORCED EVERYWHERE. LCP IS NOT ENFORCED IN CI, AND THAT IS NOT A FUDGE.
-     *
-     * Cumulative Layout Shift is a ratio of movement to viewport. It does not
-     * depend on how fast the machine is: a page that shifts under a slow runner
-     * shifts under a fast one. So it gates unconditionally.
-     *
-     * Largest Contentful Paint is a duration. In `pnpm ci:local` — a 4 GB
-     * container sharing a laptop with a browser per worker — it measured
-     * **10,760 ms** against a page that takes ~200 ms locally. That number says
-     * nothing about the product; asserting on it would mean the gate reports the
-     * runner's mood, and BUG-016 already established what a flaky gate costs.
-     *
-     * So under CI it is measured and REPORTED, not enforced. Locally, where the
-     * measurement means something, the 2.5 s budget from FRONTEND_ARCHITECTURE §7
-     * still fails the build.
-     *
-     * This does not make the budget met. §7 specifies mid-tier mobile on 4G, and
-     * neither a laptop nor a container is that. The honest measurement needs
-     * real-user monitoring, which is STEP-024 and is already recorded as unmet.
-     */
-    expect(vitals.cls, `CLS ${vitals.cls} exceeds the 0.1 budget`).toBeLessThanOrEqual(0.1);
-
-    if (process.env.CI) {
-      // eslint-disable-next-line no-console -- the number is the point of the check
-      console.log(`LCP ${Math.round(vitals.lcp)}ms (reported, not enforced under CI)`);
-      expect(vitals.lcp, 'LCP was not measured at all').toBeGreaterThan(0);
-    } else {
-      expect(vitals.lcp, `LCP ${vitals.lcp}ms exceeds the 2500ms budget`).toBeLessThanOrEqual(
-        2_500,
+            setTimeout(() => resolve({ lcp, cls }), 2_000);
+          }),
       );
-    }
-  });
+
+      /*
+       * CLS IS ENFORCED EVERYWHERE. LCP IS NOT ENFORCED IN CI, AND THAT IS NOT A FUDGE.
+       *
+       * Cumulative Layout Shift is a ratio of movement to viewport. It does not
+       * depend on how fast the machine is: a page that shifts under a slow runner
+       * shifts under a fast one. So it gates unconditionally.
+       *
+       * Largest Contentful Paint is a duration. In `pnpm ci:local` — a 4 GB
+       * container sharing a laptop with a browser per worker — it measured
+       * **10,760 ms** against a page that takes ~200 ms locally. That number says
+       * nothing about the product; asserting on it would mean the gate reports the
+       * runner's mood, and BUG-016 already established what a flaky gate costs.
+       *
+       * So under CI it is measured and REPORTED, not enforced. Locally, where the
+       * measurement means something, the 2.5 s budget from FRONTEND_ARCHITECTURE §7
+       * still fails the build.
+       *
+       * This does not make the budget met. §7 specifies mid-tier mobile on 4G, and
+       * neither a laptop nor a container is that. The honest measurement needs
+       * real-user monitoring, which is STEP-024 and is already recorded as unmet.
+       */
+      expect(vitals.cls, `CLS ${vitals.cls} exceeds the 0.1 budget`).toBeLessThanOrEqual(0.1);
+
+      if (process.env.CI) {
+        // eslint-disable-next-line no-console -- the number is the point of the check
+        console.log(`LCP ${Math.round(vitals.lcp)}ms (reported, not enforced under CI)`);
+        expect(vitals.lcp, 'LCP was not measured at all').toBeGreaterThan(0);
+      } else {
+        expect(vitals.lcp, `LCP ${vitals.lcp}ms exceeds the 2500ms budget`).toBeLessThanOrEqual(
+          2_500,
+        );
+      }
+    });
+  }
 
   test('an interaction responds within the 200ms INP budget', async ({ page }) => {
     /*
