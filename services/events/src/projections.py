@@ -188,35 +188,99 @@ COVERAGE_EVENTS = frozenset({"journey.provider.health_changed.v1"})
 _FRESHNESS_BY_STATE = {"healthy": "current", "degraded": "degraded", "unavailable": "stale"}
 
 
+#: Worst first. A region is only as available as its least available provider.
+_SEVERITY = {"current": 0, "degraded": 1, "stale": 2}
+
+
 def fold_coverage(state: Mapping[str, Any], envelope: Envelope) -> Mapping[str, Any]:
     """Fold provider health into the coverage read model.
 
-    **No provider identity enters the state.** `EVT-008` carries `provider_id` and
-    this projection deliberately drops it: `REQ-EVID-006` permits disclosing *that*
-    coverage is degraded and forbids naming who degraded it, and the read model is
-    the thing a client eventually reads. A column here would be the place it leaks.
+    A REGION IS THE WORST OF ITS PROVIDERS' **CURRENT** STATES — BUG-037
+        The rule was always "a region is only as available as its least available
+        input, so a healthy provider must not overwrite a degraded sibling's verdict".
+        The first version enforced it by taking `max(existing, new)` severity per
+        region and dropping `provider_id` on the way in. With no memory of *which*
+        provider degraded a region, "worst of the providers' current states"
+        collapsed into **"worst state ever observed"**: a provider coming back could
+        not be told apart from a healthy sibling, so it was always worsened back, and
+        a region that lost a provider once was refused for ever — live, and after a
+        rebuild, which replays the same fold over the same log.
 
-    Regions are worsened, never improved, within one fold pass: a region is only as
-    available as its least available input, so a healthy provider must not overwrite
-    a degraded sibling's verdict.
+        So each region row carries `providers`: every provider's latest state for that
+        region. The region's freshness is derived from that map on every event, which
+        is what lets it improve. `EVT-008` declares its state **absolute, not
+        incremental** (`x-journeylab-replay`), and this is that reading: each event
+        replaces one provider's state rather than adding to a count.
+
+    WHERE PROVIDER IDENTITY MAY BE, AND WHERE IT MAY NOT
+        `REQ-EVID-006` and the AsyncAPI description: `provider_id` "never leaves the
+        platform", and the public document carries one aggregate. The rule enforced
+        here is therefore **never persisted and never published**, not "never held in
+        memory" — a fold that cannot remember a provider cannot let that provider
+        recover. `read_models.apply_coverage_state` writes only the three derived
+        columns and `coverage_read_model` has no column to put a provider in; both are
+        asserted, on the SQL parameters and on the public document.
+
+    WHICH REGIONS AN EVENT TOUCHES
+        When `affected_regions` is present it is the provider's **complete** region
+        set: the new state applies to those regions, and the provider is released from
+        any other region it was recorded against. Otherwise a provider that stopped
+        serving a region would keep degrading it for ever — BUG-037 again, reached
+        through a configuration change rather than an outage.
+
+        `affected_regions` is optional in the contract. When it is absent, the new
+        state applies to every region where the provider is already known, so a
+        recovery that names no regions still clears what its outage degraded.
+
+    An unknown `new_state` folds as `stale`: an event nobody can read must not
+    produce an acceptance.
     """
-    severity = {"current": 0, "degraded": 1, "stale": 2}
-    new_state = dict(state)
+    new_state: dict[str, Any] = {region: dict(row) for region, row in state.items()}
+    provider = str(envelope.payload_ids.get("provider_id", "")).strip()
     freshness = _FRESHNESS_BY_STATE.get(str(envelope.payload_ids.get("new_state", "")), "stale")
-    for region in str(envelope.payload_ids.get("affected_regions", "")).split(",") or []:
-        region_id = region.strip()
-        if not region_id:
-            continue
-        existing = new_state.get(region_id, {"freshness": "current"})
-        worst = max([existing["freshness"], freshness], key=lambda f: severity[f])
-        new_state[region_id] = {
-            "freshness": worst,
-            "accepting_trips": worst != "stale",
-            "limitations": []
-            if worst == "current"
-            else [f"{region_id} is running on degraded sources"],
-        }
+    listed = [
+        region.strip()
+        for region in str(envelope.payload_ids.get("affected_regions", "")).split(",")
+        if region.strip()
+    ]
+    known = [region for region, row in new_state.items() if provider in row.get("providers", {})]
+
+    if listed:
+        applies_to = listed
+        # The event names this provider's complete region set. A region it no longer
+        # lists no longer depends on it, so its last verdict must not keep that region
+        # degraded — BUG-037's failure, reached through a configuration change.
+        released = [region for region in known if region not in listed]
+    else:
+        applies_to = known
+        released = []
+
+    for region_id in dict.fromkeys(applies_to):
+        providers = dict(new_state.get(region_id, {}).get("providers", {}))
+        providers[provider] = freshness
+        new_state[region_id] = _region_row(region_id, providers)
+    for region_id in released:
+        providers = dict(new_state[region_id]["providers"])
+        providers.pop(provider, None)
+        new_state[region_id] = _region_row(region_id, providers)
     return new_state
+
+
+def _region_row(region_id: str, providers: Mapping[str, str]) -> dict[str, Any]:
+    """A region's derived row from its providers' current states.
+
+    Worst wins. A region with no provider currently affecting it is `current` — the
+    same default the fold has always used for a region it has heard nothing bad about.
+    """
+    worst = max(providers.values(), key=_SEVERITY.__getitem__, default="current")
+    return {
+        "freshness": worst,
+        "accepting_trips": worst != "stale",
+        "limitations": []
+        if worst == "current"
+        else [f"{region_id} is running on degraded sources"],
+        "providers": dict(providers),
+    }
 
 
 def coverage_projection() -> Projection:

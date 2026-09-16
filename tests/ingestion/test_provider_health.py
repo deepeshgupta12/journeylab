@@ -116,8 +116,7 @@ class TestEventEmission:
         self,
     ) -> None:
         """`DEGRADED -> RECOVERING` publishes `degraded` on both sides. Emitting it
-        would produce a self-transition carrying nothing a consumer can act on, and
-        the stream's dedupe key would discard it anyway.
+        would produce a self-transition carrying nothing a consumer can act on.
 
         Recorded rather than dropped: §5 wants every transition visible, and the
         history is where that is satisfied without filling the stream with noise.
@@ -164,11 +163,38 @@ class TestEventEmission:
                 at=NOW,
             )
 
-    def test_the_dedupe_key_matches_the_contract(self) -> None:
-        """`x-journeylab-dedupe-key: provider_id + new_state`."""
+    def test_a_second_outage_is_a_second_event_not_a_repeat_of_the_first(self) -> None:
+        """BUG-037. Rewritten from `test_the_dedupe_key_matches_the_contract`.
+
+        That test asserted `dedupe_key == "otd|unavailable"` — which faithfully matched
+        a contract key that was itself wrong: a provider's second outage produces the
+        same value, so a broker honouring it would drop the second. The key is now
+        `event_id`, assigned per occurrence by the envelope, so the payload no longer
+        carries one. What this module owns is that two outages ARE two transitions,
+        emitted separately and distinguishable by when they happened.
+        """
         p = provider()
         p.record_failure(reason="down", at=NOW, circuit_open=True)
-        assert p.events()[0].dedupe_key == "otd|unavailable"
+        for i in range(10):
+            if p.state is HealthState.HEALTHY:
+                break
+            p.record_success(at=NOW + timedelta(seconds=30 * (i + 1)))
+        assert p.state is HealthState.HEALTHY, (
+            "the provider never recovered, so this proves nothing"
+        )
+        p.record_failure(reason="down again", at=NOW + timedelta(hours=1), circuit_open=True)
+
+        outages = [
+            e
+            for e in p.events()
+            if (e.previous_state, e.new_state)
+            == (PublishedState.HEALTHY, PublishedState.UNAVAILABLE)
+        ]
+        assert len(outages) == 2, "the second outage was not emitted"
+        assert outages[0].at != outages[1].at
+        assert not hasattr(outages[0], "dedupe_key"), (
+            "a payload-level dedupe key has returned; the contract's key is the envelope's event_id"
+        )
 
 
 # --- REQ-TRIP-002 -------------------------------------------------------------------

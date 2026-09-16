@@ -133,7 +133,7 @@ Every event shares one envelope:
 | Producer | `integrations` · **Trigger:** circuit breaker state change or quota threshold |
 | Consumers | `destination` (coverage model), `observability`, admin UI |
 | Payload | provider ID, previous/new state, reason, affected regions |
-| Delivery | Stream, deduplicated |
+| Delivery | Stream, deduplicated **by `event_id`** · **Order key** `provider_id`. Until `BUG-037` the declared key was `provider_id + new_state`, which dedupes on the state value and would discard a provider's second outage |
 | Notes | Drives the coverage refusal path in `REQ-TRIP-002` and the disclosure in `REQ-EVID-006` |
 | Retention | 30 days |
 | Step | STEP-005, STEP-021 |

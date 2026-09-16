@@ -17,9 +17,11 @@ WHY EMISSION IS ON PUBLISHED-STATE CHANGE, NOT ON EVERY INTERNAL TRANSITION
 
     §5 says "emitted on every transition". Taken literally against the mapping above,
     `DEGRADED -> RECOVERING` emits an event whose previous and new states are both
-    `degraded` — a self-transition carrying no information a consumer can act on, and
-    one the contract's own dedupe key (`provider_id + new_state`) would discard
-    anyway.
+    `degraded` — a self-transition carrying no information a consumer can act on.
+
+    (This once added that the contract's dedupe key, `provider_id + new_state`, would
+    discard it anyway. BUG-037 changed that key to `event_id`, which would not — so the
+    refusal now rests on the reason that was always sufficient on its own.)
 
     So every internal transition is **recorded** in the health history, and an event
     is emitted when the published state changes. Nothing is hidden; the stream stays
@@ -123,13 +125,13 @@ class HealthChanged:
         if self.previous_state is self.new_state:
             raise HealthError(
                 f"{self.provider_id}: a self-transition {self.new_state} carries no "
-                f"information, and the stream's dedupe key would discard it anyway"
+                f"information a consumer can act on"
             )
 
-    @property
-    def dedupe_key(self) -> str:
-        """`x-journeylab-dedupe-key: provider_id + new_state`."""
-        return f"{self.provider_id}|{self.new_state}"
+    # No `dedupe_key` here, deliberately — BUG-037. The contract's key is `event_id`,
+    # which the envelope assigns per occurrence and this payload does not carry. The
+    # property this replaced returned `provider_id|new_state`, the value-shaped key that
+    # would have merged a provider's second outage into its first.
 
 
 @dataclass(frozen=True, slots=True)

@@ -493,7 +493,13 @@ components:
       title: A provider circuit breaker or quota threshold changed
       x-journeylab-event-id: EVT-008
       x-journeylab-delivery: deduplicated-stream
-      x-journeylab-dedupe-key: provider_id + new_state
+      # BUG-037. Was `provider_id + new_state`, which dedupes on the state VALUE: a
+      # provider's second outage carries the same key as its first, so a broker
+      # honouring it would discard the second. A transition-shaped key repeats the
+      # same way. Only an occurrence identity separates a redelivery from a new
+      # outage, and `event_id` is the one EVENT_CONTRACTS §3 rule 1 already makes
+      # every consumer dedupe by.
+      x-journeylab-dedupe-key: event_id
       x-journeylab-order-key: provider_id
       x-journeylab-retention: 30 days
       x-journeylab-replay: Safe — state is absolute, not incremental.

@@ -212,19 +212,156 @@ class TestTheCoverageProjection:
         assert projection.state["bern"]["limitations"]
 
     def test_no_provider_identity_reaches_the_read_model(self) -> None:
-        """`EVT-008` carries `provider_id` and this projection drops it.
-        `REQ-EVID-006` permits disclosing *that* coverage is degraded and forbids
-        naming who degraded it — and the read model is what a client reads, so a
-        field here would be the place it leaks."""
+        """`REQ-EVID-006`: a traveller may learn *that* coverage is degraded, never
+        *who* degraded it.
+
+        NARROWED AT BUG-037, DELIBERATELY. This used to assert the provider was absent
+        from the in-memory projection state — and that absence was the defect: a fold
+        that cannot remember a provider cannot let that provider recover. The rule is
+        now "never persisted, never published", so the assertion sits where persisting
+        happens, on every statement and value `apply_coverage_state` sends.
+        """
+        from read_models import apply_coverage_state
+
+        class Recording:
+            def __init__(self) -> None:
+                self.sent: list[object] = []
+
+            def execute(self, query: str, params: tuple[object, ...] = (), /) -> object:
+                self.sent.append(query)
+                self.sent.extend(params)
+                return None
+
+            def fetchall(self) -> list[tuple[object, ...]]:
+                return [("bern",)]
+
         projection = coverage_projection()
         projection.consume([health("e-1", state="degraded", provider="opentransportdata")])
-        assert "opentransportdata" not in repr(projection.state)
-        assert "otd" not in repr(projection.state)
+        cursor = Recording()
+        apply_coverage_state(cursor, projection.state)
+        written = repr(cursor.sent).lower()
+        assert "opentransportdata" not in written
+        assert "otd" not in written
+        assert "provider" not in written
 
     def test_multiple_regions_are_folded_independently(self) -> None:
         projection = coverage_projection()
         projection.consume([health("e-1", state="unavailable", regions="bern,geneva")])
         assert set(projection.state) == {"bern", "geneva"}
+
+
+class TestARegionRecovers:
+    """BUG-037. A region that lost a provider could never come back.
+
+    Every assertion in this class failed against the first fold, which kept only the
+    worst state ever seen per region. The class exists because the one mixed-state
+    test before it checked a single direction — a healthy sibling must not mask an
+    outage — and a fold that could only ever worsen passed it perfectly.
+    """
+
+    def test_a_provider_that_recovers_releases_its_region(self) -> None:
+        projection = coverage_projection()
+        projection.consume(
+            [
+                health("e-1", state="unavailable", at=NOW),
+                health("e-2", state="healthy", at=NOW + timedelta(hours=1)),
+            ]
+        )
+        row = projection.state["bern"]
+        assert row["freshness"] == "current"
+        assert row["accepting_trips"] is True
+        assert row["limitations"] == []
+
+    def test_a_rebuild_recovers_it_too(self) -> None:
+        """The original failure survived a rebuild, because a rebuild replays the same
+        fold over the same log. Repairing the projection repaired nothing."""
+        events = [
+            health("e-1", state="unavailable", at=NOW),
+            health("e-2", state="healthy", at=NOW + timedelta(hours=1)),
+        ]
+        rebuilt = coverage_projection()
+        rebuild(rebuilt, events, at=NOW + timedelta(hours=2))
+        assert rebuilt.state["bern"]["freshness"] == "current"
+
+    def test_live_and_rebuilt_agree_across_a_recovery(self) -> None:
+        events = [
+            health("e-1", state="unavailable", at=NOW),
+            health("e-2", state="degraded", provider="osm", at=NOW + timedelta(minutes=1)),
+            health("e-3", state="healthy", at=NOW + timedelta(hours=1)),
+        ]
+        live, fresh = coverage_projection(), coverage_projection()
+        live.consume(events)
+        rebuild(fresh, events, at=NOW + timedelta(hours=2))
+        assert verify_rebuild(live.state, fresh.state, name="coverage").matches is True
+
+    def test_the_region_takes_the_worst_provider_still_affecting_it(self) -> None:
+        """One provider recovers while another is still degraded: the region improves
+        to `degraded`, not to `current`."""
+        projection = coverage_projection()
+        projection.consume(
+            [
+                health("e-1", state="unavailable", at=NOW),
+                health("e-2", state="degraded", provider="osm", at=NOW + timedelta(minutes=1)),
+                health("e-3", state="healthy", at=NOW + timedelta(hours=1)),
+            ]
+        )
+        assert projection.state["bern"]["freshness"] == "degraded"
+        assert projection.state["bern"]["accepting_trips"] is True
+
+    def test_one_recovery_does_not_mask_a_sibling_still_down(self) -> None:
+        """The original rule, restated in the direction BUG-037 needed it tested."""
+        projection = coverage_projection()
+        projection.consume(
+            [
+                health("e-1", state="unavailable", at=NOW),
+                health("e-2", state="unavailable", provider="osm", at=NOW + timedelta(minutes=1)),
+                health("e-3", state="healthy", at=NOW + timedelta(hours=1)),
+            ]
+        )
+        assert projection.state["bern"]["freshness"] == "stale"
+
+    def test_a_recovery_that_names_no_regions_clears_what_its_outage_degraded(self) -> None:
+        """`affected_regions` is optional in the contract. A recovery that omits it
+        must still reach every region the provider's outage touched."""
+        recovery = Envelope(
+            event_id="e-2",
+            event_type="journey.provider.health_changed.v1",
+            occurred_at=NOW + timedelta(hours=1),
+            recorded_at=NOW + timedelta(hours=1),
+            tenant_id=ORG,
+            correlation_id="corr-1",
+            actor=None,
+            schema_version=1,
+            payload_ids={"provider_id": "otd", "new_state": "healthy"},
+        )
+        projection = coverage_projection()
+        projection.consume(
+            [health("e-1", state="unavailable", regions="bern,geneva", at=NOW), recovery]
+        )
+        assert {region: row["freshness"] for region, row in projection.state.items()} == {
+            "bern": "current",
+            "geneva": "current",
+        }
+
+    def test_a_provider_that_stops_listing_a_region_is_released_from_it(self) -> None:
+        """`affected_regions`, when present, is the provider's complete set. Without
+        the release, a provider that stopped serving Bern would keep refusing trips
+        there for ever — BUG-037 reached through a configuration change."""
+        projection = coverage_projection()
+        projection.consume(
+            [
+                health("e-1", state="unavailable", regions="bern,geneva", at=NOW),
+                health("e-2", state="unavailable", regions="geneva", at=NOW + timedelta(hours=1)),
+            ]
+        )
+        assert projection.state["bern"]["freshness"] == "current"
+        assert projection.state["geneva"]["freshness"] == "stale"
+
+    def test_an_unreadable_state_folds_as_stale_not_as_current(self) -> None:
+        """An event nobody can read must not produce an acceptance."""
+        projection = coverage_projection()
+        projection.consume([health("e-1", state="exploded", at=NOW)])
+        assert projection.state["bern"]["freshness"] == "stale"
 
 
 # --- lag -----------------------------------------------------------------------------------------

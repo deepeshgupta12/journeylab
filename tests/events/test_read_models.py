@@ -40,7 +40,7 @@ NOW = datetime(2026, 9, 14, 12, 0, tzinfo=UTC)
 ORG = "eeee0000-0000-0000-0000-00000000000e"
 
 
-def health(event_id: str, *, state: str, regions: str) -> Envelope:
+def health(event_id: str, *, state: str, regions: str, provider: str = "otd") -> Envelope:
     return Envelope(
         event_id=event_id,
         event_type="journey.provider.health_changed.v1",
@@ -50,7 +50,7 @@ def health(event_id: str, *, state: str, regions: str) -> Envelope:
         correlation_id="corr-1",
         actor=None,
         schema_version=1,
-        payload_ids={"provider_id": "otd", "new_state": state, "affected_regions": regions},
+        payload_ids={"provider_id": provider, "new_state": state, "affected_regions": regions},
     )
 
 
@@ -200,9 +200,13 @@ class TestAgainstTheRealTable:
     def test_a_rebuild_round_trips_through_the_table(self) -> None:
         """STEP-006.09's property, now exercised through production code rather
         than through SQL written inside a test."""
+        # Two providers, one per region. The first version used one provider for both,
+        # in two different states — which `EVT-008`'s "state is absolute" makes a
+        # contradiction, and which only passed while the fold ignored provider identity
+        # (BUG-037).
         events = [
-            health("rm-e1", state="unavailable", regions="rm-bern"),
-            health("rm-e2", state="degraded", regions="rm-geneva"),
+            health("rm-e1", state="unavailable", regions="rm-bern", provider="otd"),
+            health("rm-e2", state="degraded", regions="rm-geneva", provider="osm"),
         ]
         with psycopg.connect(DSN, autocommit=True) as conn, conn.cursor() as cur:
             self._declare(cur, "rm-bern", "Bern")
@@ -239,15 +243,23 @@ class TestAgainstTheRealTable:
 
 
 class TestNoProviderIdentityIsWritten:
-    def test_the_fold_drops_provider_id_before_it_can_be_persisted(self) -> None:
-        """`EVT-008` carries `provider_id`. Two layers drop it — the fold and the
-        table — and this asserts the first, because the second is a schema check
-        that would pass against a fold quietly carrying it in memory."""
+    def test_the_fold_remembers_providers_and_the_write_never_carries_them(self) -> None:
+        """BUG-037 narrowed this rule from "never held" to "never written".
+
+        Both halves are asserted on purpose. The fold MUST hold provider identity, or
+        a region cannot recover — the first version of this test asserted the
+        opposite, and so asserted the defect. The guarantee `REQ-EVID-006` needs is the
+        second half: nothing that identifies a provider reaches the database.
+        """
         projection = coverage_projection()
         projection.consume([health("rm-e3", state="degraded", regions="rm-bern")])
-        rendered = repr(projection.state)
-        for forbidden in ("otd", "provider_id", "provider"):
-            assert forbidden not in rendered, forbidden
+        assert projection.state["rm-bern"]["providers"] == {"otd": "degraded"}
+
+        cursor = FakeCursor()
+        apply_coverage_state(cursor, projection.state)
+        sent = repr([*cursor.statements, *(v for params in cursor.params for v in params)]).lower()
+        for forbidden in ("otd", "provider_id", "providers"):
+            assert forbidden not in sent, forbidden
 
     def test_no_statement_this_module_issues_mentions_a_provider(self) -> None:
         cursor = FakeCursor()

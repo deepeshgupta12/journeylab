@@ -46,6 +46,97 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-037 — A region that lost a provider could never recover
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — once an `EVT-008` consumer runs, a single provider outage would refuse every trip in the affected region **permanently**, including after the provider recovered and after a rebuild. Core journey broken. Not S1: no wrong plan is produced, nothing is disclosed — it fails closed. **Latent today**: no consumer runs `apply_coverage_state` yet |
+| Found during | STEP-007 step close, designing the degradation drill `§22` requires |
+| Date found | 2026-09-15 |
+| Affected requirements | REQ-TRIP-002, REQ-EVID-006, REQ-DATA-010 |
+| Affected component | `services/events/src/projections.py::fold_coverage`, wired to the read model at `STEP-007.05` |
+| Status | **FIXED 2026-09-16** — per-provider state in the fold; `EVT-008` dedupe key changed to `event_id`. `BR-066`, 11 mutants |
+
+### Symptom
+
+Reproduced directly, not inferred:
+
+```
+one provider -> unavailable      region: stale, accepting_trips False
+same provider -> healthy         region: stale, accepting_trips False   <- never recovers
+rebuild from that same log       region: stale, accepting_trips False   <- nor does a rebuild
+```
+
+### Root cause
+
+`fold_coverage` keeps one value per region and takes `max(existing, new)` severity.
+Its docstring's intent is right — "a region is only as available as its least
+available input" — but that needs each input's **current** state, and the fold
+deliberately drops `provider_id` before it could remember one. With no memory of
+*which* provider degraded a region, "worst of the providers' current states"
+degenerates into **"worst state ever observed"**. A healthy event can then never
+be distinguished from a healthy sibling, so it is always worsened back.
+
+A rebuild does not help, because it replays the same fold over the same log.
+
+### Why the tests missed it
+
+The only projection test of mixed states, `test_a_region_takes_its_worst_provider`,
+asserts one direction: a healthy **sibling** must not mask a degraded provider. **No
+test sent a provider back to healthy.** A fold that could only ever worsen passes it
+perfectly. This is the one-sided assertion `STEP-006`'s close named as its second
+finding — "a detector needs a seeded violation it must reject" — recurring in the
+module that close was written about.
+
+`STEP-007.05`'s mutation run did not catch it either, and could not: its mutants
+seeded changes to the code, and this defect is in behaviour the code never had.
+
+### Fix
+
+Each region row now carries `providers` — every provider's **current** state for that
+region — and the region's freshness is derived from that map on every event. `EVT-008`
+declares its state "absolute, not incremental" (`x-journeylab-replay`), and this is that
+reading: an event replaces one provider's state rather than adding to a tally.
+
+**The rule that provider identity never enters the projection state was the defect, so
+it is narrowed rather than kept.** `REQ-EVID-006` and the AsyncAPI description say
+`provider_id` "never leaves the platform"; the rule is now **never persisted and never
+published**, asserted on the SQL parameters `apply_coverage_state` sends and on the
+public document. One test now also asserts the fold *does* hold the provider, so the
+narrowing is explicit.
+
+`affected_regions`, when present, is the provider's **complete** region set: the
+provider is released from any region it no longer lists. Without that, a provider that
+stopped serving a region would keep degrading it for ever — this same bug, reached
+through a configuration change. When the field is absent, which the contract permits,
+the new state applies wherever the provider is already known.
+
+**A second defect, found while fixing this one and fixed with it** (owner decision):
+`EVT-008` declared `x-journeylab-dedupe-key: provider_id + new_state`. That is a state
+**value**, so a provider's second outage carries the same key as its first and a broker
+honouring the declaration would discard it. A transition-shaped key repeats the same
+way. The key is now `event_id` — the occurrence identity `EVENT_CONTRACTS` §3 rule 1
+already makes every consumer dedupe by. `HealthChanged.dedupe_key` is removed: the
+payload cannot compute a key the envelope assigns.
+
+### Regression test
+
+`tests/events/test_projections.py::TestARegionRecovers` — eight assertions, every one
+of which fails against the old fold: recovery live and after a rebuild, live and
+rebuilt agreeing across a recovery, worst-of-remaining when one of two providers
+recovers, a sibling outage still not masked, a recovery naming no regions, a provider
+released from a region it stopped listing, and an unreadable state folding as `stale`.
+
+`tests/events/test_evt008_delivery.py` — the declared key is `event_id`, it names a
+required envelope field, **and the two keys that would have merged a second outage are
+shown merging it**; plus the consumer applying a second outage while ignoring a
+redelivery.
+
+`tests/ingestion/test_provider_health.py::test_a_second_outage_is_a_second_event_not_a_repeat_of_the_first`
+replaces the test that asserted the old key verbatim.
+
+---
+
 ## BUG-036 — Waitlist addresses were kept with no retention period
 
 | Field | Value |

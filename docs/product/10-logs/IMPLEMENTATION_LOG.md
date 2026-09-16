@@ -60,6 +60,86 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-066 — BUG-037 — The region that could never come back
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-09-16 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-TRIP-002, REQ-EVID-006, REQ-DATA-010 |
+| Blast radius | [BR-066](blast-radius/BR-066-coverage-recovery.md) (MEDIUM, confidence HIGH; **HIGH graph verdict recorded — 19 dependants, all tests**) |
+| Commit | see git log for this entry |
+
+Not a sub-step. Found while designing the degradation drill `STEP-007` §22 requires,
+and fixed before the step closes because `STEP-007.05` wired the defective fold to the
+table a traveller reads. Python 1463 → **1476** — eight assertions on recovery, five on delivery. Web, UI and browser are unchanged by this fix.
+
+### What was wrong
+
+A provider goes down; the region is refused. The provider comes back; **the region is
+still refused, for ever, and a rebuild does not help.** Reproduced before writing a
+line of fix:
+
+```
+unavailable -> stale        healthy -> stale        rebuild -> stale
+```
+
+`fold_coverage` kept one value per region and took `max(existing, new)` severity, then
+dropped `provider_id` on the way in. The intent — "a region is only as available as its
+least available input" — needs each input's *current* state. With no memory of which
+provider degraded a region, it collapsed to **worst ever observed**.
+
+### Why no test caught it, and why mutation testing could not have
+
+`test_a_region_takes_its_worst_provider` asserted one direction: a healthy **sibling**
+must not mask an outage. A fold that can only worsen passes that perfectly. No test
+ever sent a provider back to healthy.
+
+`STEP-007.05`'s 12 mutants did not find it either, and could not: a mutant seeds a
+change to code that exists, and this was behaviour the code never had. `STEP-006`'s
+close said exactly this — "mutation testing cannot find an inert function or an
+unexercised path" — and it is the second finding from that close to recur here, the
+first being the one-sided assertion.
+
+### Decisions
+
+| Decision | Alternatives | Rationale |
+| --- | --- | --- |
+| Per-provider state inside the fold | HMAC-keyed providers · severity counters from `previous_state` | `EVT-008` declares state **absolute, not incremental**, which rules out counters; an HMAC over a small known provider set is reversible by trying each name |
+| The confidentiality rule narrows | keep "never in state" | That rule *was* the defect. `REQ-EVID-006` and the AsyncAPI text both say `provider_id` "never leaves the platform" — so the rule is "never persisted, never published", asserted where persisting happens |
+| `affected_regions` present ⇒ complete set | apply to listed ∪ known | Otherwise a provider that stops serving a region keeps degrading it for ever — the same bug through a configuration change |
+| Dedupe key ⇒ `event_id` | `provider_id + previous_state + new_state` | A second outage repeats the transition exactly; only an occurrence identity separates it from a redelivery |
+
+### What surprised us
+
+**1. The graph answered completely, for the first time in six records.**
+`impact(coverage_projection)` returned all 19 dependants and flagged HIGH — and grep
+agreed exactly. In the same session `impact(HealthChanged.dedupe_key)` returned 0
+against the one test that read it. The failure is not uniform, which is precisely why a
+`LOW` verdict cannot be taken on trust.
+
+**2. My first fix had the same bug in a second form, and an existing test found it.**
+Applying a provider's state to "listed ∪ already known" meant a provider that stopped
+listing a region kept its last verdict there for ever. `test_a_rebuild_round_trips_
+through_the_table` failed — because it modelled one provider in two different states,
+which "absolute" makes a contradiction — and following that thread produced the release
+rule.
+
+**3. The event contract has no compatibility gate.** `check_compatibility.py` diffs
+OpenAPI only. A breaking change to `asyncapi.yaml` passes `pnpm verify` today. The
+dedupe change was therefore verified by hand and the gap logged, rather than reported
+as an R2 pass no tool performed.
+
+### Follow-up created
+
+| Item | Type |
+| --- | --- |
+| AsyncAPI is not compatibility-gated | Tooling gap |
+| Nothing converts `HealthChanged` into an envelope, so `previous_state` has never flowed end to end | `ENH-007` |
+| `RISK-016` #18 | Risk register |
+
+---
+
 ## IMPL-065 — BUG-036 — A consent that never expired
 
 | Field | Value |

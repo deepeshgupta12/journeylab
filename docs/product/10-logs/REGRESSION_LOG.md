@@ -69,6 +69,47 @@ trending up, coverage gaps accepted with a reason.
 
 ---
 
+## FIX — 2026-09-16 — BUG-037: a region that lost a provider could never recover
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `69ff50d` — matched HEAD at pre-change |
+| Blast radius | [BR-066](blast-radius/BR-066-coverage-recovery.md) — MEDIUM, confidence HIGH |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` exit 0 — **1476 Python** (from 1463, 4 skipped) + 102 web + 311 UI + 92 browser + R7 18/18 + meta 76/76. **The browser figure rose from 82 for reasons that are not in this commit**: the `/coverage` CWV measurement and the SEO checks sit in the working tree for the STEP-007 close and are committed with it. This fix adds no browser test | |
+| R2 contract compatibility | **NO GATE EXISTS — verified by hand** | `contracts/asyncapi.yaml` changed (`EVT-008` dedupe key). `check_compatibility.py` diffs **OpenAPI only**, so no tool checked this. Checked manually: payload schema unchanged, delivery mode and order key unchanged, baseline snapshot untouched so its digest still matches. `BASELINE.md` records the baseline as pre-release, released to no consumer. **Logged as a tooling gap rather than reported as a pass** |
+| R3 graph diff as expected | **PASS** | 14 files, 78 symbols, **0 affected processes**, risk `low`, re-run after the mutation suite restored every file. **The graph saw the code this time** — `fold_coverage`, `coverage_projection`, `HealthChanged` and `dedupe_key` are all named as touched, where the last three records saw only documentation because their changes were purely additive. The scope is what was expected: the fold, the removed property, their tests, the contract and the records | |
+| R4 untested requirements | **PASS — improved** | Recovery had no test at all; `REQ-TRIP-002` and `REQ-DATA-010` gain eight, and `EVT-008`'s delivery guarantee gains five |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | BUG-001…036 green; guard meta-suite 76/76. BUG-037's own additions are the +13 Python assertions — eight on recovery, five on delivery | |
+| R7 tenant isolation | **PASS — 18/18** | Untouched. The coverage projection and `EVT-008` carry no tenant-scoped data: coverage is platform data (`BUG-028`, `016`), and `provider_id` is not a tenant | |
+
+**Overall:** PASS
+
+### Mutation testing
+
+**11 seeded, 11 killed, 0 survivors** against a green baseline; the table is in `BR-066` §8. Mutant 8 restores the original defect — the fold ignoring `provider_id` — and dies on a recovery test that did not exist before this fix.
+
+### Failures and resolution
+
+| Failure | Cause | Resolution |
+| --- | --- | --- |
+| `test_no_provider_identity_reaches_the_read_model`, `test_the_fold_drops_provider_id_before_it_can_be_persisted` | **Expected.** Both asserted the provider was absent from the in-memory projection state — the rule that *was* the defect | Re-pointed at where persisting happens: the statements and values `apply_coverage_state` sends. One now also asserts the fold **does** hold the provider, so the narrowing is explicit rather than quietly dropped |
+| `test_a_rebuild_round_trips_through_the_table` | It modelled **one provider** as `unavailable` for one region and `degraded` for another — a contradiction once state is per provider, and one that only passed while identity was ignored | Given a provider per region. Following this failure also exposed the release rule below |
+| A second form of the same bug, in my first fix | Applying a provider's state to "listed ∪ already known" left a provider degrading a region it had stopped serving, for ever | `affected_regions`, when present, is the provider's complete set; the provider is released from any region it no longer lists |
+
+### What this fix does not change
+
+**Nothing runs the fold in production.** No `EVT-008` consumer exists, so the defect was
+latent and the fix is too: both matter the moment deployment wires one. And nothing
+converts a `HealthChanged` into an envelope, so `previous_state` — required by the
+contract since `STEP-004.05` — has still never been carried end to end.
+
+---
+
 ## FIX — 2026-09-15 — BUG-036: waitlist addresses were kept with no retention period
 
 | Field | Value |
