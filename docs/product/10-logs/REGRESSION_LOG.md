@@ -69,6 +69,63 @@ trending up, coverage gaps accepted with a reason.
 
 ---
 
+## CORRECTION — 2026-09-17 — RISK-016: the mechanism I published was wrong
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Corrects | `bb1ef4c`, pushed 2026-09-16 |
+| Type | **Retraction of a published claim**, plus one new finding |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` **exit 0** — 1478 Python (4 skipped), 311 UI, 102 web, 8 browser, meta 76/76, R7 18/18. **These figures were parsed out of the run's log, not typed from memory** — copying a count forward is what put a stale `1476` into three documents at the close |
+| R2 contract compatibility | **PASS — no contract change** | Documentation only |
+| R3 graph diff as expected | **PASS** | 11 touched symbols across 3 files, **0 affected processes**, risk `low` — `CLAUDE.md` §3 and §7, the `RISK-016` register entry, and this log. Documentation only, no code: the expected scope for a retraction |
+| R4 untested requirements | **PASS — unchanged** | No requirement gains or loses a test |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner; no new files |
+| R6 closed-bug tests | **PASS** | Unchanged by a documentation edit; carried by `pnpm test` |
+| R7 tenant isolation | **PASS** | 18/18, unchanged |
+
+### What I claimed, and why it was wrong
+
+At the STEP-007 close I found `metres_between` reporting **no edges at all** against five
+real references, in a file the same `analyze` run had logged as `scope extraction failed
+… Invalid argument`. After eighteen reproductions with no mechanism at all, that looked
+like the first one. I wrote it into `CLAUDE.md` §7 and the risk register as a *lead*,
+with counter-evidence beside it — and then pushed it.
+
+**One further `analyze`, on an identical clean tree, refuted it:**
+
+| Observation | What it shows |
+| --- | --- |
+| The second run failed extraction on **one** file, not three — `entity_resolution.py` scoped **successfully** | The failure set is not a property of the tree |
+| `context(metres_between)` still returned empty `incoming` **and** `outgoing` at `"epistemic": "exact"` | The symptom survives a clean scope — **extraction failure is not the cause** |
+| `tests/api/test_api_operations.py` failed **again**, and `TestIdempotency` still held all four `has_method` edges | Extraction failure does not strip edges — **not even a correlate** |
+| Node and edge counts **identical** across both runs (11,589 / 17,771) | Whatever extraction failure costs, it is not graph content |
+
+### The finding that survives
+
+**Scope extraction fails non-deterministically on an unchanged tree.** That is a real
+defect in its own right, and it has a practical consequence recorded in `CLAUDE.md` §3:
+no single `analyze` run's diagnostics can be read as a description of the indexer's
+behaviour. It is also why the original observation was misleading — I compared one run
+against one query and treated the coincidence as structure.
+
+### Why this is logged rather than quietly edited
+
+The claim was **pushed to `main`** and sat in the file that governs every change in this
+repository. A reader who believed it would stop looking for the real mechanism, which is
+worse than the honest position — *unknown after 19 reproductions* — that it replaced.
+Rule 5 covers claiming verifications that did not happen; this is the adjacent failure,
+publishing an explanation that had not been tested. **The test cost one command.**
+
+**What should have happened:** the disconfirming run was free and obvious — re-run
+`analyze` and re-query the symbol. I had the finding at the end of a long session and
+recorded it as law instead of spending ninety seconds trying to break it first.
+
+---
+
 ## STEP-007 — 2026-09-16 — Step close: the evidence, and the gate a machine cannot pass
 
 | Field | Value |
