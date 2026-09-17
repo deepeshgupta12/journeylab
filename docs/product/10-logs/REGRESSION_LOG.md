@@ -79,7 +79,7 @@ trending up, coverage gaps accepted with a reason.
 
 | Check | Result | Detail |
 | --- | --- | --- |
-| R1 full regression | **PASS** | `pnpm verify` **exit 0** — 1478 Python (4 skipped), 311 UI, 102 web, 8 browser, meta 76/76, R7 18/18. **These figures were parsed out of the run's log, not typed from memory** — copying a count forward is what put a stale `1476` into three documents at the close |
+| R1 full regression | **PASS** | `pnpm verify` **exit 0** — 1478 Python (4 skipped), 311 UI, 102 web, **92 browser**, meta 76/76, R7 18/18. **This cell first said `8 browser`, and the error is worth keeping visible.** To avoid re-typing counts from memory — which had already put a stale `1476` into three documents — I parsed them out of the log with a regex. `(\d+) passed \(\d+` matched `Test Files 8 passed (8)` from the UI suite, which occurs *earlier* in the log than `92 passed (34.8s)`, and `re.search` returns the first match. The script printed `8 browser` in its output and I committed and pushed it anyway. **An automated extraction is only as trustworthy as the check on its output** — the mechanism built to stop a fabricated number produced one, because I verified the method instead of the result |
 | R2 contract compatibility | **PASS — no contract change** | Documentation only |
 | R3 graph diff as expected | **PASS** | 11 touched symbols across 3 files, **0 affected processes**, risk `low` — `CLAUDE.md` §3 and §7, the `RISK-016` register entry, and this log. Documentation only, no code: the expected scope for a retraction |
 | R4 untested requirements | **PASS — unchanged** | No requirement gains or loses a test |
