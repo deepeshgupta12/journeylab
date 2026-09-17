@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **journeylab** (11589 symbols, 17771 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **journeylab** (11596 symbols, 17775 relationships, 77 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -141,10 +141,10 @@ A failure means the sub-step is not done. Fix forward or revert; never proceed r
 
 | Fact | Value |
 | --- | --- |
-| Indexed | **11,589 nodes, 17,771 edges, 243 clusters, 77 execution flows** at `bb1ef4c` |
-| Freshness | Re-indexed at the STEP-007 close; `analyze` completed in 6.4s |
+| Indexed | **11,596 nodes, 17,775 edges, 246 clusters, 77 execution flows** at `c93bf90` |
+| Freshness | Re-indexed after the STEP-007 close and its corrections; `analyze` completed in 10.7s. **These counts drift with documentation commits, by design:** `analyze` indexes Markdown sections *and* writes its own header into `AGENTS.md` and `CLAUDE.md`, so committing that churn changes the next run's totals by a handful. This figure is the state **at the named commit**, not a fixed property of the repository — re-indexing until it agrees with itself would never terminate |
 | **Coverage** | **Application source is indexed** — Python and TypeScript, not only documentation. The 2026-08-05 entry this replaces read "Markdown documentation only — no application source exists"; that was true when written and has been false since STEP-002.02, while still instructing readers to skip the graph and apply a static fallback |
-| **Scope extraction fails non-deterministically** | Two `analyze` runs on the **same clean tree** failed on different sets — three files, then one (`tests/api/test_api_operations.py`). `apps/api/src/conventions/__init__.py` is an **empty file**, so its message is correct behaviour. **Symbols are present either way:** `metres_between` and `TestIdempotency` both resolve at `"epistemic": "exact"` whether their file scoped or not, and node/edge counts were identical across both runs. **Never read one run's diagnostics as a description of the indexer** |
+| **Scope extraction fails non-deterministically** | **Three `analyze` runs, and the failure set changed twice:** three files, then one (`tests/api/test_api_operations.py`), then the same three again. `apps/api/src/conventions/__init__.py` is an **empty file**, so its message is correct behaviour. **Symbols are present either way:** `metres_between` and `TestIdempotency` both resolve at `"epistemic": "exact"` whether their file scoped or not, and runs 1 and 2 — on an identical tree — produced identical node and edge counts despite different failure sets. (Run 3's counts differ because documentation commits landed between them, not because of extraction.) **Never read one run's diagnostics as a description of the indexer** |
 | Impact analysis on app code | **Runnable — and never sufficient on its own.** `RISK-014`'s `BLOCKED` status no longer applies; `RISK-016` does |
 
 **What this means in practice:** the pre-change check is real and must be run, so a `BLOCKED`
