@@ -131,5 +131,5 @@ Within the first week:
 | `BLK-001` | No named owners; no gate can be signed off |
 | `BLK-002` | No application code exists; the repository contains documentation only |
 | `DEC-002` | Phase 1 destination region undecided |
-| `DEC-005` | KPI thresholds undefined, so exit gates are not objectively evaluable |
+| ~~`DEC-005`~~ | **Closed 2026-10-19** — four north stars with provisional values (`ADR-021`); exit gates are evaluable against them, and become binding after the first pilot baseline. Engineering thresholds: `DEC-013` |
 | `EV-GAP-002` | Provider licence viability unproven (`RISK-001`) |

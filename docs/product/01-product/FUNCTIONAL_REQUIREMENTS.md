@@ -226,7 +226,7 @@ Full specification and measurement method in [NON_FUNCTIONAL_REQUIREMENTS](../03
 
 To prevent false precision, these are **open** and tracked in [ASSUMPTION_REGISTER](../02-delivery/ASSUMPTION_REGISTER.md) / [DECISION_LOG](../02-delivery/DECISION_LOG.md), not written as requirements:
 
-- Concrete numeric targets for time-to-decision, trust score and preserved-plan percentage (`DEC-005`) — the blueprint names the measures but no thresholds.
+- Concrete numeric targets for time-to-decision, trust score and preserved-plan percentage (`DEC-005` — **closed 2026-10-19, `ADR-021`**: four north stars with provisional values, binding after the pilot baseline; engineering thresholds now `DEC-013`; preserved-plan percentage is Phase 3) — the blueprint names the measures but no thresholds.
 - Subscription/pricing behavior (`DEC-003`).
 - Named destination region for Phase 1 (`DEC-002`).
 - Data residency and regional deployment obligations (`ASM-003`).

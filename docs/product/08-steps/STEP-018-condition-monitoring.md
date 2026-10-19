@@ -129,7 +129,7 @@ Notification suppression is an operational control (`RB-LIVE-001`). Disabling mo
 Match latency measurement; false-positive analysis; storm simulation results; unverified-source negative test.
 
 ## 27. Open questions, risks and decisions
-Provider event feeds are uncontracted (`EXT-001` … `EXT-003`). Notification burden threshold is a Phase 3 exit criterion but is currently unquantified (`DEC-005`).
+Provider event feeds are uncontracted (`EXT-001` … `EXT-003`). Notification burden threshold is a Phase 3 exit criterion but is currently unquantified (`DEC-013`).
 
 ## 28. Completion record
 | Field | Value |

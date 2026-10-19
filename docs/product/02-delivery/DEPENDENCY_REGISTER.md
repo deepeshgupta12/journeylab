@@ -84,7 +84,7 @@ These are outside the delivery team's control. Each has a named fallback because
 | `DEC-007` cloud/region/residency | STEP-027, data architecture | Deployment design churns; residency may force redesign |
 | `DEC-008` routing provider | STEP-005 | Accessibility claim cannot be validated |
 | `DEC-009` event backbone | STEP-006 | Outbox implementation shape undecided |
-| `DEC-005` KPI thresholds | All release gates | Phase 1 exit cannot be evaluated objectively |
+| ~~`DEC-005`~~ KPI thresholds — **closed 2026-10-19** (`ADR-021`) | All release gates | Evaluable against provisional north-star values; binding after the pilot baseline. **New dependency:** north star 3 needs a Phase-0 manual-workflow measurement. Engineering thresholds: `DEC-013` |
 | `BLK-001` owner assignment | Every step's exit gate | Nothing can be signed off; no step leaves `READY` |
 
 ---

@@ -122,7 +122,7 @@ Disable the ranker flag; the deterministic ordering keeps the pool usable. Hard 
 Recall measurement; adversarial filter test results; diversity metric; exclusion-reason sample.
 
 ## 27. Open questions, risks and decisions
-Diversity threshold is unset pending `DEC-005`. Wider-radius behavior needs a product decision on how far is still "this trip".
+Diversity threshold is unset pending `DEC-013` (engineering thresholds; inherited from `DEC-005` on 2026-10-19). Wider-radius behavior needs a product decision on how far is still "this trip".
 
 ## 28. Completion record
 | Field | Value |

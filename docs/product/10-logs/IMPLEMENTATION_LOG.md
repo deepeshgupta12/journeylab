@@ -60,6 +60,57 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-068 — DEC-005 — Four north stars confirmed final; DEC-013 opened for the engineering constants
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-10-19 |
+| Author | Deepesh Kumar Gupta (confirmed the proposal final); recorded by the implementer |
+| Requirements | — governance; no requirement changes |
+| Blast radius | **Documentation only (LOW)** |
+| Commit | *(this commit)* |
+| Graph indexed commit | `c93bf90` — three documentation-only commits behind HEAD, by the stop recorded in `CLAUDE.md` §3 |
+
+### What was decided
+
+The four north stars proposed under `IMPL-067` are final (`ADR-021`): `KPI-001` feasible
+choice ≥ 80%, `KPI-004` trust (citation ≥ 95% fixed, rating ≥ 70%), `KPI-003` time to
+decision ≤ 50% of the Phase-0 manual median, `KPI-002` stale-fact rate ≤ 5% / blocking
+above 10%. **Every value is provisional until the first ~50 pilot briefs establish a
+baseline**, and `SUCCESS_METRICS` now says so in its governance rules, not only in a cell.
+
+### The decision the closure forced
+
+`DEC-005` was doing two jobs. Its title says "numeric KPI thresholds"; in practice a dozen
+engineering constants across `STEP-005`, `STEP-006`, `STEP-010` and five blast-radius
+records cite it as the sign-off they await — freshness classes, `MAX_ATTEMPTS`,
+`DRIFT_SIGMA`, `RECOVERY_SUCCESSES`, prune/replay limits, the diversity threshold. The
+owner's decision settles north stars. It does not sign off a retry count.
+
+Closing `DEC-005` outright would have left every one of those references pointing at a
+closed decision that never addressed them — a silent orphaning that reads, later, as
+"somebody signed this off". So **`DEC-013` opens** to inherit them, with one rule: records
+dated before 2026-10-19 that cite `DEC-005` for an engineering constant **resolve to
+`DEC-013` and are not rewritten.** History is evidence; the register says so.
+
+Current-state documents were updated — eleven of them, plus four step files whose §27
+named `DEC-005` for a threshold of their own. Sub-step records and blast-radius records
+were left exactly as written.
+
+### What surprised us
+
+- **North star 3 created a task from nothing.** "≤ 50% of the Phase-0 manual-workflow
+  median" is only evaluable once someone has measured how long the manual workflow takes.
+  No such measurement exists as a step, a sub-step or a line in any plan. It is now a named
+  dependency in `DEPENDENCY_REGISTER` and on the Phase 1 critical path.
+- **Open decisions did not go down.** `DEC-005` closed and `DEC-013` opened: still two. The
+  honest count was more useful than a smaller one.
+- **`SUCCESS_METRICS` §5 still said review cadence was undecided** — `DEC-006` had closed
+  that morning and the sweep for `DEC-005` references is what found the stale line.
+
+---
+
+
 ## IMPL-067 — DEC-003 · DEC-006 · DEC-010 · DEC-011 — Four owner decisions recorded; DEC-007 re-scoped; a DEC-005 proposal
 
 | Field | Value |

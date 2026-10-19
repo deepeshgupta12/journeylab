@@ -128,7 +128,7 @@ Warehouse models rebuild from the event log. A bad metric definition is correcte
 Rejection test results; exposure integrity test; KPI lineage documentation; de-identification threshold analysis.
 
 ## 27. Open questions, risks and decisions
-`DEC-005` thresholds and `DEC-006` review cadence. Whether the warehouse is a separate system or PostgreSQL read models at MVP scale is undecided.
+`DEC-013` engineering thresholds (`DEC-005` closed 2026-10-19 on four north stars, `ADR-021`, which `STEP-022` must compute and must render as provisional until the pilot baseline); `DEC-006` closed — weekly. Whether the warehouse is a separate system or PostgreSQL read models at MVP scale is undecided.
 
 ## 28. Completion record
 | Field | Value |

@@ -82,7 +82,7 @@ These are **not excluded**. Each names the condition, the owner and where the wo
 | DEC-002 | Phase 1 destination region | `STEP-005`, `STEP-010`, all evaluation corpora |
 | ~~DEC-003~~ | ~~Business model~~ — **CLOSED 2026-10-19: hybrid** (`ADR-019`) | `STEP-029` (billing) now **required and undefined**; a `GATE-001` review against a subscription processor is owed before it is scoped |
 | DEC-004 | Identity provider | `STEP-002` |
-| DEC-005 | Numeric KPI thresholds | Release gates |
+| ~~DEC-005~~ | ~~Numeric KPI thresholds~~ — **CLOSED 2026-10-19: four north stars** (`ADR-021`) | Release gates — provisional until the pilot baseline; engineering thresholds `DEC-013` |
 | DEC-006 | KPI review cadence and forum | Governance |
 | DEC-007 | Cloud provider, region, residency | `STEP-027`, `GATE-003` jurisdiction analysis |
 | DEC-008 | Routing provider and wheelchair profile support | `STEP-005`, accessibility claims |

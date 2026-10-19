@@ -36,7 +36,7 @@ Navigation: [AI architecture](../03-architecture/AI_LLM_RAG_ML_ARCHITECTURE.md) 
 ### AI-001 — Brief extraction
 | Metric | Gate |
 | --- | --- |
-| Field-level precision / recall per constraint class | Threshold from Phase 0 baseline (`DEC-005`) |
+| Field-level precision / recall per constraint class | Threshold from Phase 0 baseline (`DEC-013` — engineering thresholds, inherited from `DEC-005` on 2026-10-19) |
 | Unit and date accuracy | Near-exact; a misparsed currency or date is a wrong plan |
 | **Hard/soft misclassification rate** | Near-zero — misclassifying a hard constraint as soft produces an infeasible plan presented as valid |
 | Blocking-ambiguity detection | High recall; missing a blocking ambiguity is worse than over-asking |
@@ -150,4 +150,4 @@ Every AI result records prompt version, model version, retrieval configuration, 
 | Adversarial datasets | None |
 | Scorers (`mlflow/scorers/`) | Do not exist |
 | Baselines | Not measured |
-| Thresholds | Only two are fixed by the blueprint: **0 hard-constraint violations** and **≥95% citation correctness**. All others await Phase 0/1 baselines (`DEC-005`) |
+| Thresholds | Only two are fixed by the blueprint: **0 hard-constraint violations** and **≥95% citation correctness**. All others await Phase 0/1 baselines (`DEC-013`, inherited from `DEC-005` when it closed on north stars on 2026-10-19 — `ADR-021`) |

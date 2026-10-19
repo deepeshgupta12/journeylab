@@ -129,7 +129,7 @@ Flag off leaves monitoring and the offline pack intact — travelers are informe
 Acceptance-required negative test; preserved-percentage measurement; escalation-path test; location-retention proof; disruption-corpus results.
 
 ## 27. Open questions, risks and decisions
-Phase 3 exit thresholds for replan time and preservation are unset (`DEC-005`). What "nearby information sources" means when no repair exists needs a product decision — it is the difference between helpful and abandoning.
+Phase 3 exit thresholds for replan time and preservation are unset (`DEC-013`, inherited from `DEC-005` on 2026-10-19). What "nearby information sources" means when no repair exists needs a product decision — it is the difference between helpful and abandoning.
 
 ## 28. Completion record
 | Field | Value |

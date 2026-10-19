@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Owner | Product Lead + TPM (Deepesh Kumar Gupta) |
-| Status | `DISCOVERY` — measures defined; **numeric thresholds are open** (`DEC-005`) |
+| Status | `DISCOVERY` — measures defined; **four north stars chosen, provisional values set** (`DEC-005` closed 2026-10-19, `ADR-021`); binding gates follow the first pilot baseline; engineering thresholds are `DEC-013` |
 | Upstream source | Blueprint §5 (objectives), §17 (analytics, KPIs and decision governance) |
 | Last reviewed | 2026-08-05 |
 
@@ -18,6 +18,7 @@ Navigation: [Charter](PRODUCT_CHARTER.md) · [Scope](PRODUCT_SCOPE.md) · [Analy
 3. **No KPI may be improved by reducing evidence visibility, choice diversity or accessibility.** This is a hard constraint on the metric system itself (blueprint §17).
 4. **Engagement is not a success metric.** Time-in-product and session count are diagnostic only; JourneyLab measures decision quality, not attention.
 5. Thresholds must be set from Phase 0/1 baselines, not asserted in advance. Where a threshold is unset, this document says so rather than inventing one.
+6. **Four north stars gate Phase 1** — `KPI-001` feasible choice, `KPI-004` trust, `KPI-003` time to decision, `KPI-002` stale-fact rate (`ADR-021`). Their values below are **provisional pilot-design values, not gates**, until the first ~50 pilot briefs establish a baseline; a dashboard that renders a provisional value as a release gate is a defect. `KPI-006` and `KPI-007` are tracked, not steered by; Phase-3 KPIs are not Phase 1 gates.
 
 ---
 
@@ -31,7 +32,7 @@ Navigation: [Charter](PRODUCT_CHARTER.md) · [Scope](PRODUCT_SCOPE.md) · [Analy
 | Grain | Trip | Owner | Product |
 | Lineage | `EVT-003` scenario_set.generated → warehouse scenario model |
 | **Guardrail** | **Zero hidden hard-constraint violations.** A scenario counted as valid must pass `REQ-CONS-004` |
-| Threshold | **Unset** — baseline from Phase 1 pilot (`DEC-005`) |
+| Threshold | **Provisional ≥ 80%** of Switzerland pilot briefs — **north star 1** (`ADR-021`). Binding value set after the first ~50 pilot briefs establish a baseline |
 | Steps | [STEP-012](../08-steps/STEP-012-scenario-optimisation-and-simulation.md) |
 
 ### KPI-002 — Plan feasibility quality
@@ -41,7 +42,7 @@ Navigation: [Charter](PRODUCT_CHARTER.md) · [Scope](PRODUCT_SCOPE.md) · [Analy
 | Formula | `violating_scenarios / delivered_scenarios`; `facts_past_freshness_threshold / facts_used` |
 | Owner | Engineering + Data |
 | **Guardrail** | Target is **zero** violations in the release evaluation corpus; any non-zero result blocks release (`REQ-CONS-004`) |
-| Threshold | Violations: 0 (blocking). Stale-fact rate: **unset** |
+| Threshold | Violations: **0 (blocking)**. Stale-fact rate: **provisional ≤ 5%, blocking above 10%** — **north star 4** (`ADR-021`); binding after the pilot baseline |
 | Steps | [STEP-010](../08-steps/STEP-010-destination-evidence-assembly.md), [STEP-012](../08-steps/STEP-012-scenario-optimisation-and-simulation.md) |
 
 ### KPI-003 — Time to decision
@@ -51,7 +52,7 @@ Navigation: [Charter](PRODUCT_CHARTER.md) · [Scope](PRODUCT_SCOPE.md) · [Analy
 | Formula | `median(scenario.selected.occurred_at − trip_brief.confirmed.occurred_at)` |
 | Owner | Product |
 | **Guardrail** | Must not be improved by reducing evidence visibility or cutting choice below useful diversity. Paired with KPI-001 and KPI-004 in every review |
-| Threshold | **Unset** — requires Phase 0 baseline of current manual workflow |
+| Threshold | **Provisional ≤ 50% of the Phase-0 manual-workflow median** — **north star 3** (`ADR-021`). Relative by design: it cannot be evaluated until Phase 0 measures the manual workflow, which is now on the critical path |
 | Steps | [STEP-009](../08-steps/STEP-009-trip-brief-and-structured-constraints.md) → [STEP-013](../08-steps/STEP-013-visual-comparison.md) |
 
 ### KPI-004 — Scenario trust
@@ -61,7 +62,7 @@ Navigation: [Charter](PRODUCT_CHARTER.md) · [Scope](PRODUCT_SCOPE.md) · [Analy
 | Formula | Survey response + `user_reported_incorrect_fact` events per trip |
 | Owner | Design + Data |
 | **Guardrail** | Reported inaccuracies and citation failures tracked **separately** and never netted against positive ratings |
-| Threshold | Citation correctness ≥ **95%** for volatile facts (blueprint §16.191 — release gate). Trust rating: unset |
+| Threshold | Citation correctness ≥ **95%** for volatile facts (blueprint §16.191 — release gate, **fixed**). Trust rating: **provisional ≥ 70%** rated sufficient without external correction — **north star 2** (`ADR-021`); binding after the pilot baseline |
 | Steps | [STEP-013](../08-steps/STEP-013-visual-comparison.md) |
 
 ### KPI-005 — Plan preservation *(Phase 3)*
@@ -138,6 +139,6 @@ These are not product KPIs but gate release. Detail in [NON_FUNCTIONAL_REQUIREME
 
 ## 5. Decision governance
 
-- KPI review cadence, decision forum and escalation path: **undecided** (`DEC-006`).
+- KPI review cadence and forum: **weekly, one forum for delivery and product** (`DEC-006`, closed 2026-10-19). Escalation path: not yet written.
 - A negative result is recorded in [DECISION_LOG](../02-delivery/DECISION_LOG.md) as portfolio evidence, never discarded (portfolio standard §7.38).
 - Stop conditions tied to metrics live in [RISK_REGISTER](../02-delivery/RISK_REGISTER.md): `RISK-002` (comparison not preferred), `RISK-003` (unit economics), `RISK-004` (constraint violations).

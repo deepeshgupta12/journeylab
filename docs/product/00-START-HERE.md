@@ -151,7 +151,7 @@ The project-local `.gitnexus/run.cjs` runner was **not** generated — use `npx 
 | `DEC-002` | Phase 1 destination region undecided | Blocks `STEP-005`, `STEP-010`, all evaluation corpora — **critical path** |
 | ~~`DEC-003`~~ | **Closed 2026-10-19 — hybrid** (`ADR-019`) | A billing step (`STEP-029`) now exists in principle and is undefined |
 | `DEC-004` | Identity provider undecided | Blocks `STEP-002` → 12-step fan-in |
-| `DEC-005` | KPI thresholds undefined | Phase 1 exit gates not objectively evaluable |
+| ~~`DEC-005`~~ | **Closed 2026-10-19 — four north stars** (`ADR-021`), provisional until the pilot baseline | Exit gates evaluable in principle; engineering thresholds moved to `DEC-013` |
 | `DEC-006` | KPI review cadence and forum | Governance |
 | `DEC-007` | Cloud provider, region, residency | Blocks `STEP-027`, DR and compliance analysis |
 | `DEC-008` | Routing provider | Accessibility routing claim unvalidated |

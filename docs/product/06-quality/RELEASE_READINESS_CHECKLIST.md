@@ -141,7 +141,7 @@ Every box needs **evidence**, not an opinion — a test run, a report, a drill r
 | `BLK-001` | No named owners — no sign-off is possible |
 | `BLK-002` | No application code, tests, contracts, pipelines or infrastructure |
 | `DEC-002` | No destination region — no evaluation corpus can exist |
-| `DEC-005` | No KPI thresholds — gates are not objectively evaluable |
+| ~~`DEC-005`~~ | **Closed 2026-10-19** — four north stars, provisional values (`ADR-021`). Gates are evaluable; **a provisional value must not be reported as a binding gate** until the pilot baseline sets it. Engineering thresholds: `DEC-013` |
 | `DEC-007` | No deployment target |
 | `RISK-001` | Provider licence viability unproven |
 | `RISK-014` | Knowledge graph covers documentation only |
