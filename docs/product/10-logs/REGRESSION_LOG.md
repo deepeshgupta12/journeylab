@@ -69,6 +69,59 @@ trending up, coverage gaps accepted with a reason.
 
 ---
 
+## FIX — 2026-10-19 — BUG-038: the browser reaches the API only through the page's own origin
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `62b65d0` (forced re-index after the `RISK-018` repair) |
+| Blast radius | `BR-067` (MEDIUM) |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` **exit 0** on this tree: **1485 Python** (1478 + the seeding tool's 7; 4 skipped), 311 UI, **122 web** (102 + 20), **98 browser** (92 − 2 replaced + 5 added, ×2 projects, +6 vitals), meta 79/79, R7 18/18, 121 files typechecked |
+| R2 contract compatibility | **PASS — no platform contract change** | The three handlers are internal to the web app, like `/api/auth/*`, and appear in no OpenAPI document. **Whether internal BFF routes belong in a contract document is raised in `BR-067` §8 and not answered here** |
+| R3 graph diff as expected | **PASS** | 51 touched symbols, 28 files, risk `medium` — matching the record's score — and **2 affected processes, `OnJoin` and `OnWithdraw`, the exact flows changed.** The first time `detect_changes` has named a process in this directory; before `RISK-018`'s repair it could not see the files |
+| R4 untested requirements | **PASS — improved** | `REQ-TRIP-002` and `REQ-PRIV-002` gain end-to-end browser coverage that submits the forms; `REQ-A11Y-001`'s keyboard path is now exercised against a populated page |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner; new files under existing paths |
+| R6 closed-bug tests | **PASS** | `BUG-032`'s presence anchors and `BUG-033`'s scroll-region tests still pass against the populated page; `BUG-038`'s own regression tests added |
+| R7 tenant isolation | **PASS** | 18/18 — and a new tenancy-adjacent rule is held by mutant 1: the proxy forwards no cookie |
+| CI mirror | **PASS** | `tests/ci-mirror.sh` **exit 0** against `b524bc3` — 627 tracked files cloned, Linux `node:24-bookworm`, cold `--frozen-lockfile` install, a fresh `postgres:18-alpine` with `--init`. Reproduced there: 1485 Python (4 skipped), R7 18/18, **98 browser in 3.9 min at two workers** — the suite seeded `e2e-bern` into the mirror's own database, submitted both forms through the proxy to the real API, and removed the region and its two waitlist rows afterwards; the vitals projects ran after the functional ones. Meta-tests 76 in the container against 79 locally: the three gallery-gate checks that always skip before a build exists, the gap recorded on 2026-09-16 |
+
+**Overall:** PASS.
+
+### Mutation — `BR-067` §9
+
+**13 seeded, 13 killed, 0 survived, 0 broken.** Green baseline before and after; files restored
+from byte copies (several are untracked, so `git checkout` would not have done it).
+
+| # | Seeded defect | Killed by |
+| --- | --- | --- |
+| 1 | proxy forwards the cookie | `_proxy.test` — allowlist |
+| 2 | proxy drops `Idempotency-Key` | `_proxy.test` — forwarded verbatim |
+| 3 | proxy returns 200 on upstream failure | `_proxy.test` — 503 problem document |
+| 4 | proxy rewrites status to 200 | `_proxy.test` — 422 preserved |
+| 5 | proxy drops the problem content-type | `_proxy.test` — `application/problem+json` preserved |
+| 6 / 6b | `PlanningCheck` builds an absolute URL | component test (relative path) **and** the source-level host assertion |
+| 7 | `PlanningCheck` treats 503 as a refusal | component test — "could not check" |
+| 8 / 8b | `Waitlist` treats 503 as "code does not work" / as a refusal | component tests — "could not reach", both forms |
+| 9 / 9b | teardown stops removing the region / the waitlist rows | `test_e2e_region_tool.py` — against the real database |
+| 10 | `check` route forwards to the wrong path | `_proxy.test` — path mapping |
+
+### Failures on the way, and what each one was
+
+| Run | Failures | Cause | Resolution |
+| --- | --- | --- | --- |
+| 1 | 11, all `mobile` | **The database crashed twice** under the suite — `BUG-039` | Fixed first, separately |
+| 2 | 7 | Six: my locator matched three "destination" controls. One: LCP 2.8 s on `/coverage` under eight workers | Locator by role; vitals moved after the functional projects |
+| 3 | 1 | A `POST /waitlist` took >10 s under eight workers (80–550 ms idle) | Local workers matched to CI's two |
+| 4 | **0 — 98/98** | — | — |
+
+None of the four was the product. Three of the four were the suite learning to test a page
+that finally had content.
+
+---
+
 ## FIX — 2026-10-19 — BUG-039: the database could be crashed by its own health probe
 
 | Field | Value |

@@ -19,6 +19,7 @@ The frontend is a **product system**, not a set of screens. Its hardest jobs are
 | --- | --- | --- |
 | Framework | Next.js 16.2 App Router | Server-render public coverage/SEO pages; stream authenticated planning results |
 | Rendering | Server components for read-heavy pages; client islands for interaction | Keeps comparison data server-fetched while map/timeline stay interactive |
+| **Browser → API** | **A browser never calls the platform API.** Client islands post to `/api/*` on the page's own origin; Next route handlers forward server-side with an allowlist of headers and never a cookie (`ADR-022`, `BUG-038`). No `NEXT_PUBLIC_` API address exists | The bundle learns nothing about the API, no CORS allowlist has to be kept correct per environment, and the guest-session cookie stays first-party |
 | State | TanStack Query (server state) + URL-addressable comparison state + small FSM for multi-step planning | Comparison state must be shareable and restorable via URL |
 | Styling | Tailwind 4.3 + accessible headless components | Headless components stay independently testable for WCAG |
 | Map | MapLibre GL | Open tiles; **never required for a core action** (`REQ-A11Y-003`) |

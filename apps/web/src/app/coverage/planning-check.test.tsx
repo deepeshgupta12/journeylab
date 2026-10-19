@@ -238,3 +238,58 @@ describe('with nothing declared', () => {
     expect(screen.getByText(/there is nothing to check yet/i)).toBeTruthy();
   });
 });
+
+// --- BUG-038: the request stays on this origin ----------------------------------
+
+describe('the request stays on this origin — BUG-038', () => {
+  test('the check is posted to a relative path, never to an API host', async () => {
+    const fetchMock = respondWith(200, {
+      region_id: 'ch-bo',
+      display_name: 'Bernese Oberland',
+      nights: 3,
+      disclosures: [],
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<PlanningCheck regions={REGIONS} />);
+
+    const { default: userEventDefault } = await import('@testing-library/user-event');
+    const user = userEventDefault.setup();
+    await user.type(screen.getByLabelText(/first day/i), '2026-06-01');
+    await user.type(screen.getByLabelText(/last day/i), '2026-06-04');
+    await user.click(screen.getByRole('button', { name: /check these dates/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    // Relative, so it resolves against the page's own origin whatever that is. An
+    // absolute URL here is the whole bug.
+    expect(url).toBe('/api/coverage/check');
+    expect(url).not.toMatch(/^https?:\/\//);
+  });
+
+  test('a 503 is "could not check", not a refusal', async () => {
+    // From the proxy when the API is down, or from the API when its store is. Either
+    // way nobody answered — rendering it as a refusal would tell the traveller their
+    // destination is unsupported, which is the one thing this page must not invent.
+    vi.stubGlobal(
+      'fetch',
+      respondWith(503, {
+        code: 'platform.dependency_unavailable',
+        detail: 'The coverage service could not be reached.',
+        retryable: true,
+      }),
+    );
+    const { container } = render(<PlanningCheck regions={REGIONS} />);
+
+    const { default: userEventDefault } = await import('@testing-library/user-event');
+    const user = userEventDefault.setup();
+    await user.type(screen.getByLabelText(/first day/i), '2026-06-01');
+    await user.type(screen.getByLabelText(/last day/i), '2026-06-04');
+    await user.click(screen.getByRole('button', { name: /check these dates/i }));
+
+    await waitFor(() => expect(assertiveText(container)).toMatch(/could not check/i));
+    expect(assertiveText(container)).not.toMatch(/cannot plan this/i);
+    expect(assertiveText(container)).toMatch(
+      /not a statement that your destination is unsupported/i,
+    );
+  });
+});

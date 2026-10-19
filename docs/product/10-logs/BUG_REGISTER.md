@@ -104,8 +104,8 @@ exiting 1 was logged and ignored. Three experiments, one mechanism, no survivors
 An init process becomes PID 1 everywhere the probe runs: `init: true` on the compose
 service, `--init` on the mirror's `docker run`, `--init` in the CI service's `options`.
 Orphans reparent to init and are reaped there; the postmaster never sees them. **The CI
-flag is believed correct and unverified until the next push** — `options` are passed to
-`docker create`, which accepts `--init`, but no run has yet proven it.
+flag was verified by the next push:** GitHub Actions run 39249259198 on `e1c3d64` created
+the service with `--init` in its `options`, reached healthy, and `verify` passed.
 
 ### Regression test
 
@@ -126,7 +126,7 @@ suite should not run, and the guard holds the property that makes it impossible.
 | Date found | 2026-10-19 |
 | Affected requirements | REQ-TRIP-001, REQ-TRIP-002, REQ-PRIV-002, REQ-A11Y-001 |
 | Affected component | `apps/web/src/app/coverage/planning-check.tsx` and `waitlist.tsx` — browser-direct `fetch` to `NEXT_PUBLIC_JOURNEYLAB_API_URL`; `apps/api/src/app.py` — no CORS handling, by design |
-| Status | **OPEN** — fix in progress under `BR-067`; design `ADR-022` (same-origin proxy), chosen by the owner |
+| Status | **FIXED 2026-10-19** — same-origin proxy (`ADR-022`, `BR-067`), chosen by the owner over CORS; 13 mutants, 13 killed; the browser suite now submits both forms end to end through the real proxy to the real API. `IMPL-070` |
 
 ### Symptom
 

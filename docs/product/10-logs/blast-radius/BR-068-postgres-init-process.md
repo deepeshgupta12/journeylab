@@ -97,4 +97,4 @@ direction: without it, every heavy test run in every environment rolls dice.
 | Item | Type |
 | --- | --- |
 | `platform: linux/amd64` under Rosetta makes every fork slow; the arm64 PostGIS image question is already in the compose comment | Carried, unchanged |
-| GitHub's service-container `--init` is believed to work (`options` are `docker create` flags) and is **unverified until the next CI run** — recorded in `BUG-039` as such | Verify on push |
+| ~~GitHub's service-container `--init` is believed to work and is unverified until the next CI run~~ **Verified:** run 39249259198 on `e1c3d64` created the service with `--init`, reached healthy, and `verify` passed | Closed |

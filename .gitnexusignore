@@ -35,3 +35,17 @@
 
 packages/contracts/src/generated/
 apps/api/src/generated/
+
+# A ROUTE DIRECTORY THE INDEXER HIDES BY DEFAULT — found at BUG-038's pre-change check, 2026-10-19
+#   GitNexus 1.6.8 ships a built-in ignore list (dist/config/ignore-service.js) that
+#   skips ANY directory named `coverage`, because test tooling writes reports there.
+#   `apps/web/src/app/coverage/` is a Next.js ROUTE — the public URL `/coverage`, the
+#   only product page — and cannot be renamed without changing that URL. With the
+#   default in force the graph held ZERO nodes for its nine files, and `impact`
+#   answered "not found" for every symbol the fix had to change. BUG-032 made the same
+#   mistake in `.gitignore`; this is the same mistake made for us, one layer down.
+#
+#   The tool documents the remedy itself (ignore-service.js ~L254, upstream #771): a
+#   `!pattern` line here re-includes a path a hardcoded default excludes, with
+#   `.gitignore` negation semantics. Measured before and after at 62b65d0 — BR-067 §2.
+!apps/web/src/app/coverage/

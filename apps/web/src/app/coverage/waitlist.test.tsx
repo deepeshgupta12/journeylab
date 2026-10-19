@@ -114,7 +114,7 @@ describe('consent is an action, not a default', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(/\/waitlist$/);
+    expect(url).toBe('/api/coverage/waitlist');
     const body = JSON.parse(String(init.body));
     expect(body.consent).toEqual({ purpose: 'waitlist_notification', granted: true });
     expect(body.email).toBe('traveller@example.com');
@@ -230,7 +230,7 @@ describe('withdrawal', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(/\/waitlist:withdraw$/);
+    expect(url).toBe('/api/coverage/waitlist/withdraw');
     expect(JSON.parse(String(init.body))).toEqual({ withdrawal_token: TOKEN });
 
     expect(await screen.findByText(/your address has been deleted/i)).toBeTruthy();
@@ -302,5 +302,69 @@ describe('retention is stated at the point of consent', () => {
     const text = document.body.textContent ?? '';
     expect(text).toMatch(/delete your address once it is sent/i);
     expect(text).toMatch(/after 12 months/i);
+  });
+});
+
+// --- BUG-038: both requests stay on this origin ---------------------------------
+
+describe('both requests stay on this origin — BUG-038', () => {
+  async function join(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText(/email address/i), 'someone@example.invalid');
+    await user.click(consentBox());
+    await user.click(screen.getByRole('button', { name: /add me to the list/i }));
+  }
+
+  test('joining posts to a relative path, never to an API host', async () => {
+    const fetchMock = respondWith(201, JOINED);
+    vi.stubGlobal('fetch', fetchMock);
+    render(<Waitlist />);
+    await join(userEvent.setup());
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/coverage/waitlist');
+  });
+
+  test('withdrawing posts to a relative path, never to an API host', async () => {
+    const fetchMock = respondWith(200, {});
+    vi.stubGlobal('fetch', fetchMock);
+    render(<Waitlist />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/withdrawal code/i), TOKEN);
+    await user.click(screen.getByRole('button', { name: /remove me/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/coverage/waitlist/withdraw');
+  });
+
+  test('a 503 on joining is "could not reach", and says nothing was stored', async () => {
+    vi.stubGlobal(
+      'fetch',
+      respondWith(503, { code: 'platform.dependency_unavailable', retryable: true }),
+    );
+    render(<Waitlist />);
+    await join(userEvent.setup());
+
+    await waitFor(() => expect(screen.getByText(/could not reach the waitlist/i)).toBeTruthy());
+    expect(screen.getByText(/nothing has been stored/i)).toBeTruthy();
+    expect(screen.queryByText(/could not be recorded/i)).toBeNull();
+  });
+
+  test('a 503 on withdrawing is "could not reach" — NOT "that code does not work"', async () => {
+    // The first version rendered an outage here as the traveller's mistake. A code
+    // that was never checked has not been shown to be wrong.
+    vi.stubGlobal(
+      'fetch',
+      respondWith(503, { code: 'platform.dependency_unavailable', retryable: true }),
+    );
+    render(<Waitlist />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/withdrawal code/i), TOKEN);
+    await user.click(screen.getByRole('button', { name: /remove me/i }));
+
+    await waitFor(() => expect(screen.getByText(/could not reach the waitlist/i)).toBeTruthy());
+    expect(screen.queryByText(/that code does not work/i)).toBeNull();
+    expect(screen.getByText(/nothing has changed/i)).toBeTruthy();
   });
 });

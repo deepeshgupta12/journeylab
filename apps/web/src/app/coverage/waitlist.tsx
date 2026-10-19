@@ -25,6 +25,13 @@ import { useState } from 'react';
  *   platforms — so the person is left with a form that appears broken. Pressing it
  *   without consent produces a sentence that says what is missing. `REQ-A11Y-001`.
  *
+ * BOTH REQUESTS GO TO THIS PAGE'S OWN ORIGIN
+ *   `/api/coverage/waitlist` and `/api/coverage/waitlist/withdraw` forward to the API
+ *   server-side (`BUG-038`, `ADR-022`); the browser never learns the API's address.
+ *   A 503 from either hop is "could not reach", in both forms — the first version
+ *   rendered an outage in the withdrawal form as "that code does not work", which
+ *   reported our problem as the traveller's mistake.
+ *
  * THE TOKEN IS SHOWN ONCE, AND THE PAGE SAYS SO
  *   The server stores only its hash and cannot re-issue it. A component that
  *   quietly kept the token in memory and offered a friendly "unsubscribe" button
@@ -53,8 +60,6 @@ type Withdrawal =
   | { readonly kind: 'withdrawn' }
   | { readonly kind: 'rejected' }
   | { readonly kind: 'unreachable' };
-
-const API_BASE = process.env.NEXT_PUBLIC_JOURNEYLAB_API_URL ?? 'http://127.0.0.1:5710';
 
 /**
  * One key per user intent, regenerated per submission attempt.
@@ -100,7 +105,7 @@ export function Waitlist() {
     setOutcome({ kind: 'sending' });
 
     try {
-      const response = await fetch(`${API_BASE}/waitlist`, {
+      const response = await fetch('/api/coverage/waitlist', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -113,6 +118,10 @@ export function Waitlist() {
           consent: { purpose: 'waitlist_notification', granted: true },
         }),
       });
+      if (response.status === 503) {
+        setOutcome({ kind: 'unreachable' });
+        return;
+      }
       const body = await response.json();
       if (response.ok) {
         setOutcome({ kind: 'joined', joined: body as JoinedState });
@@ -139,7 +148,7 @@ export function Waitlist() {
     if (!token.trim()) return;
     setWithdrawal({ kind: 'sending' });
     try {
-      const response = await fetch(`${API_BASE}/waitlist:withdraw`, {
+      const response = await fetch('/api/coverage/waitlist/withdraw', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -148,7 +157,9 @@ export function Waitlist() {
         },
         body: JSON.stringify({ withdrawal_token: token.trim() }),
       });
-      if (response.ok) {
+      if (response.status === 503) {
+        setWithdrawal({ kind: 'unreachable' });
+      } else if (response.ok) {
         setWithdrawal({ kind: 'withdrawn' });
         setToken('');
       } else {

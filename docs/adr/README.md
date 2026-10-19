@@ -41,6 +41,7 @@ decision log.
 | [ADR-019](ADR-019-hybrid-business-model.md) | The business model is hybrid: affiliate handoff plus a paid tier | Accepted |
 | [ADR-020](ADR-020-high-impact-override-is-a-role.md) | Approving a high-impact fact override is a role, held today by the owner alone | Accepted |
 | [ADR-021](ADR-021-four-north-stars.md) | Four north stars gate Phase 1, with provisional values until the pilot baseline | Accepted |
+| [ADR-022](ADR-022-browser-reaches-the-api-through-its-own-origin.md) | The browser reaches the API only through the page's own origin | Accepted |
 
 ## Rules
 

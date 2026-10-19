@@ -60,6 +60,91 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-070 — BUG-038 — The browser reaches the API only through the page's own origin
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-10-19 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-TRIP-001, REQ-TRIP-002, REQ-PRIV-002, REQ-A11Y-001 |
+| Blast radius | `BR-067` (MEDIUM) — the pattern every `STEP-008` form inherits |
+| Commit | *(this commit)* |
+| Graph indexed commit | `62b65d0` — forced re-index after the ignore repair in `BR-067` §1; matched HEAD |
+
+### What was built
+
+**The fix.** Three same-origin route handlers (`/api/coverage/check`, `/api/coverage/waitlist`,
+`/api/coverage/waitlist/withdraw`) forwarding to the API from the server through one helper
+(`_proxy.ts`) that forwards an allowlist of headers and never a cookie, preserves status,
+body and problem content-type, returns the correlation id, and turns an unreachable
+upstream into the platform's own 503 problem document — a byte-for-byte sibling of
+`conventions/problem.py`'s. Both client components post to relative paths; the API base
+lives in one server-only module; `NEXT_PUBLIC_JOURNEYLAB_API_URL` is gone. A 503 is "could
+not reach" in all three flows, which also closes the latent defect where an outage rendered
+in the withdrawal form as *"that code does not work"*. `ADR-022`; `FRONTEND_ARCHITECTURE`
+carries the rule.
+
+**The tests that did not exist.** The browser suite now **submits both forms** through the
+real proxy to the real API — an in-window range accepted with its night count, a two-day
+range refused with the supported length, an out-of-window range refused with the window, a
+waitlist join returning a token that then withdraws. It **owns its data**: `tools/e2e_region.py`
+seeds a reserved region in `globalSetup` and removes it, with every waitlist row the run
+created, in `globalTeardown`; the tool has its own pytest against the real database. The
+empty-state copy, previously asserted only in the browser against an incidentally empty
+table, moved to `coverage-table.test.tsx`. Twelve proxy tests, including a source-level
+assertion that neither client component names a host.
+
+**Two suite changes measured into existence.** Core Web Vitals now run in `vitals-*` projects
+after the functional projects (the first run against the populated page measured `/coverage`
+LCP at 2.8 s under eight workers and 2.2–2.4 s alone, against 2.5 s); and local worker count
+matches CI's two (eight workers took 2.4 min with two different timing failures across three
+runs; two took 1.2 min at 98/98).
+
+### What was wrong
+
+The page called the API **directly from the browser**, cross-origin; the API deliberately
+carries no middleware and answered the CORS preflight 405; the browser blocked the request.
+Ninety-two browser tests passed because none of them pressed either button — presence,
+names, copy and keyboard reachability were all asserted; submission was proven only with
+`fetch` stubbed and only against the API directly. The owner's first click found it.
+
+### Decisions
+
+1. **Proxy over CORS — the owner's**, with both options laid out (`BR-067` §3). First-party
+   session cookies for `STEP-008.01` decided it as much as anything.
+2. **The 16 KiB body cap came out before implementation.** The error registry has no code
+   for it, and inventing one in the proxy would be the two-places-describe-one-error-model
+   drift `BUG-029` cost. Recorded in `BR-067` §5 rather than deleted.
+3. **The graph's hidden directory was repaired, not worked around.** `RISK-018`.
+4. **`BUG-039` is its own bug and its own commit** — found by this fix's verification, fixed
+   first so this fix's evidence could be trusted.
+
+### Mutation — `BR-067` §9
+
+**13 seeded, 13 killed, 0 survived**, green baseline before and after, every file restored
+from a byte copy. The two that mattered most: the proxy forwarding a cookie (mutant 1) and the
+withdrawal form treating a 503 as "code does not work" (mutant 8) — both silent in production,
+both dead on the first run.
+
+### What surprised us
+
+- **The graph could not see the directory at all.** A fresh index held zero nodes under
+  `apps/web/src/app/coverage/` — GitNexus ignores any directory named `coverage` by default,
+  and ours is a route whose name is a public URL. One negation line and a forced re-index
+  later, `detect_changes` named `OnJoin` and `OnWithdraw` as affected processes: the first
+  time it has ever named a process for this directory.
+- **The suite had been assuming the database was empty** — not as a fixture it created, but
+  as a fact about whatever it was pointed at. The owner's review seed would have turned two
+  tests red on its own.
+- **The first full run crashed the database twice.** That became `BUG-039`, and the page's
+  honest 503 branch is what made it diagnosable instead of "flaky".
+- **Three results in one run finally discriminated `RISK-016`:** a plain call resolved; two
+  JSX element usages did not. Recorded as an observation about TSX, with its test, after
+  yesterday's retraction taught what publishing a mechanism early costs.
+
+---
+
+
 ## IMPL-069 — BUG-039 — The database could be crashed by its own health probe
 
 | Field | Value |

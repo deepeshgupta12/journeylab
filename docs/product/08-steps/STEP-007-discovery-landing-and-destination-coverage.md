@@ -149,6 +149,21 @@ Two defects were found at the close itself and fixed before it: `BUG-036` (perso
 data with no retention) and `BUG-037` (a region that could never recover, plus an
 `EVT-008` dedupe key that would discard a provider's second outage).
 
+### What the owner's first manual review found — 2026-10-19
+
+The first time a human used the page, two defects and one product judgement surfaced
+within minutes, none of which 92 browser tests, 20 mutants per sub-step or the step close
+had found:
+
+| Finding | Status |
+| --- | --- |
+| **`BUG-038`** — neither interactive feature worked in a real browser. The page called the API cross-origin; the API answers no CORS preflight; no browser test had ever pressed either button | **Fixed** — same-origin proxy (`ADR-022`, `BR-067`); the suite now submits both forms end to end and owns its own data |
+| **`BUG-039`** — found while verifying the fix: the dev database crashed twice under the suite, killed by its own health probe (an orphaned `pg_isready` on PID 1) | **Fixed** — an init process everywhere the probe runs (`BR-068`); proven by experiment, guarded |
+| **The page is "too techy and not at all user friendly"** — every field carries a paragraph of justification, the consent reads as policy, the checkbox sits alone, the CSV control floats | **Owner's decision: a UX pass on `/coverage` before `STEP-008`**, so the five forms `STEP-008` builds inherit a better idiom. To be planned as `STEP-007.06`; **not yet written** |
+
+The step stays `IN_REVIEW`. The screen-reader criterion in §25 remains owed; the owner has
+scoped the review to **web only**, deferring iOS and Android.
+
 ## 28. Completion record
 | Field | Value |
 | --- | --- |

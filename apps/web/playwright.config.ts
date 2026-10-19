@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { DATABASE_URL } from './src/test/dsn';
+
 /**
  * Real-browser accessibility harness — STEP-003.08.
  *
@@ -30,7 +32,15 @@ const PORT = 5708;
  */
 const API_PORT = 5710;
 
+/** The describe block in a11y.spec.ts that measures LCP/CLS/INP — see the projects below. */
+const VITALS = /Core Web Vitals/;
+
 export default defineConfig({
+  // BUG-038: the suite seeds its own reserved region and removes it afterwards, so
+  // the form-submission tests have something to submit against and the result does
+  // not depend on what the developer's database happens to hold.
+  globalSetup: './src/test/global-setup.ts',
+  globalTeardown: './src/test/global-teardown.ts',
   testDir: './src/test',
   // A11y failures must be reproducible, not "flaky". No retries: a retry policy
   // on an accessibility gate is a way of not fixing accessibility.
@@ -58,7 +68,14 @@ export default defineConfig({
    * and 200ms interaction — a slow runner may not finish the suite quickly, but
    * it may not report a slow page as acceptable.
    */
-  ...(process.env.CI ? { workers: 2 } : {}),
+  // Two workers everywhere, not only in CI — BUG-038's verification measured it.
+  // At eight workers the suite took 2.4 min and produced two different timing
+  // failures across three runs (an LCP of 2.8 s; a 100 ms request taking >10 s),
+  // because eight Chromium instances starve a Postgres emulated through Rosetta.
+  // At two it took 1.2 min and passed 98/98. A suite that is green only on an idle
+  // machine is BUG-016's flaky gate; matching CI's conditions is what the mirror
+  // exists for, and this is the same principle applied to the worker count.
+  workers: 2,
   timeout: process.env.CI ? 90_000 : 30_000,
   expect: { timeout: process.env.CI ? 20_000 : 10_000 },
 
@@ -69,10 +86,37 @@ export default defineConfig({
   },
 
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, grepInvert: VITALS },
     // A real phone profile: 44x44 touch targets and the 48rem breakpoint are
     // meaningless assertions at 1280px wide.
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, grepInvert: VITALS },
+    /*
+     * CORE WEB VITALS RUN AFTER THE FUNCTIONAL PROJECTS, NOT DURING THEM.
+     *
+     * An LCP measured while eight workers run Chromium against an emulated database
+     * describes the machine, not the page: /coverage measured 2.8 s inside the full
+     * parallel run and 2.2–2.4 s alone, against a 2.5 s budget. A gate that passes
+     * only when nothing else is happening is BUG-016's flaky gate. So the vitals
+     * tests are the same tests, selected into projects that `dependencies` make wait
+     * for the functional projects to finish — uncontended by the suite itself, and
+     * still subject to whatever else the machine is doing, which is realistic. CI's
+     * semantics do not change (CLS enforced, LCP reported). Found at BUG-038, when
+     * the page first had content to measure.
+     */
+    {
+      name: 'vitals-desktop',
+      use: { ...devices['Desktop Chrome'] },
+      grep: VITALS,
+      dependencies: ['desktop', 'mobile'],
+      fullyParallel: false,
+    },
+    {
+      name: 'vitals-mobile',
+      use: { ...devices['Pixel 7'] },
+      grep: VITALS,
+      dependencies: ['vitals-desktop'],
+      fullyParallel: false,
+    },
   ],
 
   /*
@@ -94,9 +138,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
       env: {
-        JOURNEYLAB_DATABASE_URL:
-          process.env.JOURNEYLAB_DATABASE_URL ??
-          'postgresql://journeylab:journeylab_dev_only@127.0.0.1:5700/journeylab',
+        JOURNEYLAB_DATABASE_URL: DATABASE_URL,
       },
     },
     {

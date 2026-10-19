@@ -1,5 +1,7 @@
 import type { components } from '@journeylab/contracts';
 
+import { API_BASE } from './api-base';
+
 /**
  * Reading coverage — STEP-007.02.
  *
@@ -23,8 +25,6 @@ export type CoverageRegion = Coverage['regions'][number];
 export type CoverageResult =
   | { readonly kind: 'ok'; readonly coverage: Coverage }
   | { readonly kind: 'unavailable'; readonly reason: string };
-
-const API_BASE = process.env.JOURNEYLAB_API_URL ?? 'http://127.0.0.1:5710';
 
 export async function fetchCoverage(): Promise<CoverageResult> {
   try {

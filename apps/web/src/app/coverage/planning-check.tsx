@@ -28,6 +28,14 @@ import type { CoverageRegion } from './fetch-coverage';
  *   every subsequent keystroke is wasted, which is what `role="alert"` is for. An
  *   acceptance can wait for a pause in speech.
  *
+ * THE REQUEST GOES TO THIS PAGE'S OWN ORIGIN
+ *   `/api/coverage/check`, a route handler that forwards to the API server-side.
+ *   The first version posted straight to the API from the browser, and never worked
+ *   outside a test: a different origin, a CORS preflight the API does not answer, a
+ *   blocked request (`BUG-038`, `ADR-022`). The browser no longer knows where the API
+ *   is, and a 503 — from either hop — is rendered as "could not check", because a
+ *   service that is down is not a refusal and must not read as one.
+ *
  * NO PARTIAL RESULT IS RENDERED ON A REFUSAL
  *   `REQ-TRIP-002`. There is no branch here that shows a trip outline, a suggested
  *   itinerary or a greyed-out plan. A refused request produces a sentence and the
@@ -56,8 +64,6 @@ type Outcome =
   | { readonly kind: 'accepted'; readonly accepted: Accepted }
   | { readonly kind: 'refused'; readonly refusal: Refusal }
   | { readonly kind: 'unreachable' };
-
-const API_BASE = process.env.NEXT_PUBLIC_JOURNEYLAB_API_URL ?? 'http://127.0.0.1:5710';
 
 export function PlanningCheck({ regions }: { readonly regions: readonly CoverageRegion[] }) {
   const [regionId, setRegionId] = useState(regions[0]?.region_id ?? '');
@@ -90,11 +96,17 @@ export function PlanningCheck({ regions }: { readonly regions: readonly Coverage
     setFormError('');
     setOutcome({ kind: 'asking' });
     try {
-      const response = await fetch(`${API_BASE}/coverage:check`, {
+      const response = await fetch('/api/coverage/check', {
         method: 'POST',
         headers: { 'content-type': 'application/json', accept: 'application/json' },
         body: JSON.stringify({ region_id: regionId, start_date: start, end_date: end }),
       });
+      if (response.status === 503) {
+        // Ours or the API's, a 503 means nobody could answer. Rendering it as a
+        // refusal would tell the traveller their destination is unsupported.
+        setOutcome({ kind: 'unreachable' });
+        return;
+      }
       const body = await response.json();
       if (response.ok) {
         setOutcome({ kind: 'accepted', accepted: body as Accepted });
@@ -103,7 +115,7 @@ export function PlanningCheck({ regions }: { readonly regions: readonly Coverage
       }
     } catch {
       // The caught error carries a host and a port and this string is rendered to
-      // the public, so it is not surfaced. `fetch-coverage.ts` makes the same call.
+      // the public, so it is not surfaced.
       setOutcome({ kind: 'unreachable' });
     }
   }

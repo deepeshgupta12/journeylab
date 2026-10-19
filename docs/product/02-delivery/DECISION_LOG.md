@@ -169,6 +169,15 @@ Navigation: [Charter](../01-product/PRODUCT_CHARTER.md) · [Assumptions](ASSUMPT
 - **Alternatives rejected:** binding numbers now (a guess with a gate attached); nothing until the pilot (nothing to design against); more than four (a dashboard, not a north star).
 - **Review trigger:** the first pilot baseline, or Phase 0's manual-workflow measurement — whichever is first.
 
+
+### [ADR-022](../../adr/ADR-022-browser-reaches-the-api-through-its-own-origin.md) — The browser reaches the API only through the page's own origin
+- **Date:** 2026-10-19 · **Owner:** Deepesh Kumar Gupta · **Status:** Accepted — proposed by the implementer at `BUG-038`, chosen by the owner over CORS the same day
+- **Context:** The coverage page's two interactive features called the API directly from the browser, cross-origin; the API answers no CORS preflight. Ninety-two browser tests passed because none submitted a form. The owner's first click found it.
+- **Decision:** A browser never calls the platform API. Client islands post to `/api/*` on the page's own origin; Next route handlers forward server-side with an allowlist of headers and **never a cookie**, preserving status, body and problem content-type, and turning an unreachable upstream into the platform's own 503 problem document. No `NEXT_PUBLIC_` API address exists. A 503 is "could not reach", never a refusal.
+- **Consequences:** Every `STEP-008` form inherits the pattern; the guest-session cookie stays first-party; `FRONTEND_ARCHITECTURE` carries the rule; the browser suite submits both forms end to end and owns its own data. Internal BFF routes appear in no contract document — an open question, raised and not answered.
+- **Alternatives rejected:** CORS middleware with a per-environment allowlist (keeps the API address in the bundle; makes the session cookie cross-origin); a `next.config` rewrite (no control over which headers cross; cannot shape an upstream failure).
+- **Review trigger:** `STEP-008.01`, or the first deployment where the web tier and the API are on different hosts.
+
 ---
 
 ## 2. Open decisions

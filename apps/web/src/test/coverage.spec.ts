@@ -1,6 +1,19 @@
 import { expect, test } from '@playwright/test';
 
 /**
+ * The region `global-setup.ts` seeds through `tools/e2e_region.py` — BUG-038. Its
+ * planning window is one year back to three years forward from the day the suite
+ * runs, so the dates below are computed, not written down, and do not rot.
+ */
+const E2E_REGION_NAME = 'E2E Bern (browser suite)';
+
+function isoDaysFromNow(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
  * The public coverage page — TST-TRIP-002, TST-A11Y-002 · STEP-007.02.
  *
  * WHAT THESE ARE PROTECTING
@@ -61,13 +74,16 @@ test.describe('coverage page', () => {
     await expect(page.locator('canvas, .maplibregl-map, [data-map]')).toHaveCount(0);
   });
 
-  test('distinguishes "nothing declared" from "we could not ask"', async ({ page }) => {
+  test('shows the declared region — this is the populated page, not a loading state', async ({
+    page,
+  }) => {
+    // The suite seeds one region (global-setup.ts), so a browser now sees the page a
+    // traveller would. "Could not be loaded" is the OTHER branch — a claim about us,
+    // not about coverage — and must not appear here. The empty-state copy, which
+    // used to be asserted only in this file against an incidentally empty database,
+    // is asserted in coverage-table.test.tsx where it depends on nobody's data.
+    await expect(page.getByRole('table')).toContainText(E2E_REGION_NAME);
     const body = (await page.locator('body').textContent()) ?? '';
-
-    // No region is declared yet (017 seeds none deliberately), so the empty state
-    // is what renders — and it must say the emptiness is about declarations, not
-    // about a failure, or it reads as "we support nowhere".
-    expect(body).toMatch(/no region has been declared yet/i);
     expect(body).not.toMatch(/could not be loaded/i);
   });
 
@@ -86,18 +102,93 @@ test.describe('coverage page', () => {
     await expect(page.getByText(/without giving us an email address/i)).toBeVisible();
   });
 
-  test('offers no date form while nothing is declared, and says why', async ({ page }) => {
-    // STEP-007.03. A form over an empty region list is a control that cannot
-    // produce an answer, which reads as broken rather than as honest — the same
-    // distinction the empty table draws two tests above.
-    //
-    // This asserts the CURRENT product state. When the first region is declared
-    // this test must be replaced by one that exercises the form, not deleted:
-    // a page offering no way to check dates is only correct while there is
-    // nothing to check.
-    await expect(page.getByRole('heading', { name: /check your dates/i })).toBeVisible();
-    await expect(page.getByText(/there is nothing to check yet/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /check these dates/i })).toHaveCount(0);
+  /**
+   * BUG-038 — THE FORMS ARE SUBMITTED, THROUGH THE REAL PROXY, TO THE REAL API.
+   *
+   * 92 browser tests passed while both forms failed in every real browser, because
+   * not one of them pressed the button: this file asserted presence, names, copy and
+   * keyboard reachability, and the request itself was proven only with `fetch`
+   * stubbed. The test these replace said so about itself — "when the first region is
+   * declared this test must be replaced by one that exercises the form, not deleted."
+   * Here it is. Nothing below stubs the network.
+   */
+  test.describe('the date check reaches the API through this origin', () => {
+    async function check(page: import('@playwright/test').Page, first: string, last: string) {
+      // By role, not by label: /destination/i also matches the waitlist's free-text
+      // "Which destination?" input, and strict mode rightly refuses to pick one.
+      await page
+        .getByRole('combobox', { name: /^destination/i })
+        .selectOption({ label: E2E_REGION_NAME });
+      await page.getByLabel(/first day/i).fill(first);
+      await page.getByLabel(/last day/i).fill(last);
+      await page.getByRole('button', { name: /check these dates/i }).click();
+    }
+
+    test('dates inside the window are accepted — and nothing is created', async ({ page }) => {
+      await check(page, isoDaysFromNow(30), isoDaysFromNow(34));
+      const accepted = page
+        .getByRole('status')
+        .filter({ hasText: /we can plan this/i })
+        .first();
+      await expect(accepted).toBeVisible();
+      // Five days, four nights: the off-by-one lives exactly here.
+      await expect(accepted).toContainText(/4 nights/);
+      await expect(accepted).toContainText(/nothing has been created yet/i);
+    });
+
+    test('a two-day trip is refused, with the supported length, and no partial plan', async ({
+      page,
+    }) => {
+      await check(page, isoDaysFromNow(30), isoDaysFromNow(31));
+      const refused = page
+        .getByRole('alert')
+        .filter({ hasText: /we cannot plan this/i })
+        .first();
+      await expect(refused).toBeVisible();
+      await expect(refused).toContainText(/3 to 7 days/);
+      // REQ-TRIP-002: a refusal carries a sentence and the bounds, never an outline.
+      const body = (await page.locator('body').textContent()) ?? '';
+      expect(body).not.toMatch(/itinerary|day 1|suggested/i);
+    });
+
+    test('dates outside the window are refused, with the window', async ({ page }) => {
+      await check(page, isoDaysFromNow(4 * 365 + 10), isoDaysFromNow(4 * 365 + 14));
+      const refused = page
+        .getByRole('alert')
+        .filter({ hasText: /we cannot plan this/i })
+        .first();
+      await expect(refused).toBeVisible();
+      await expect(refused).toContainText(/outside that window/i);
+      await expect(refused).toContainText(/we can plan this region between/i);
+    });
+  });
+
+  test('joining the waitlist returns a one-time code, and the code withdraws', async ({ page }) => {
+    // The one browser test that writes personal data. The address is deleted by the
+    // withdrawal it performs, and global-teardown.ts removes the row by its marker.
+    const run = Date.now().toString(36);
+    await page.getByLabel(/email address/i).fill(`e2e-${run}@example.invalid`);
+    await page.getByLabel(/which destination/i).fill(`e2e-run-${run}`);
+    await page.getByRole('checkbox', { name: /you may email me/i }).check();
+    await page.getByRole('button', { name: /add me to the list/i }).click();
+
+    const joined = page
+      .getByRole('status')
+      .filter({ hasText: /you are on the list/i })
+      .first();
+    await expect(joined).toBeVisible();
+    const token = (await page.locator('[data-withdrawal-token]').textContent())?.trim() ?? '';
+    expect(token.length).toBeGreaterThan(20);
+
+    await page.getByLabel(/withdrawal code/i).fill(token);
+    await page.getByRole('button', { name: /remove me/i }).click();
+    await expect(
+      page
+        .getByRole('status')
+        .filter({ hasText: /^removed/i })
+        .first(),
+    ).toBeVisible();
+    await expect(page.getByText(/your address has been deleted/i)).toBeVisible();
   });
 
   test('the answer says when it was taken', async ({ page }) => {
