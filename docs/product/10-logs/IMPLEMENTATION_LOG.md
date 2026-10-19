@@ -60,6 +60,63 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-067 — DEC-003 · DEC-006 · DEC-010 · DEC-011 — Four owner decisions recorded; DEC-007 re-scoped; a DEC-005 proposal
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-10-19 |
+| Author | Deepesh Kumar Gupta (owner directives); recorded by the implementer |
+| Requirements | — governance; no requirement changes |
+| Blast radius | **Documentation only (LOW)** — no code, contract, schema or *executable document* edited. The authorization matrix was deliberately left alone: see "decisions taken" |
+| Commit | *(this commit)* |
+| Graph indexed commit | `c93bf90` — one documentation-only commit behind HEAD (`219254a`), by the stop recorded in `CLAUDE.md` §3 |
+
+### What was built
+
+Nothing. This entry records decisions, which is the one kind of change the log otherwise
+never sees arrive in a batch.
+
+| Decision | Owner's answer | Recorded as |
+| --- | --- | --- |
+| `DEC-003` business model | "both" | **Closed — hybrid**, `ADR-019`. `STEP-029` now required and undefined |
+| `DEC-005` KPI thresholds | "suggest me core north stars" | **Still open** — a four-north-star proposal recorded in the register row; awaits the owner's pick |
+| `DEC-006` review cadence | "weekly" | **Closed** — one weekly forum |
+| `DEC-007` cloud/region/residency | "almost all major countries; no prod rollout for now" | **Still open, re-scoped** — rollout deferred; residency must be designable; `ASM-003` invalidated |
+| `DEC-010` override approval | "RBAC — currently I will control the same" | **Closed**, `ADR-020` — a grantable role, owner the only holder; **recorded, not implemented** |
+| `DEC-011` minimum trip length | "correct" (3 days) | **Closed** — as built; `STEP-008.06` inherits |
+
+### Decisions taken by the implementer, in recording
+
+1. **ADRs for `DEC-003` and `DEC-010` only.** Both change architecture — a billing step and a
+   new role. `DEC-006` is cadence and `DEC-011` confirms what is already built; both are log
+   closures.
+2. **`DEC-010` is recorded and not implemented.** The matrix is executable — editing a cell
+   regenerates `authz/matrix.py` and the sync test fails CI on disagreement. That is a code
+   change under rule 1 with its own impact record, and the register already places it at
+   `STEP-021`. The cell stays fail-closed, which is the safe direction to be wrong in.
+3. **`DEC-007` was not closed.** "Consider almost all major countries, no production rollout
+   for now" is a residency directive plus a deferral, not a provider or region. Recording it
+   as closed would have claimed a decision that was not taken.
+4. **`STEP-029` is named as required and left undefined.** Inventing its scope inside a
+   decision record would be editing product scope through the back door.
+
+### What surprised us
+
+- **`GATE-001` and a paid tier are not obviously compatible.** The gate forbids payment
+  processing and was written about *bookings*; a subscription takes payment for the
+  product's own fee through a processor. Different thing, still payment. Whether the gate's
+  PCI/liability review is triggered is **owed by the owner before `STEP-029` can be scoped**,
+  and `ADR-019` says so instead of resolving it quietly.
+- **The "countries" directive collides with an assumption nobody had revisited.** `ASM-003`
+  assumed no residency constraint; the owner's intent is the opposite. Invalidated, with the
+  consequence named: deployment architecture must not assume a single region.
+- **The tracker said 7 open decisions; the register held 6.** The count was never
+  decremented when `DEC-012` closed on 2026-09-14. Now **2**, and the drift is noted in the
+  row rather than silently overwritten.
+
+---
+
+
 ## IMPL-066 — BUG-037 — The region that could never come back
 
 | Field | Value |

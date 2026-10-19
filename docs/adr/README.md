@@ -38,6 +38,8 @@ decision log.
 | [ADR-016](ADR-016-phase-1-destination-region.md) | Phase 1 destination region is Switzerland | Accepted |
 | [ADR-017](ADR-017-direct-pushes-to-main.md) | Direct pushes to `main` while there is one owner | Accepted |
 | [ADR-018](ADR-018-opentripplanner-as-the-routing-engine.md) | OpenTripPlanner 2, self-hosted, is the routing engine | Accepted |
+| [ADR-019](ADR-019-hybrid-business-model.md) | The business model is hybrid: affiliate handoff plus a paid tier | Accepted |
+| [ADR-020](ADR-020-high-impact-override-is-a-role.md) | Approving a high-impact fact override is a role, held today by the owner alone | Accepted |
 
 ## Rules
 

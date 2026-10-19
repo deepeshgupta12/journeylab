@@ -80,7 +80,7 @@ These are **not excluded**. Each names the condition, the owner and where the wo
 | ID | Open decision | Blocks |
 | --- | --- | --- |
 | DEC-002 | Phase 1 destination region | `STEP-005`, `STEP-010`, all evaluation corpora |
-| DEC-003 | Business model: affiliate-only, subscription, hybrid | Whether `STEP-029` (billing) exists; `GATE-001` |
+| ~~DEC-003~~ | ~~Business model~~ — **CLOSED 2026-10-19: hybrid** (`ADR-019`) | `STEP-029` (billing) now **required and undefined**; a `GATE-001` review against a subscription processor is owed before it is scoped |
 | DEC-004 | Identity provider | `STEP-002` |
 | DEC-005 | Numeric KPI thresholds | Release gates |
 | DEC-006 | KPI review cadence and forum | Governance |

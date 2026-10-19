@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Owner | TPM (Deepesh Kumar Gupta) |
-| Status | `DISCOVERY` — 0 of 18 assumptions validated |
+| Status | `DISCOVERY` — 0 of 18 assumptions validated; **1 invalidated** (`ASM-003`, 2026-10-19, by owner directive under `DEC-007`) |
 | Rule | Nothing in this documentation set may cite an open assumption as a fact |
 | Last reviewed | 2026-08-05 |
 
@@ -58,7 +58,7 @@ An **assumption** is something we have acted upon but have not verified. It diff
 | --- | --- | --- | --- | --- | --- | --- |
 | ASM-001 | A named product owner and per-step owners will be assigned before implementation begins | Derived — no owners exist today | `BLK-001` persists; no step can leave `READY`, and no exit gate can be signed off | Staffing decision | All steps | `OPEN` |
 | ASM-002 | Team composition and budget are sufficient for the 18-step manifest at the target release | Not specified anywhere | Roadmap phase durations are unplannable; sequencing must be re-cut | Capacity planning with a named TPM | [ROADMAP](ROADMAP.md) | `OPEN` |
-| ASM-003 | No data-residency obligation constrains the initial deployment region | Not specified (`DEC-007`) | Deployment architecture, provider selection and storage design change materially | Legal/privacy review of target user geography | STEP-027 | `OPEN` |
+| ASM-003 | ~~No data-residency obligation constrains the initial deployment region~~ — **INVALIDATED 2026-10-19:** the owner directed that the product be considered for almost all major countries, so residency must be designable per country rather than assumed absent (`DEC-007` re-scoped; production rollout deferred) | Not specified (`DEC-007`) | Deployment architecture, provider selection and storage design change materially | Legal/privacy review of target user geography | STEP-027 | `INVALIDATED` |
 | ASM-004 | The August 2026 technology baseline remains current at implementation time | Blueprint §10, portfolio standard §4.18 | Version choices in [TECHNICAL_ARCHITECTURE](../03-architecture/TECHNICAL_ARCHITECTURE.md) need revalidation before pinning | Dependency review at implementation start | STEP-001 | `OPEN` |
 
 ---

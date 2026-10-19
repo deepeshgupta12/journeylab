@@ -26,8 +26,8 @@ Navigation: [Scope](../01-product/PRODUCT_SCOPE.md) · [Roadmap](ROADMAP.md) · 
 | Requirements verified against implementation | **0** |
 | Application code files | **0** product code; foundation + 11 guards + 3 CI workflows |
 | Open blockers | **1** (`BLK-002`) — `BLK-001` closed via `ADR-010` |
-| Open decisions | **7** — `ASM-004` TS revalidation closed via `ADR-009` |
-| Open assumptions | **18** |
+| Open decisions | **2** — `DEC-005` (thresholds; a proposal awaits the owner's pick) and `DEC-007` (re-scoped: rollout deferred, design for multi-country residency). **Four closed 2026-10-19 by owner directive:** `DEC-003` hybrid (`ADR-019`), `DEC-006` weekly, `DEC-010` override approval as a role (`ADR-020`), `DEC-011` 3-day minimum stands. This line read **7** while the register held six — it was not decremented when `DEC-012` closed on 2026-09-14 |
+| Open assumptions | **17** — `ASM-003` invalidated 2026-10-19 (`DEC-007` re-scoped) |
 
 > **The rest of §1 is stale and is not silently rewritten here.** "Application code
 > files: **0** product code" predates every handler in `apps/api`; "Open blockers:
@@ -63,10 +63,14 @@ Navigation: [Scope](../01-product/PRODUCT_SCOPE.md) · [Roadmap](ROADMAP.md) · 
 | ~~BLK-002~~ | ~~No application code exists~~ — **PARTIALLY CLOSED 2026-08-12** (STEP-002.02 onward): 985 Python tests across `apps/api`, four services and `tools/` | Contracts remain `PROPOSED` — no handler implements one. Graph coverage gates are now evaluable and **`RISK-016` says one of them under-reports** | Engineering | Contracts: before `STEP-006` |
 | ~~DEC-002~~ | ~~Phase 1 destination region~~ — **CLOSED 2026-08-13: Switzerland** (`ADR-016`) | **`RISK-001` is not closed by it.** OSM is ODbL and the evidence pack is a derivative database, so a posture is owed **before STEP-010** | Product Lead | Resolved |
 | ~~DEC-004~~ | ~~Identity provider~~ — **CLOSED 2026-08-06: Auth0** (`ADR-013`) | **Unverified against a live tenant** — no Auth0 account exists, so passkey enrolment and rotation-under-concurrency are unproven (`BR-014` §9) | Security Architect | Resolved |
-| `DEC-005` | KPI thresholds undefined | Phase 1 exit gates not objectively evaluable | Product Lead | Before Phase 1 exit |
-| `DEC-007` | Cloud provider/region/residency undecided | Blocks `STEP-027` | Product Architect | Before `STEP-027` |
+| `DEC-005` | KPI thresholds undefined — **a four-north-star proposal is recorded in `DECISION_LOG` (2026-10-19) and awaits the owner's pick**; binding values follow the first pilot baseline | Phase 1 exit gates not objectively evaluable | Product Lead | Before Phase 1 exit |
+| `DEC-007` | Cloud provider/region/residency — **re-scoped 2026-10-19:** production rollout **deferred**; the product is to be considered for almost all major countries, so residency must be designable per country (`ASM-003` invalidated). Phase 1 planning scope stays Switzerland | `STEP-027` unscheduled; deployment architecture must not assume a single region | Product Architect | Before `STEP-027` — itself deferred |
 | ~~DEC-008~~ | ~~Routing provider~~ — **CLOSED 2026-08-17: OpenTripPlanner 2, self-hosted** (`ADR-018`) | Self-hosting arrives before Phase 1 and couples to `DEC-007`. Accepted knowingly | Product Architect | Resolved |
 | ~~DEC-009~~ | ~~Event backbone~~ — **CLOSED 2026-08-13: Kafka** (`ADR-015`), owner directive | Unblocks AsyncAPI client generation and compatibility diffing, both of which named this decision as their trigger | Product Architect | Resolved |
+| ~~DEC-003~~ | ~~Business model~~ — **CLOSED 2026-10-19: hybrid — affiliate handoff plus a paid tier** (`ADR-019`), owner directive | `STEP-029` (billing) is now **required and undefined**; `GATE-001` must be read against a subscription processor before it is scoped; evidence and feasibility are never premium | Product Lead + Commercial | Resolved |
+| ~~DEC-006~~ | ~~Review cadence~~ — **CLOSED 2026-10-19: weekly**, one forum for delivery and product | Governance | TPM | Resolved |
+| ~~DEC-010~~ | ~~High-impact override approval~~ — **CLOSED 2026-10-19: a grantable role, held today by the owner alone** (`ADR-020`) | **Recorded, not implemented** — the matrix cell stays fail-closed until `STEP-021`, because editing it is a code change | Security Architect | Resolved |
+| ~~DEC-011~~ | ~~Minimum trip length~~ — **CLOSED 2026-10-19: 3 days stands**, owner confirmed | `STEP-007.03` refuses 1–2 day trips as built; `STEP-008.06` inherits | Product Lead | Resolved |
 | `EV-GAP-002` | Provider licence viability unproven | `RISK-001` — highest exposure (20) | Data Architect + Legal | Before Phase 1 |
 
 ---

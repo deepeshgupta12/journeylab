@@ -353,7 +353,7 @@ Operating rule: the scope must run from before first interaction through retirem
 | Deletion | `STEP-025` |
 | Retirement (product/destination/model sunset) | `STEP-025` §retirement, `STEP-027` deprecation |
 
-**Billing note:** JourneyLab MVP has **no billing surface** — there is no payment processing and no subscription decision (`DEC-003`). If `DEC-003` resolves to a paid tier, a new `STEP-029` must be created rather than folding billing into an existing step.
+**Billing note:** `DEC-003` resolved 2026-10-19 — **hybrid** (`ADR-019`): affiliate handoff plus a paid tier. A new `STEP-029` (billing) is therefore **required**, as this note always said it would be, and it is **not yet defined**: no scope, sub-steps or requirements exist for it, the MVP still has no billing surface, and `GATE-001` must be read against a subscription processor before it is scoped. One constraint is fixed now: evidence, freshness, constraint violations and table/CSV equivalents are never premium — a free plan may be shallower, never less honest.
 
 ---
 

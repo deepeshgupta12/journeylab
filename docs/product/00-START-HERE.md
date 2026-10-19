@@ -149,7 +149,7 @@ The project-local `.gitnexus/run.cjs` runner was **not** generated — use `npx 
 | ~~BLK-001~~ | **CLOSED** — Deepesh Kumar Gupta (`@deepeshgupta12`) owns all roles (`ADR-010`) | Steps may leave `READY`. **New gap:** four-eyes approval unsatisfiable with one owner |
 | **BLK-002** | **No application code exists** | Contracts are `PROPOSED`; graph coverage gates are not evaluable; traceability is unverified |
 | `DEC-002` | Phase 1 destination region undecided | Blocks `STEP-005`, `STEP-010`, all evaluation corpora — **critical path** |
-| `DEC-003` | Business model undecided | Determines whether a billing step exists at all |
+| ~~`DEC-003`~~ | **Closed 2026-10-19 — hybrid** (`ADR-019`) | A billing step (`STEP-029`) now exists in principle and is undefined |
 | `DEC-004` | Identity provider undecided | Blocks `STEP-002` → 12-step fan-in |
 | `DEC-005` | KPI thresholds undefined | Phase 1 exit gates not objectively evaluable |
 | `DEC-006` | KPI review cadence and forum | Governance |
