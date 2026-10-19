@@ -60,6 +60,67 @@ expensive knowledge lives.
 
 ## Entries
 
+## IMPL-069 — BUG-039 — The database could be crashed by its own health probe
+
+| Field | Value |
+| --- | --- |
+| Date | 2026-10-19 |
+| Author | Deepesh Kumar Gupta |
+| Requirements | REQ-NFR-005 |
+| Blast radius | `BR-068` (LOW) — four one-line configuration changes and a guard rule |
+| Commit | *(this commit)* |
+| Graph indexed commit | `62b65d0` — matched HEAD at the pre-change check; forced re-index, see `BR-067` §1 |
+
+### What was built
+
+An init process is PID 1 everywhere a `pg_isready` health probe runs: `init: true` on the
+dev compose service, `--init` on the CI mirror's `docker run`, `--init` in the CI service's
+`options`. The `postgres-healthcheck` guard — which exists because `BUG-009` was a different
+flaw in the same probe — gains a second rule: a file that defines a `pg_isready` *health
+check* must give its container an init process. Three meta-tests prove the rule catches
+its own removal, in both the compose and the `docker run` forms.
+
+### What was wrong
+
+PostgreSQL's postmaster treats an **untracked child** that exits with any status other than
+0 or 1 as a crash. The container ran the postmaster as PID 1 with no init. A `CMD-SHELL`
+health check with a five-second timeout, under the browser suite's load on an amd64 image
+emulated through Rosetta, ran long; Docker killed the shell; the orphaned `pg_isready` was
+reparented to PID 1 — the postmaster — and exited **2** ("no response"). Every backend was
+terminated. Twice in seventy seconds. `OOMKilled=false`; nine of a hundred connections.
+
+### How it was proven
+
+Not inferred from the log. Three experiments, each reversible, each recovered in about a
+second: an exec'd process exiting 2 — **no effect, not even a log line** (exec'd processes
+are not the postmaster's children); an **orphan** adopted by PID 1 exiting 2 — **crashed
+the database in 3 ms** with the identical log sequence; an orphan exiting 1 — logged and
+ignored. After the fix, the same orphan experiment: nothing. Then the full browser suite
+under the same load: zero crash lines.
+
+### Decisions
+
+1. **A separate bug, not a footnote to `BUG-038`.** Different layer, different regression
+   test, and a reader of a CORS bug should not have to learn about Rosetta and PID 1.
+2. **The guard's rule is scoped to health checks, not to every probe.** `tests/e2e/smoke.sh`
+   runs `pg_isready` in a `docker compose exec` wait loop; no health timeout can kill it,
+   and the first version of the rule flagged it anyway. A rule that is wrong about one file
+   is a rule people learn to override.
+3. **Comment lines are stripped before the guard looks for the flag.** The first version was
+   satisfied by its own explanatory comment after the real `--init` had been removed. The
+   meta-suite caught it — which is what the meta-suite is for.
+
+### What surprised us
+
+- The honest failure branch of the product page was the thing that made this diagnosable:
+  *"the coverage service returned 503"* named the status, so the trail led to the API log,
+  then to the Postgres log, instead of ending at "flaky test".
+- `--init` in a GitHub service container's `options` is **believed correct and unverified**
+  until the next CI run. Recorded as such in the register rather than asserted.
+
+---
+
+
 ## IMPL-068 — DEC-005 — Four north stars confirmed final; DEC-013 opened for the engineering constants
 
 | Field | Value |

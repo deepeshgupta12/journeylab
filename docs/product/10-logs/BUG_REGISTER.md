@@ -46,6 +46,161 @@ Navigation: [Logs index](README.md) · [Implementation log](IMPLEMENTATION_LOG.m
 
 ---
 
+## BUG-039 — The database could be crashed by its own health probe
+
+| Field | Value |
+| --- | --- |
+| Severity | **S2** — a self-inflicted outage of the only database, in every environment that runs the health probe (dev stack, CI mirror, CI service), triggered by load |
+| Found during | Verifying `BUG-038`, 2026-10-19 — the browser suite's first run with real form submissions crashed the dev database twice in seventy seconds |
+| Date found | 2026-10-19 |
+| Affected requirements | REQ-NFR-005 (dependency availability), REQ-EVID-006 indirectly — the page rendered the honest branch throughout |
+| Affected component | `docker-compose.dev.yml` (`postgres` service), `tests/ci-mirror.sh`, `.github/workflows/verify.yml` — every container where Postgres is PID 1 and a `pg_isready` probe can time out |
+| Status | **FIXED 2026-10-19** — an init process is PID 1 in all three; the `postgres-healthcheck` guard enforces it. `BR-068` |
+
+### Symptom
+
+Eleven browser tests failed with the page's own message, *"the coverage service returned
+503"*. The API log: thirteen consecutive `GET /coverage → 503`. The Postgres log:
+
+```
+LOG:  untracked child process (PID 6244) exited with exit code 2
+LOG:  terminating any other active server processes
+LOG:  all server processes terminated; reinitializing
+FATAL:  the database system is in recovery mode      (×9, over ~60 s)
+```
+
+Then the same again six seconds after recovery. `OOMKilled=false`; nine of a hundred
+connections in use.
+
+### Root cause
+
+Three facts that are each fine alone. (1) The Postgres image runs the postmaster as
+**PID 1** with no init process. (2) The health check is a shell command with a
+**five-second timeout**; when it elapses Docker kills the shell, and the `pg_isready` it
+spawned is **orphaned onto PID 1** — the postmaster. (3) PostgreSQL's postmaster treats an
+untracked child that exits with any status other than 0 or 1 as a **crash** and terminates
+every backend. `pg_isready` exits **2** for "no response", which is precisely why it was
+slow enough to be orphaned. Under load — here, an amd64 image emulated through Rosetta,
+with the browser suite opening connections in parallel — the probe times out, and the
+database kills itself.
+
+**Proven, not inferred:** an exec'd orphan `(sleep 2; exit 2) &` crashed the database in
+three milliseconds with the identical log; a non-orphaned `exit 2` did nothing; an orphan
+exiting 1 was logged and ignored. Three experiments, one mechanism, no survivors.
+
+### Why the tests missed it
+
+- It is load-dependent: eight quiet runs that day never crossed the five-second line.
+  The first run that submitted forms did.
+- Every environment's health probe was written against `BUG-009` (the socket/TCP flaw)
+  and checked by a guard for *that*. Nobody asked what happens when the probe is **slow**
+  rather than **wrong**.
+- The failure reads as a flaky test. `BUG-016` already established that a flaky gate
+  teaches people that re-running is the fix — which is exactly what would have happened
+  here if the page's "could not be loaded" branch had not named the status code.
+
+### Fix (`BR-068`)
+
+An init process becomes PID 1 everywhere the probe runs: `init: true` on the compose
+service, `--init` on the mirror's `docker run`, `--init` in the CI service's `options`.
+Orphans reparent to init and are reaped there; the postmaster never sees them. **The CI
+flag is believed correct and unverified until the next push** — `options` are passed to
+`docker create`, which accepts `--init`, but no run has yet proven it.
+
+### Regression test
+
+`tests/guards/postgres-healthcheck.sh` — second rule: every file defining a `pg_isready`
+probe must give its container an init process (`NO INIT` otherwise). Meta-tests remove
+`init: true` from the compose file and prove the guard fails, then restore it. The
+experiment itself is not automated: deliberately crashing the database is a test the
+suite should not run, and the guard holds the property that makes it impossible.
+
+---
+
+## BUG-038 — The two interactive features of the coverage page fail in every real browser
+
+| Field | Value |
+| --- | --- |
+| Severity | **S1 for the page** — the date check and the waitlist, the only two things a traveller can *do* on the only product page, cannot work from a browser. Not S1 for the product: no trip can be created yet and nothing real has ever flowed (`ENH-007`), which is precisely why nobody noticed |
+| Found during | **The owner's first manual review of `/coverage`, 2026-10-19** — the first time a human clicked the button |
+| Date found | 2026-10-19 |
+| Affected requirements | REQ-TRIP-001, REQ-TRIP-002, REQ-PRIV-002, REQ-A11Y-001 |
+| Affected component | `apps/web/src/app/coverage/planning-check.tsx` and `waitlist.tsx` — browser-direct `fetch` to `NEXT_PUBLIC_JOURNEYLAB_API_URL`; `apps/api/src/app.py` — no CORS handling, by design |
+| Status | **OPEN** — fix in progress under `BR-067`; design `ADR-022` (same-origin proxy), chosen by the owner |
+
+### Symptom
+
+Reproduced in the owner's browser and confirmed in the API log, not inferred:
+
+```
+OPTIONS /coverage%3Acheck HTTP/1.1   405 Method Not Allowed
+```
+
+The page at `localhost:5709` posts to `127.0.0.1:5710` — a different origin — so the
+browser sends a CORS preflight. The API has no CORS handling and answers the `OPTIONS`
+with 405. The browser blocks the real request, `fetch` throws, and the component renders
+*"We could not check — this is a problem on our side"*. Which it is. The waitlist join
+and the withdrawal use the identical pattern and fail identically. `localhost` versus
+`127.0.0.1` is irrelevant: any port difference is a different origin.
+
+### Root cause
+
+Two decisions, each reasonable alone, that nobody put in the same room:
+
+1. Client islands call the API **directly from the browser** (`planning-check.tsx:60`,
+   `waitlist.tsx:57`), with the API's address baked into the bundle at build time.
+2. The API **deliberately carries no middleware** (`app.py:18` — "no middleware this
+   sub-step does").
+
+`FRONTEND_ARCHITECTURE` prescribes server components for reads and client islands for
+interaction and says nothing about how a client island reaches the API. No document
+states a CORS policy. The two halves were built in separate sub-steps against separate
+tests, and the browser is the only place they meet.
+
+**A second defect found alongside, in the same components:** every non-2xx response is
+rendered as a refusal. A 503 from the API's own `dependency_unavailable` path reaches the
+withdrawal form as *"That code does not work"* — a service outage reported as the user's
+mistake.
+
+### Why the tests missed it
+
+- **92 browser tests; zero of them submit either form.** `coverage.spec` asserts presence,
+  names, copy and keyboard reachability; `a11y.spec` asserts focus and announcements. Not
+  one presses *Check these dates* or *Add me to the list*. The empty-state test at line 89
+  said so about itself: *"When the first region is declared this test must be replaced by
+  one that exercises the form."*
+- **Component tests stub `fetch`** (`vi.stubGlobal`), so the request's origin never
+  mattered. **API tests call the handlers directly**, so no browser was involved. Each half
+  was proven. The seam was proven by nobody.
+- **No region had ever been declared**, so a test that wanted to click the button had
+  nothing to click against — and the suite assumed that emptiness as a fixture.
+- The shape is `BUG-032`'s second lesson again: a suite that asserts the presence and
+  absence of *elements* passes against a page whose *actions* never work.
+
+### Fix (`BR-067`, `ADR-022`)
+
+The browser never calls the API. Three same-origin route handlers under `/api/coverage/*`
+forward to the API server-side — exactly as `/api/auth/*` already does — with an
+allowlist of forwarded headers (no cookies), the upstream status and problem document
+preserved, and an unreachable upstream returned as a **503 problem document**. Both
+components call relative paths and treat 503 as *unreachable* rather than as a refusal in
+all three flows. `NEXT_PUBLIC_JOURNEYLAB_API_URL` is removed: the browser bundle no longer
+knows where the API is, which is also what `STEP-008`'s first-party session cookie needs.
+
+### Regression test
+
+- `apps/web/src/test/coverage.spec.ts` — the browser **submits** both forms against the real
+  API through the real proxy: an in-window range is accepted; an out-of-window range is
+  refused with its bounds; a two-day range is refused; a waitlist join returns a token and
+  that token withdraws. **The suite seeds and removes its own reserved region** so the
+  result no longer depends on what the developer's database holds.
+- `apps/web/src/app/api/coverage/proxy.test.ts` — header allowlist, cookies not forwarded,
+  status and content-type preserved, upstream failure → 503 problem, path mapping.
+- `planning-check.test.tsx`, `waitlist.test.tsx` — relative URL asserted; 503 → unreachable
+  in all three flows.
+
+---
+
 ## BUG-037 — A region that lost a provider could never recover
 
 | Field | Value |

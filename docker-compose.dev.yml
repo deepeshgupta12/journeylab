@@ -21,6 +21,12 @@ services:
     # PostGIS PG18 ships amd64 only; emulated on Apple Silicon (~3s to ready).
     platform: linux/amd64
     container_name: journeylab-postgres
+    # BUG-039: an init process must be PID 1. Without one, a health probe that times
+    # out leaves its `pg_isready` orphaned onto the postmaster, which treats an
+    # untracked child exiting 2 as a crash and terminates every backend. Proven by
+    # experiment on 2026-10-19 (BR-068 §2). `init: true` makes tini PID 1; orphans
+    # reparent to it and the postmaster never sees them.
+    init: true
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-journeylab}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-journeylab_dev_only}

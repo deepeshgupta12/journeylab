@@ -46,11 +46,15 @@ jobs:
         # server that is about to be shut down and restarted. STEP-001.07 wrote
         # the socket form here and in the mirror despite the warning comment in
         # docker-compose.dev.yml; CI had been passing on timing, not correctness.
+        # BUG-039: --init, so a probe that exceeds --health-timeout cannot orphan its
+        # pg_isready onto the postmaster (exit 2 -> every backend terminated). The
+        # dev database crashed twice under the browser suite this way; BR-068 §2.
         options: >-
           --health-cmd "pg_isready -h 127.0.0.1 -U journeylab"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+          --init
 
     env:
       # Port 5700 matches the dev stack, so the default DSN needs no override and

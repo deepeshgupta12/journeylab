@@ -508,6 +508,23 @@ cp /tmp/META_PGWF.bak .github/workflows/verify.yml; rm -f /tmp/META_PGWF.bak
 assert_guard "postgres-healthcheck clean again" \
   tests/guards/postgres-healthcheck.sh 0 "explicit host"
 
+# BUG-039: the probe's container must have an init process, or a timed-out probe is
+# orphaned onto the postmaster and crashes it. Seed the removal in BOTH places the
+# guard checks differently — a compose `init: true` and a docker-run `--init`.
+cp docker-compose.dev.yml /tmp/META_PGINIT.bak
+sedi 's|^    init: true$|    # init removed by meta-test|' docker-compose.dev.yml
+assert_guard "postgres-healthcheck catches a compose service with no init" \
+  tests/guards/postgres-healthcheck.sh 1 "NO INIT"
+cp /tmp/META_PGINIT.bak docker-compose.dev.yml; rm -f /tmp/META_PGINIT.bak
+
+cp tests/ci-mirror.sh /tmp/META_PGINIT2.bak
+sedi 's|docker run -d --rm --init --name|docker run -d --rm --name|' tests/ci-mirror.sh
+assert_guard "postgres-healthcheck catches a docker run with no --init" \
+  tests/guards/postgres-healthcheck.sh 1 "NO INIT"
+cp /tmp/META_PGINIT2.bak tests/ci-mirror.sh; rm -f /tmp/META_PGINIT2.bak
+assert_guard "postgres-healthcheck clean again after the init probes" \
+  tests/guards/postgres-healthcheck.sh 0 "init process"
+
 echo ""
 echo "════════════════════════════════════════"
 echo "  meta-tests passed: $pass"

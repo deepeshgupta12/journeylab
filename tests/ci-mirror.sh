@@ -86,7 +86,9 @@ docker network create "$MIRROR_NET" >/dev/null 2>&1 || true
 #
 #   The budget was never the problem. The health command must be the TCP form,
 #   exactly as docker-compose.dev.yml has warned since STEP-002.02.
-if ! docker run -d --rm --name "$MIRROR_DB" --network "$MIRROR_NET" \
+# BUG-039: --init, so a health probe that times out cannot orphan its pg_isready onto
+# the postmaster and crash the server it was checking. Same hazard as the dev stack.
+if ! docker run -d --rm --init --name "$MIRROR_DB" --network "$MIRROR_NET" \
   -e POSTGRES_USER=journeylab \
   -e POSTGRES_PASSWORD=journeylab_dev_only \
   -e POSTGRES_DB=journeylab \
@@ -127,6 +129,10 @@ echo "  postgres:18-alpine healthy after $((SECONDS - db_started))s on network $
 
 echo ""
 echo "=== 2. Cold install + verify on Linux ==="
+# pnpm's default fetch timeout is 60 s. On 2026-10-19 the registry answered single
+# requests in 15-53 s for a quarter of an hour and one fetch crossed the line; the
+# install aborted and the mirror reported FAIL about the network, not the commit.
+# A patient fetch keeps the mirror's verdict about the code. CI has its own retries.
 docker run --rm \
   -v "$STAGE":/w \
   -w /w \
@@ -136,6 +142,8 @@ docker run --rm \
   -e PNPM_STORE_DIR=/pnpm/store \
   -e JOURNEYLAB_DATABASE_URL="postgresql://journeylab:journeylab_dev_only@${MIRROR_DB}:5432/journeylab" \
   -e JOURNEYLAB_REQUIRE_DB=1 \
+  -e npm_config_fetch_timeout=300000 \
+  -e npm_config_fetch_retries=5 \
   node:24-bookworm \
   bash -euo pipefail -c '
     # NOTE: this whole block is inside SINGLE quotes, so backslash-escaped double

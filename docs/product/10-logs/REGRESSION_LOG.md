@@ -69,6 +69,44 @@ trending up, coverage gaps accepted with a reason.
 
 ---
 
+## FIX — 2026-10-19 — BUG-039: the database could be crashed by its own health probe
+
+| Field | Value |
+| --- | --- |
+| Commit | *(this commit)* |
+| Graph indexed commit | `62b65d0` (forced re-index; `BR-067` §1) |
+| Blast radius | `BR-068` (LOW) |
+
+| Check | Result | Detail |
+| --- | --- | --- |
+| R1 full regression | **PASS** | `pnpm verify` **exit 0** on the working tree, which also held `BUG-038`'s fix: 1485 Python (4 skipped), 311 UI, 122 web, **98 browser**, meta **79/79** (the three new init meta-tests included), R7 18/18. **This commit is validated alone by the CI mirror below** — a clean clone of exactly this content |
+| R2 contract compatibility | **PASS — no contract change** | Configuration and a guard |
+| R3 graph diff as expected | **PASS** | `detect_changes` on the full working tree: 51 symbols, 28 files, 2 affected processes — both `BUG-038`'s (`OnJoin`, `OnWithdraw`). **None of this commit's files is a code symbol**; its reach is the three containers the guard enumerates |
+| R4 untested requirements | **PASS — unchanged** | — |
+| R5 orphan/unowned nodes | **PASS** | Catch-all owner |
+| R6 closed-bug tests | **PASS** | `BUG-009`/`BUG-025`'s guard still passes, now with a second rule; its meta-tests 6/6 |
+| R7 tenant isolation | **PASS** | 18/18 — against a database that can no longer be crashed by its probe |
+| CI mirror | **PASS** | `tests/ci-mirror.sh` **exit 0** against `fa820cf` — 613 tracked files cloned, Linux `node:24-bookworm`, cold `--frozen-lockfile` install, a fresh `postgres:18-alpine` started **with `--init`** and healthy in 9 s. Reproduced there: 1478 Python (4 skipped), R7 18/18, 92 browser (this commit predates `BUG-038`'s new tests), gallery gate run. **The first attempt returned FAIL about the network, not the commit** — the registry answered single requests in 15–53 s from inside the container and pnpm's default 60 s fetch timeout aborted the install before any test ran — which is why this commit also gives the mirror a patient fetch (300 s, 5 retries). The second attempt took 18 minutes and passed |
+
+**Overall:** PASS.
+
+### Mutation — `BR-068` §6
+
+| # | Seeded defect | Result |
+| --- | --- | --- |
+| 1 | `init: true` removed from the compose service | **killed** — meta-test, `NO INIT` |
+| 2 | `--init` removed from the mirror's `docker run` | **killed** — meta-test, `NO INIT`. **This one found a real hole first:** the guard's file-level grep was satisfied by its own comment containing `--init`; comment lines are now stripped before the check |
+| 3 | the guard's new rule deleted | killed by construction — meta-tests 1 and 2 cannot observe `NO INIT` without it |
+
+### The experiment, not the log, is the evidence
+
+Three orphan/exec experiments against the live dev database established the mechanism
+(`BR-068` §2); the same orphan experiment after the fix did nothing; the full browser suite
+then ran under the load that had crashed it twice, with **zero** crash lines. The log
+pattern alone would have supported a plausible wrong story — it did, for about ten minutes.
+
+---
+
 ## CORRECTION — 2026-09-17 — RISK-016: the mechanism I published was wrong
 
 | Field | Value |
