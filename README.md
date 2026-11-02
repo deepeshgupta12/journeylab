@@ -313,4 +313,4 @@ before `STEP-021`.
 
 ## Licence
 
-UNLICENSED — private, all rights reserved.
+Proprietary — © 2026 Deepesh Kumar Gupta. All rights reserved. See [LICENSE](LICENSE).
